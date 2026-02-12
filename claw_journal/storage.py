@@ -39,12 +39,14 @@ class UsageRepository:
                     cost_source TEXT NOT NULL DEFAULT 'missing',
                     duration_ms INTEGER,
                     reasoning_text TEXT,
-                    raw_json TEXT NOT NULL
+                    raw_json TEXT NOT NULL,
+                    event_fingerprint TEXT
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_usage_events_ts ON usage_events(event_ts);
                 CREATE INDEX IF NOT EXISTS idx_usage_events_session ON usage_events(session_id);
                 CREATE INDEX IF NOT EXISTS idx_usage_events_model ON usage_events(model);
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_events_fingerprint ON usage_events(event_fingerprint) WHERE event_fingerprint IS NOT NULL;
 
                 CREATE TABLE IF NOT EXISTS checkpoints (
                     source_key TEXT PRIMARY KEY,
@@ -78,6 +80,11 @@ class UsageRepository:
                 conn.execute(
                     "ALTER TABLE usage_events ADD COLUMN cost_source TEXT NOT NULL DEFAULT 'missing'"
                 )
+            if "event_fingerprint" not in columns:
+                conn.execute("ALTER TABLE usage_events ADD COLUMN event_fingerprint TEXT")
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_events_fingerprint ON usage_events(event_fingerprint) WHERE event_fingerprint IS NOT NULL"
+            )
 
     def insert_usage_events(self, events: Iterable[NormalizedUsageEvent]) -> int:
         rows = [
@@ -99,6 +106,7 @@ class UsageRepository:
                 e.duration_ms,
                 e.reasoning_text,
                 e.raw_json,
+                e.event_fingerprint,
             )
             for e in events
         ]
@@ -107,9 +115,10 @@ class UsageRepository:
             return 0
 
         with self._connect() as conn:
+            before = conn.total_changes
             conn.executemany(
                 """
-                INSERT INTO usage_events (
+                INSERT OR IGNORE INTO usage_events (
                     event_ts,
                     event_type,
                     session_id,
@@ -126,12 +135,14 @@ class UsageRepository:
                     cost_source,
                     duration_ms,
                     reasoning_text,
-                    raw_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    raw_json,
+                    event_fingerprint
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 rows,
             )
-        return len(rows)
+            inserted = conn.total_changes - before
+        return inserted
 
     def get_daily_usage(self, days: int = 30) -> list[DailyUsageRow]:
         with self._connect() as conn:

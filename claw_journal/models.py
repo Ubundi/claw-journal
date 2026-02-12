@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 import json
+import hashlib
 
 
 @dataclass
@@ -25,6 +26,7 @@ class NormalizedUsageEvent:
     duration_ms: int | None
     reasoning_text: str | None
     raw_json: str
+    event_fingerprint: str
 
 
 @dataclass
@@ -234,4 +236,5 @@ def normalize_log_event(payload: dict[str, Any], raw_json: str) -> NormalizedUsa
         duration_ms=duration_ms,
         reasoning_text=reasoning_text,
         raw_json=raw_json,
+        event_fingerprint=hashlib.sha256(raw_json.encode("utf-8")).hexdigest(),
     )
