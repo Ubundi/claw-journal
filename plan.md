@@ -19,46 +19,15 @@ Cost tracking: Understand and predict AI spend`
 
    1. Annotating subagent invocation and tool selection
 
+From the docs of already existing current limited cost observaility in openclaw official:
 
-"agents": {
-  "defaults": {
-    "model": {
-      "primary": "anthropic/claude-opus-4-5"
-    },
-    "models": {
-      "anthropic/claude-sonnet-4-5": {
-        "alias": "sonnet",
-       ` "cost": {
-          "input": 3.00,
-          "output": 15.00,
-          "cacheRead": 0.30,
-          "cacheWrite": 3.75
-        }`
-      },
-      "zai/glm-4.7": {
-        "cost": {
-          "input": 0.10,
-          "output": 0.10
-        }
-      },
-      "anthropic/claude-opus-4": {
-        "alias": "opus",
-        "cost": {
-          "input": 15.00,
-          "output": 75.00,
-          "cacheRead": 1.50,
-          "cacheWrite": 18.75
-        }
-      },
-      "anthropic/claude-opus-4-5": {
-        "alias": "opus",
-        "cost": {
-            "input": 5.00,
-            "output": 25.00,
-            "cacheRead": 0.50,
-            "cacheWrite": 6.25
-        }
-      }   
-    }
-  }
-}
+How to see current token usage
+Use these in chat:
+/status → emoji‑rich status card with the session model, context usage, last response input/output tokens, and estimated cost (API key only).
+/usage off|tokens|full → appends a per-response usage footer to every reply. only sets what to show in the tui.
+Persists per session (stored as responseUsage).
+OAuth auth hides cost (tokens only). this is the major bottleneck and makes it difficult to track. 
+/usage cost → shows a local cost summary from OpenClaw session logs. this does not work with oauth
+Other surfaces:
+TUI/Web TUI: /status + /usage are supported.
+CLI: openclaw status --usage and openclaw channels list show provider quota windows (not per-response costs), so not useful

@@ -9,14 +9,14 @@
 Claw Journal runs as a local service alongside your OpenClaw instance to capture and display:
 
 ### 📊 Comprehensive Usage Analytics
-- **Token Tracking:** Detailed breakdown of input/output tokens across sessions.
-- **Cost Observability:** Real-time cost estimation for API Key users, with workarounds for OAuth limitations.
+- **Token Tracking:** Real-time breakdown of input/output tokens parsed directly from OpenClaw session logs.
+- **Cost Observability:** Accurate cost estimation by applying model-specific pricing tables to token counts, bypassing the lack of provider billing data for OAuth users.
 - **Visual Graphs:** Interactive charts showing usage trends over time (daily, weekly, monthly).
 - **Forecasting:** Compare actual usage against predicted costs for different models.
 
 ### 🧠 Agent Logic & Reasoning
-- **Conversation Logs:** Searchable archive of your interactions.
-- **Thinking Process Annotation:** Visualize "Wait... thinking" blocks.
+- **Conversation Logs:** Searchable archive of your interactions, reconstructed from session log events.
+- **Thinking Process Annotation:** Visualize "Wait... thinking" blocks and internal reasoning steps often hidden in chat UIs.
 - **Sub-Agent Tracking:** See exactly when and why specific sub-agents or tools (e.g., file search, terminal) were invoked.
 
 ### 🔔 Alerts & Benchmarks
@@ -46,7 +46,10 @@ Create a `.env` file from the example:
 ```bash
 cp .env.example .env
 ```
-Edit `.env` to add your preferences, such as budget thresholds and notification numbers.
+Edit `.env` to configure your settings:
+- `OPENCLAW_LOG_DIR`: Path to your OpenClaw logs (default: `/tmp/openclaw/`).
+- `BUDGET_THRESHOLD`: Daily spend limit for alerts (e.g., `5.00`).
+- `WHATSAPP_NUM`: Phone number for budget alerts.
 
 ## 🖥️ Running the Dashboard
 
@@ -58,9 +61,13 @@ python main.py
 
 ## 🧩 Usage with OpenClaw
 
-Once running, Claw Journal listens for events from your OpenClaw session (via logs or a configured webhook). 
+Claw Journal continuously monitors your OpenClaw log files (default: `/tmp/openclaw/openclaw-YYYY-MM-DD.log`). As new entries are written, the dashboard updates in real-time.
 
-Simply use OpenClaw as normal. Visit the dashboard to see your metrics populate in real-time.
+1. Start your OpenClaw session (terminal or TUI).
+2. Use commands like `/status` or `/usage` in OpenClaw to verify internal tracking.
+3. Open `http://localhost:3000` to see the parsed data, including:
+   - **Session Costs:** Calculated from token usage even for OAuth providers where API cost data is hidden.
+   - **Thinking Logs:** Expanded views of internal chain-of-thought not fully visible in the main chat.
 
 ---
 *Created for the OpenClaw community.*
