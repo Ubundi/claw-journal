@@ -125,7 +125,8 @@ No write operations were performed on the OpenClaw instance.
 
 ### High Priority
 
-- [ ] Add robust parser support for OpenClaw logger envelope fields (`0`,`1`,`2`,`_meta`,`time`) and nested usage payloads.
+- [x] Add parser support for OpenClaw logger envelope fields (`0`,`1`,`2`,`_meta`,`time`) and nested usage payloads.
+- [ ] Expand parser mappings for additional provider-specific token/cost keys observed in production logs.
 - [ ] Add log-derived cost estimation using model pricing table when cost is absent (OAuth-safe fallback).
 - [ ] Add dedupe keying for repeated log lines across rotations/restarts.
 - [ ] Add redaction guardrails for sensitive values in stored `raw_json`.
