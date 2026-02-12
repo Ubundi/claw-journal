@@ -21,6 +21,7 @@ class NormalizedUsageEvent:
     total_tokens: int
     context_tokens: int
     cost_usd: float | None
+    cost_source: str
     duration_ms: int | None
     reasoning_text: str | None
     raw_json: str
@@ -196,6 +197,7 @@ def normalize_log_event(payload: dict[str, Any], raw_json: str) -> NormalizedUsa
     cost_usd = _to_float(
         _pick_first(containers, ["cost", "costUsd", "openclaw.cost.usd", "usdCost"])
     )
+    cost_source = "observed" if cost_usd is not None else "missing"
     duration_ms = _to_int(
         _pick_first(containers, ["durationMs", "duration_ms", "latencyMs", "responseMs"])
     ) or None
@@ -228,6 +230,7 @@ def normalize_log_event(payload: dict[str, Any], raw_json: str) -> NormalizedUsa
         total_tokens=total_tokens,
         context_tokens=context_tokens,
         cost_usd=cost_usd,
+        cost_source=cost_source,
         duration_ms=duration_ms,
         reasoning_text=reasoning_text,
         raw_json=raw_json,

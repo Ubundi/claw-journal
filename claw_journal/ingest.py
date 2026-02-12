@@ -7,6 +7,7 @@ from glob import glob
 from pathlib import Path
 
 from .models import normalize_log_event
+from .pricing import PricingEngine
 from .storage import UsageRepository
 
 
@@ -14,9 +15,17 @@ logger = logging.getLogger(__name__)
 
 
 class LogIngestor:
-    def __init__(self, repository: UsageRepository, log_glob: str) -> None:
+    def __init__(
+        self,
+        repository: UsageRepository,
+        log_glob: str,
+        pricing_engine: PricingEngine | None = None,
+        cost_estimation_enabled: bool = True,
+    ) -> None:
         self._repository = repository
         self._log_glob = log_glob
+        self._pricing_engine = pricing_engine
+        self._cost_estimation_enabled = cost_estimation_enabled
 
     def poll_once(self) -> int:
         files = sorted(glob(self._log_glob))
@@ -52,6 +61,20 @@ class LogIngestor:
 
                     normalized = normalize_log_event(payload, line.strip())
                     if normalized:
+                        if (
+                            self._cost_estimation_enabled
+                            and normalized.cost_usd is None
+                            and self._pricing_engine is not None
+                        ):
+                            estimated = self._pricing_engine.estimate_cost(
+                                provider=normalized.provider,
+                                model=normalized.model,
+                                input_tokens=normalized.input_tokens,
+                                output_tokens=normalized.output_tokens,
+                            )
+                            if estimated is not None:
+                                normalized.cost_usd = estimated
+                                normalized.cost_source = "estimated"
                         events.append(normalized)
 
                 new_offset = handle.tell()

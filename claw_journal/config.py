@@ -25,6 +25,8 @@ class Settings:
     remote_path_prefix: str
     session_sync_enabled: bool
     session_sync_seconds: float
+    cost_estimation_enabled: bool
+    pricing_file: Path | None
     db_path: Path
 
 
@@ -68,6 +70,9 @@ def load_settings() -> Settings:
     remote_path_prefix = os.getenv("CJ_REMOTE_PATH_PREFIX", "/opt/homebrew/bin")
     session_sync_enabled = _parse_bool(os.getenv("CJ_SESSION_SYNC_ENABLED"), True)
     session_sync_seconds = float(os.getenv("CJ_SESSION_SYNC_SECONDS", "30.0"))
+    cost_estimation_enabled = _parse_bool(os.getenv("CJ_COST_ESTIMATION_ENABLED"), True)
+    pricing_file_raw = os.getenv("CJ_PRICING_FILE") or "./pricing.json"
+    pricing_file = Path(pricing_file_raw).expanduser() if pricing_file_raw else None
     db_path = Path(os.getenv("CJ_DB_PATH", "./data/claw_journal.db")).expanduser()
 
     if remote_ingest_mode not in INGEST_MODES:
@@ -112,5 +117,7 @@ def load_settings() -> Settings:
         remote_path_prefix=remote_path_prefix,
         session_sync_enabled=session_sync_enabled,
         session_sync_seconds=session_sync_seconds,
+        cost_estimation_enabled=cost_estimation_enabled,
+        pricing_file=pricing_file,
         db_path=db_path,
     )

@@ -59,6 +59,8 @@ Edit `.env` to configure your settings:
 - `CJ_REMOTE_PATH_PREFIX`: Prefix added to remote `PATH` for Node/OpenClaw runtime (default: `/opt/homebrew/bin`).
 - `CJ_SESSION_SYNC_ENABLED`: Enable read-only remote session sync (default: `true`).
 - `CJ_SESSION_SYNC_SECONDS`: Session sync interval in seconds (default: `30`).
+- `CJ_COST_ESTIMATION_ENABLED`: Estimate cost when logs contain tokens but no cost (default: `true`).
+- `CJ_PRICING_FILE`: Pricing table JSON path (default: `./pricing.json`).
 
 ## 🖥️ Running (Backend MVP)
 
@@ -74,6 +76,7 @@ Available endpoints:
 - `GET /api/usage/sessions?limit=100`
 - `GET /api/reasoning?limit=100`
 - `GET /api/usage/reconciled?limit=100` (gateway session truth + observed log costs)
+- `GET /api/usage/cost-sources` (observed vs estimated vs missing cost counts)
 
 ## ✅ Tested Safe Workflow (Remote Instance)
 
@@ -121,13 +124,26 @@ No write operations were performed on the OpenClaw instance.
 5. Validate reconciliation:
    - `http://127.0.0.1:3000/api/usage/reconciled`
 
+### Pricing file format
+
+`pricing.json` uses provider/model keys with USD-per-1M-token rates:
+
+```json
+{
+   "anthropic/claude-opus-4-5": {
+      "input_per_million": 15.0,
+      "output_per_million": 75.0
+   }
+}
+```
+
 ## TODOs
 
 ### High Priority
 
 - [x] Add parser support for OpenClaw logger envelope fields (`0`,`1`,`2`,`_meta`,`time`) and nested usage payloads.
 - [ ] Expand parser mappings for additional provider-specific token/cost keys observed in production logs.
-- [ ] Add log-derived cost estimation using model pricing table when cost is absent (OAuth-safe fallback).
+- [x] Add log-derived cost estimation using model pricing table when cost is absent (OAuth-safe fallback).
 - [ ] Add dedupe keying for repeated log lines across rotations/restarts.
 - [ ] Add redaction guardrails for sensitive values in stored `raw_json`.
 

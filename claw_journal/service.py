@@ -18,3 +18,6 @@ class UsageService:
 
     def reconciled_session_usage(self, limit: int = 100) -> list[dict]:
         return self._repository.get_reconciled_session_usage(limit=limit)
+
+    def cost_source_summary(self) -> dict:
+        return self._repository.get_cost_source_summary()

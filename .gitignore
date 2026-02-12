@@ -1,1 +1,36 @@
+### macOS
 .DS_Store
+
+### Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+### Virtual environments
+.venv/
+venv/
+env/
+
+### Environment / secrets
+.env
+.env.*
+
+### Test & runtime databases (SQLite)
+data/*.db
+data/*.sqlite
+*.db
+*.sqlite
+
+### Logs
+*.log
+
+### Node / frontend (future)
+node_modules/
+dist/
+build/
+
+### IDE/editor
+.vscode/
+.idea/
+*.swp
+*.swo

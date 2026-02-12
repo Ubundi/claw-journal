@@ -36,6 +36,7 @@ class UsageRepository:
                     total_tokens INTEGER NOT NULL,
                     context_tokens INTEGER NOT NULL,
                     cost_usd REAL,
+                    cost_source TEXT NOT NULL DEFAULT 'missing',
                     duration_ms INTEGER,
                     reasoning_text TEXT,
                     raw_json TEXT NOT NULL
@@ -69,6 +70,15 @@ class UsageRepository:
                 """
             )
 
+            columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(usage_events)").fetchall()
+            }
+            if "cost_source" not in columns:
+                conn.execute(
+                    "ALTER TABLE usage_events ADD COLUMN cost_source TEXT NOT NULL DEFAULT 'missing'"
+                )
+
     def insert_usage_events(self, events: Iterable[NormalizedUsageEvent]) -> int:
         rows = [
             (
@@ -85,6 +95,7 @@ class UsageRepository:
                 e.total_tokens,
                 e.context_tokens,
                 e.cost_usd,
+                e.cost_source,
                 e.duration_ms,
                 e.reasoning_text,
                 e.raw_json,
@@ -112,10 +123,11 @@ class UsageRepository:
                     total_tokens,
                     context_tokens,
                     cost_usd,
+                    cost_source,
                     duration_ms,
                     reasoning_text,
                     raw_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 rows,
             )
@@ -333,3 +345,19 @@ class UsageRepository:
             }
             for row in rows
         ]
+
+    def get_cost_source_summary(self) -> dict[str, int]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT cost_source, COUNT(*) AS count
+                FROM usage_events
+                GROUP BY cost_source
+                """
+            ).fetchall()
+
+        summary = {"observed": 0, "estimated": 0, "missing": 0}
+        for row in rows:
+            key = row["cost_source"] or "missing"
+            summary[str(key)] = int(row["count"] or 0)
+        return summary

@@ -28,4 +28,8 @@ def create_app(usage_service: UsageService) -> FastAPI:
     def reconciled_usage(limit: int = Query(default=100, ge=1, le=1000)) -> dict[str, object]:
         return {"limit": limit, "rows": usage_service.reconciled_session_usage(limit=limit)}
 
+    @app.get("/api/usage/cost-sources")
+    def cost_sources() -> dict[str, object]:
+        return {"rows": usage_service.cost_source_summary()}
+
     return app

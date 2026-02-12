@@ -4,6 +4,7 @@ __all__ = [
     "gateway_client",
     "ingest",
     "models",
+    "pricing",
     "session_sync",
     "service",
     "storage",
