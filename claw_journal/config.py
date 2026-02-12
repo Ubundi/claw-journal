@@ -34,7 +34,26 @@ def _parse_bool(value: str | None, default: bool) -> bool:
     return value.strip().lower() in TRUE_VALUES
 
 
+def _load_dotenv_file(dotenv_path: str = ".env") -> None:
+    path = Path(dotenv_path)
+    if not path.exists() or not path.is_file():
+        return
+
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
 def load_settings() -> Settings:
+    _load_dotenv_file(".env")
+
     host = os.getenv("CJ_HOST", "127.0.0.1")
     port = int(os.getenv("CJ_PORT", "3000"))
     openclaw_log_glob = os.getenv("CJ_OPENCLAW_LOG_GLOB", "/tmp/openclaw/openclaw-*.log")
