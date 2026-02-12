@@ -27,7 +27,7 @@ Claw Journal runs as a local service alongside your OpenClaw instance to capture
 
 Prerequisites:
 - [OpenClaw](https://github.com/openclaw/openclaw) installed and configured.
-- Python 3.10+
+- Python 3.9+
 - Node.js (frontend planned; backend MVP is now implemented)
 
 ### 1. Clone the repository
@@ -49,11 +49,16 @@ cp .env.example .env
 Edit `.env` to configure your settings:
 - `CJ_OPENCLAW_LOG_GLOB`: Glob path to OpenClaw logs (default: `/tmp/openclaw/openclaw-*.log`).
 - `CJ_DB_PATH`: SQLite database path (default: `./data/claw_journal.db`).
-- `CJ_REMOTE_ENABLED`: Enable remote-mode config validation (`true`/`false`).
+- `CJ_REMOTE_ENABLED`: Enable remote-mode config validation (`true`/`false`, default `false`).
 - `CJ_REMOTE_GATEWAY_URL`: Remote OpenClaw gateway URL.
 - `CJ_REMOTE_GATEWAY_TOKEN`: Remote OpenClaw gateway token.
 - `CJ_REMOTE_GATEWAY_AGENT_ID`: Agent ID for remote attribution context.
-- `CJ_REMOTE_INGEST_MODE`: `file`, `rpc`, or `hybrid` (default: `hybrid`).
+- `CJ_REMOTE_INGEST_MODE`: `file`, `rpc`, or `hybrid` (default: `file`).
+- `CJ_REMOTE_SSH_HOST`: SSH target for read-only session sync (example: `user@your-host`).
+- `CJ_REMOTE_OPENCLAW_BIN`: Path to OpenClaw binary on remote host (default: `/opt/homebrew/bin/openclaw`).
+- `CJ_REMOTE_PATH_PREFIX`: Prefix added to remote `PATH` for Node/OpenClaw runtime (default: `/opt/homebrew/bin`).
+- `CJ_SESSION_SYNC_ENABLED`: Enable read-only remote session sync (default: `true`).
+- `CJ_SESSION_SYNC_SECONDS`: Session sync interval in seconds (default: `30`).
 
 ## 🖥️ Running (Backend MVP)
 
@@ -68,6 +73,75 @@ Available endpoints:
 - `GET /api/usage/daily?days=30`
 - `GET /api/usage/sessions?limit=100`
 - `GET /api/reasoning?limit=100`
+- `GET /api/usage/reconciled?limit=100` (gateway session truth + observed log costs)
+
+## ✅ Tested Safe Workflow (Remote Instance)
+
+This project was tested in **read-only** mode against a live remote OpenClaw host via SSH tunnel:
+
+- Verified Control UI availability at `http://localhost:18790/overview`
+- Verified remote logs are readable from `/tmp/openclaw/openclaw-YYYY-MM-DD.log`
+- Verified read-only gateway session access over SSH:
+  - `ssh rune 'export PATH=/opt/homebrew/bin:$PATH && /opt/homebrew/bin/openclaw gateway call sessions.list --params "{}"'`
+- Verified Claw Journal endpoint returns reconciled session rows using remote session truth:
+  - `GET /api/usage/reconciled`
+
+No write operations were performed on the OpenClaw instance.
+
+## 👤 Setup Instructions for New Users
+
+### Option A: Local OpenClaw on same machine
+
+1. Install dependencies:
+   - `python3 -m pip install -r requirements.txt`
+2. Keep defaults in `.env` (or set):
+   - `CJ_REMOTE_ENABLED=false`
+   - `CJ_OPENCLAW_LOG_GLOB=/tmp/openclaw/openclaw-*.log`
+3. Run:
+   - `python3 main.py`
+4. Open:
+   - `http://127.0.0.1:3000/health`
+   - `http://127.0.0.1:3000/api/usage/daily`
+
+### Option B: Remote OpenClaw via SSH
+
+1. Confirm SSH works non-interactively:
+   - `ssh -o BatchMode=yes <host> 'hostname'`
+2. Set `.env` values:
+   - `CJ_REMOTE_ENABLED=true`
+   - `CJ_REMOTE_INGEST_MODE=file`
+   - `CJ_REMOTE_SSH_HOST=<host>`
+   - `CJ_SESSION_SYNC_ENABLED=true`
+   - `CJ_REMOTE_OPENCLAW_BIN=/opt/homebrew/bin/openclaw`
+   - `CJ_REMOTE_PATH_PREFIX=/opt/homebrew/bin`
+3. Choose log ingest source:
+   - Mounted/forwarded logs path via `CJ_OPENCLAW_LOG_GLOB`, or leave default if local copy exists.
+4. Run:
+   - `python3 main.py`
+5. Validate reconciliation:
+   - `http://127.0.0.1:3000/api/usage/reconciled`
+
+## TODOs
+
+### High Priority
+
+- [ ] Add robust parser support for OpenClaw logger envelope fields (`0`,`1`,`2`,`_meta`,`time`) and nested usage payloads.
+- [ ] Add log-derived cost estimation using model pricing table when cost is absent (OAuth-safe fallback).
+- [ ] Add dedupe keying for repeated log lines across rotations/restarts.
+- [ ] Add redaction guardrails for sensitive values in stored `raw_json`.
+
+### Medium Priority
+
+- [ ] Add a background task for remote log pull (read-only) when logs are not locally mounted.
+- [ ] Add API filter params (`provider`, `model`, `session_id`, date range).
+- [ ] Add integration tests using captured fixture logs + mocked `sessions.list` payloads.
+- [ ] Add migration/versioning for SQLite schema changes.
+
+### Later
+
+- [ ] Frontend dashboard (charts + search UI).
+- [ ] Forecasting and benchmark views.
+- [ ] Budget alerting integrations.
 
 ## 🧩 Usage with OpenClaw
 
