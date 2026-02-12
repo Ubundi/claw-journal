@@ -28,7 +28,7 @@ Claw Journal runs as a local service alongside your OpenClaw instance to capture
 Prerequisites:
 - [OpenClaw](https://github.com/openclaw/openclaw) installed and configured.
 - Python 3.10+
-- Node.js (for the frontend dashboard)
+- Node.js (frontend planned; backend MVP is now implemented)
 
 ### 1. Clone the repository
 ```bash
@@ -47,27 +47,43 @@ Create a `.env` file from the example:
 cp .env.example .env
 ```
 Edit `.env` to configure your settings:
-- `OPENCLAW_LOG_DIR`: Path to your OpenClaw logs (default: `/tmp/openclaw/`).
-- `BUDGET_THRESHOLD`: Daily spend limit for alerts (e.g., `5.00`).
-- `WHATSAPP_NUM`: Phone number for budget alerts.
+- `CJ_OPENCLAW_LOG_GLOB`: Glob path to OpenClaw logs (default: `/tmp/openclaw/openclaw-*.log`).
+- `CJ_DB_PATH`: SQLite database path (default: `./data/claw_journal.db`).
+- `CJ_REMOTE_ENABLED`: Enable remote-mode config validation (`true`/`false`).
+- `CJ_REMOTE_GATEWAY_URL`: Remote OpenClaw gateway URL.
+- `CJ_REMOTE_GATEWAY_TOKEN`: Remote OpenClaw gateway token.
+- `CJ_REMOTE_GATEWAY_AGENT_ID`: Agent ID for remote attribution context.
+- `CJ_REMOTE_INGEST_MODE`: `file`, `rpc`, or `hybrid` (default: `hybrid`).
 
-## 🖥️ Running the Dashboard
+## 🖥️ Running (Backend MVP)
 
-Start the local server. This will launch the analytics dashboard on `http://localhost:3000`.
+Start the local API service:
 
 ```bash
 python main.py
 ```
 
+Available endpoints:
+- `GET /health`
+- `GET /api/usage/daily?days=30`
+- `GET /api/usage/sessions?limit=100`
+- `GET /api/reasoning?limit=100`
+
 ## 🧩 Usage with OpenClaw
 
-Claw Journal continuously monitors your OpenClaw log files (default: `/tmp/openclaw/openclaw-YYYY-MM-DD.log`). As new entries are written, the dashboard updates in real-time.
+Claw Journal continuously monitors your OpenClaw log files (default: `/tmp/openclaw/openclaw-YYYY-MM-DD.log`). As new entries are written, the API data updates in real-time.
 
 1. Start your OpenClaw session (terminal or TUI).
 2. Use commands like `/status` or `/usage` in OpenClaw to verify internal tracking.
-3. Open `http://localhost:3000` to see the parsed data, including:
+3. Query `http://localhost:3000/api/usage/daily` (or other endpoints) to inspect parsed analytics, including:
    - **Session Costs:** Calculated from token usage even for OAuth providers where API cost data is hidden.
    - **Thinking Logs:** Expanded views of internal chain-of-thought not fully visible in the main chat.
+
+## 📌 Current Status
+
+- ✅ Analytics backend MVP scaffolded (ingest, normalize, persist, query API)
+- ✅ Remote OpenClaw config contract added for hybrid integration
+- ⏳ Frontend dashboard, alerts, and forecasting are planned next phases
 
 ---
 *Created for the OpenClaw community.*
