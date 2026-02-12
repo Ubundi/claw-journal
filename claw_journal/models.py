@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 
 
-@dataclass(slots=True)
+@dataclass
 class NormalizedUsageEvent:
     event_ts: datetime
     event_type: str
@@ -25,7 +25,7 @@ class NormalizedUsageEvent:
     raw_json: str
 
 
-@dataclass(slots=True)
+@dataclass
 class DailyUsageRow:
     usage_date: str
     input_tokens: int
@@ -34,7 +34,7 @@ class DailyUsageRow:
     cost_usd: float
 
 
-@dataclass(slots=True)
+@dataclass
 class SessionUsageRow:
     session_id: str
     provider: str | None
