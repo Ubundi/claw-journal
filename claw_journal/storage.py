@@ -50,6 +50,22 @@ class UsageRepository:
                     cursor TEXT NOT NULL,
                     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 );
+
+                CREATE TABLE IF NOT EXISTS session_snapshots (
+                    session_id TEXT PRIMARY KEY,
+                    session_key TEXT,
+                    provider TEXT,
+                    model TEXT,
+                    account_id TEXT,
+                    input_tokens INTEGER NOT NULL,
+                    output_tokens INTEGER NOT NULL,
+                    total_tokens INTEGER NOT NULL,
+                    context_tokens INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    raw_json TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_session_snapshots_updated_at ON session_snapshots(updated_at);
                 """
             )
 
@@ -215,3 +231,105 @@ class UsageRepository:
                 """,
                 (source_key, str(cursor)),
             )
+
+    def upsert_session_snapshots(self, sessions: list[dict]) -> int:
+        rows = []
+        for session in sessions:
+            origin = session.get("origin") if isinstance(session.get("origin"), dict) else {}
+            rows.append(
+                (
+                    session.get("sessionId") or "unknown",
+                    session.get("key"),
+                    session.get("modelProvider") or origin.get("provider"),
+                    session.get("model"),
+                    origin.get("accountId"),
+                    int(session.get("inputTokens") or 0),
+                    int(session.get("outputTokens") or 0),
+                    int(session.get("totalTokens") or 0),
+                    int(session.get("contextTokens") or 0),
+                    int(session.get("updatedAt") or 0),
+                    str(session),
+                )
+            )
+
+        if not rows:
+            return 0
+
+        with self._connect() as conn:
+            conn.executemany(
+                """
+                INSERT INTO session_snapshots (
+                    session_id,
+                    session_key,
+                    provider,
+                    model,
+                    account_id,
+                    input_tokens,
+                    output_tokens,
+                    total_tokens,
+                    context_tokens,
+                    updated_at,
+                    raw_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(session_id)
+                DO UPDATE SET
+                    session_key = excluded.session_key,
+                    provider = excluded.provider,
+                    model = excluded.model,
+                    account_id = excluded.account_id,
+                    input_tokens = excluded.input_tokens,
+                    output_tokens = excluded.output_tokens,
+                    total_tokens = excluded.total_tokens,
+                    context_tokens = excluded.context_tokens,
+                    updated_at = excluded.updated_at,
+                    raw_json = excluded.raw_json
+                """,
+                rows,
+            )
+        return len(rows)
+
+    def get_reconciled_session_usage(self, limit: int = 100) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    s.session_id,
+                    s.provider,
+                    s.model,
+                    s.input_tokens,
+                    s.output_tokens,
+                    s.total_tokens,
+                    s.context_tokens,
+                    s.updated_at,
+                    COALESCE(e.cost_usd, 0.0) AS observed_cost_usd,
+                    COALESCE(e.event_count, 0) AS observed_event_count
+                FROM session_snapshots s
+                LEFT JOIN (
+                    SELECT
+                        COALESCE(session_id, 'unknown') AS session_id,
+                        SUM(COALESCE(cost_usd, 0.0)) AS cost_usd,
+                        COUNT(*) AS event_count
+                    FROM usage_events
+                    GROUP BY COALESCE(session_id, 'unknown')
+                ) e ON e.session_id = s.session_id
+                ORDER BY s.updated_at DESC
+                LIMIT ?
+                """,
+                (int(limit),),
+            ).fetchall()
+
+        return [
+            {
+                "session_id": row["session_id"],
+                "provider": row["provider"],
+                "model": row["model"],
+                "input_tokens": row["input_tokens"] or 0,
+                "output_tokens": row["output_tokens"] or 0,
+                "total_tokens": row["total_tokens"] or 0,
+                "context_tokens": row["context_tokens"] or 0,
+                "updated_at": row["updated_at"],
+                "observed_cost_usd": row["observed_cost_usd"] or 0.0,
+                "observed_event_count": row["observed_event_count"] or 0,
+            }
+            for row in rows
+        ]

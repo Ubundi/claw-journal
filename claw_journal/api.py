@@ -24,4 +24,8 @@ def create_app(usage_service: UsageService) -> FastAPI:
     def reasoning(limit: int = Query(default=100, ge=1, le=1000)) -> dict[str, object]:
         return {"limit": limit, "rows": usage_service.reasoning_events(limit=limit)}
 
+    @app.get("/api/usage/reconciled")
+    def reconciled_usage(limit: int = Query(default=100, ge=1, le=1000)) -> dict[str, object]:
+        return {"limit": limit, "rows": usage_service.reconciled_session_usage(limit=limit)}
+
     return app

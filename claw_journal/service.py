@@ -15,3 +15,6 @@ class UsageService:
 
     def reasoning_events(self, limit: int = 100) -> list[dict]:
         return self._repository.get_reasoning_events(limit=limit)
+
+    def reconciled_session_usage(self, limit: int = 100) -> list[dict]:
+        return self._repository.get_reconciled_session_usage(limit=limit)

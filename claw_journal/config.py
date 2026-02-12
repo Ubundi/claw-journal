@@ -20,6 +20,11 @@ class Settings:
     remote_gateway_token: str | None
     remote_gateway_agent_id: str | None
     remote_ingest_mode: str
+    remote_ssh_host: str | None
+    remote_openclaw_bin: str
+    remote_path_prefix: str
+    session_sync_enabled: bool
+    session_sync_seconds: float
     db_path: Path
 
 
@@ -34,11 +39,16 @@ def load_settings() -> Settings:
     port = int(os.getenv("CJ_PORT", "3000"))
     openclaw_log_glob = os.getenv("CJ_OPENCLAW_LOG_GLOB", "/tmp/openclaw/openclaw-*.log")
     poll_seconds = float(os.getenv("CJ_POLL_SECONDS", "1.0"))
-    remote_enabled = _parse_bool(os.getenv("CJ_REMOTE_ENABLED"), True)
+    remote_enabled = _parse_bool(os.getenv("CJ_REMOTE_ENABLED"), False)
     remote_gateway_url = os.getenv("CJ_REMOTE_GATEWAY_URL") or None
     remote_gateway_token = os.getenv("CJ_REMOTE_GATEWAY_TOKEN") or None
     remote_gateway_agent_id = os.getenv("CJ_REMOTE_GATEWAY_AGENT_ID") or None
-    remote_ingest_mode = os.getenv("CJ_REMOTE_INGEST_MODE", "hybrid").strip().lower()
+    remote_ingest_mode = os.getenv("CJ_REMOTE_INGEST_MODE", "file").strip().lower()
+    remote_ssh_host = os.getenv("CJ_REMOTE_SSH_HOST") or None
+    remote_openclaw_bin = os.getenv("CJ_REMOTE_OPENCLAW_BIN", "/opt/homebrew/bin/openclaw")
+    remote_path_prefix = os.getenv("CJ_REMOTE_PATH_PREFIX", "/opt/homebrew/bin")
+    session_sync_enabled = _parse_bool(os.getenv("CJ_SESSION_SYNC_ENABLED"), True)
+    session_sync_seconds = float(os.getenv("CJ_SESSION_SYNC_SECONDS", "30.0"))
     db_path = Path(os.getenv("CJ_DB_PATH", "./data/claw_journal.db")).expanduser()
 
     if remote_ingest_mode not in INGEST_MODES:
@@ -60,6 +70,12 @@ def load_settings() -> Settings:
     if poll_seconds <= 0:
         raise ValueError("CJ_POLL_SECONDS must be > 0")
 
+    if session_sync_seconds <= 0:
+        raise ValueError("CJ_SESSION_SYNC_SECONDS must be > 0")
+
+    if session_sync_enabled and remote_enabled and not remote_ssh_host:
+        raise ValueError("CJ_REMOTE_SSH_HOST is required when remote sync is enabled")
+
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     return Settings(
@@ -72,5 +88,10 @@ def load_settings() -> Settings:
         remote_gateway_token=remote_gateway_token,
         remote_gateway_agent_id=remote_gateway_agent_id,
         remote_ingest_mode=remote_ingest_mode,
+        remote_ssh_host=remote_ssh_host,
+        remote_openclaw_bin=remote_openclaw_bin,
+        remote_path_prefix=remote_path_prefix,
+        session_sync_enabled=session_sync_enabled,
+        session_sync_seconds=session_sync_seconds,
         db_path=db_path,
     )

@@ -7,7 +7,9 @@ import uvicorn
 
 from claw_journal.api import create_app
 from claw_journal.config import load_settings
+from claw_journal.gateway_client import SshGatewayClient, SshGatewayClientConfig
 from claw_journal.ingest import IngestLoop, LogIngestor
+from claw_journal.session_sync import SessionSyncLoop
 from claw_journal.service import UsageService
 from claw_journal.storage import UsageRepository
 
@@ -18,7 +20,7 @@ logging.basicConfig(
 )
 
 
-def build_runtime() -> tuple[object, IngestLoop, object]:
+def build_runtime() -> tuple[object, IngestLoop, SessionSyncLoop | None, object]:
     settings = load_settings()
     repository = UsageRepository(settings.db_path)
     usage_service = UsageService(repository)
@@ -27,13 +29,32 @@ def build_runtime() -> tuple[object, IngestLoop, object]:
     ingestor = LogIngestor(repository=repository, log_glob=settings.openclaw_log_glob)
     ingest_loop = IngestLoop(ingestor=ingestor, poll_seconds=settings.poll_seconds)
 
-    return app, ingest_loop, settings
+    session_sync_loop = None
+    if settings.session_sync_enabled and settings.remote_enabled and settings.remote_ssh_host:
+        session_client = SshGatewayClient(
+            SshGatewayClientConfig(
+                ssh_host=settings.remote_ssh_host,
+                openclaw_bin=settings.remote_openclaw_bin,
+                path_prefix=settings.remote_path_prefix,
+            )
+        )
+        session_sync_loop = SessionSyncLoop(
+            repository=repository,
+            session_client=session_client,
+            interval_seconds=settings.session_sync_seconds,
+        )
+
+    return app, ingest_loop, session_sync_loop, settings
 
 
 if __name__ == "__main__":
-    app, ingest_loop, settings = build_runtime()
+    app, ingest_loop, session_sync_loop, settings = build_runtime()
 
     ingest_thread = Thread(target=ingest_loop.run_forever, daemon=True)
     ingest_thread.start()
+
+    if session_sync_loop:
+        session_thread = Thread(target=session_sync_loop.run_forever, daemon=True)
+        session_thread.start()
 
     uvicorn.run(app, host=settings.host, port=settings.port)
