@@ -13,6 +13,7 @@ from claw_journal.pricing import PricingEngine
 from claw_journal.session_sync import SessionSyncLoop
 from claw_journal.service import UsageService
 from claw_journal.storage import UsageRepository
+from claw_journal.transcript_ingest import TranscriptIngestLoop, TranscriptIngestor
 
 
 logging.basicConfig(
@@ -21,7 +22,7 @@ logging.basicConfig(
 )
 
 
-def build_runtime() -> tuple[object, IngestLoop, SessionSyncLoop | None, object]:
+def build_runtime() -> tuple[object, IngestLoop, SessionSyncLoop | None, TranscriptIngestLoop | None, object]:
     settings = load_settings()
     repository = UsageRepository(settings.db_path)
     usage_service = UsageService(repository)
@@ -52,11 +53,22 @@ def build_runtime() -> tuple[object, IngestLoop, SessionSyncLoop | None, object]
             interval_seconds=settings.session_sync_seconds,
         )
 
-    return app, ingest_loop, session_sync_loop, settings
+    transcript_ingest_loop = None
+    if settings.transcript_ingest_enabled:
+        transcript_ingestor = TranscriptIngestor(
+            repository=repository,
+            transcript_glob=settings.transcript_glob,
+        )
+        transcript_ingest_loop = TranscriptIngestLoop(
+            ingestor=transcript_ingestor,
+            poll_seconds=settings.transcript_poll_seconds,
+        )
+
+    return app, ingest_loop, session_sync_loop, transcript_ingest_loop, settings
 
 
 if __name__ == "__main__":
-    app, ingest_loop, session_sync_loop, settings = build_runtime()
+    app, ingest_loop, session_sync_loop, transcript_ingest_loop, settings = build_runtime()
 
     ingest_thread = Thread(target=ingest_loop.run_forever, daemon=True)
     ingest_thread.start()
@@ -64,5 +76,9 @@ if __name__ == "__main__":
     if session_sync_loop:
         session_thread = Thread(target=session_sync_loop.run_forever, daemon=True)
         session_thread.start()
+
+    if transcript_ingest_loop:
+        transcript_thread = Thread(target=transcript_ingest_loop.run_forever, daemon=True)
+        transcript_thread.start()
 
     uvicorn.run(app, host=settings.host, port=settings.port)

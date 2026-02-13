@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Claw Journal{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<section>
+    <h2>Sessions with Transcripts</h2>
+    {% if sessions %}
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>Session</th>
+                    <th>Agent</th>
+                    <th>Model</th>
+                    <th>Messages</th>
+                    <th>Thinking</th>
+                    <th>Tool Calls</th>
+                    <th>Last Activity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sessions %}
+                <tr>
+                    <td><a href="/conversation/{{ s.session_id }}">{{ s.session_id[:16] }}...</a></td>
+                    <td>{{ s.agent_id or '-' }}</td>
+                    <td>{{ s.model or '-' }}</td>
+                    <td>{{ s.message_count }}</td>
+                    <td>{{ s.thinking_count or 0 }}</td>
+                    <td>{{ s.tool_use_count or 0 }}</td>
+                    <td>{{ s.last_message_ts or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </figure>
+    {% else %}
+    <p>No transcript data yet. Waiting for session JSONL files...</p>
+    {% endif %}
+</section>
+
+{% if daily %}
+<section>
+    <h2>Daily Usage (14 days)</h2>
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Input Tokens</th>
+                    <th>Output Tokens</th>
+                    <th>Total Tokens</th>
+                    <th>Cost (USD)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in daily %}
+                <tr>
+                    <td>{{ d.usage_date }}</td>
+                    <td>{{ "{:,}".format(d.input_tokens) }}</td>
+                    <td>{{ "{:,}".format(d.output_tokens) }}</td>
+                    <td>{{ "{:,}".format(d.total_tokens) }}</td>
+                    <td>${{ "%.4f"|format(d.cost_usd) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </figure>
+</section>
+{% endif %}
+{% endblock %}

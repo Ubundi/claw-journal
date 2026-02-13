@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Conversation {{ session_id[:16] }} - Claw Journal{% endblock %}
+{% block content %}
+<hgroup>
+    <h1>Conversation</h1>
+    <p>Session: <code>{{ session_id }}</code>
+        | <a href="/thinking?session_id={{ session_id }}">Thinking blocks</a>
+        | <a href="/tools?session_id={{ session_id }}">Tool invocations</a>
+    </p>
+</hgroup>
+
+<div class="chat-container">
+    {% for msg in messages %}
+    <article class="chat-message chat-{{ msg.role }}">
+        <header>
+            <strong>{{ msg.role | capitalize }}</strong>
+            {% if msg.model %}<small> ({{ msg.model }})</small>{% endif %}
+            {% if msg.message_ts %}<small class="ts">{{ msg.message_ts }}</small>{% endif %}
+        </header>
+
+        {% set content_blocks = msg.content_json | fromjson if msg.content_json else [] %}
+        {% for block in content_blocks %}
+            {% if block.type == "thinking" %}
+            <details class="thinking-block">
+                <summary>Thinking...</summary>
+                <pre>{{ block.thinking or block.text or '' }}</pre>
+            </details>
+            {% elif block.type == "text" %}
+            <div class="text-block">{{ block.text }}</div>
+            {% elif block.type == "tool_use" %}
+            <div class="tool-use-block">
+                <strong>Tool: {{ block.name }}</strong>
+                <details>
+                    <summary>Input</summary>
+                    <pre>{{ block.input | tojson(indent=2) if block.input else '' }}</pre>
+                </details>
+            </div>
+            {% elif block.type == "tool_result" %}
+            <details class="tool-result-block">
+                <summary>Tool Result{% if block.is_error %} (error){% endif %}</summary>
+                <pre>{{ block.content if block.content is string else (block.content | tojson(indent=2) if block.content else '') }}</pre>
+            </details>
+            {% endif %}
+        {% endfor %}
+
+        {% if not content_blocks and msg.text_content %}
+        <div class="text-block">{{ msg.text_content }}</div>
+        {% endif %}
+    </article>
+    {% endfor %}
+</div>
+
+{% if not messages %}
+<p>No messages found for this session.</p>
+{% endif %}
+{% endblock %}

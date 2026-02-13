@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Search - Claw Journal{% endblock %}
+{% block content %}
+<h1>Search Conversations</h1>
+
+<form method="get" action="/search">
+    <fieldset role="group">
+        <input type="search" name="q" value="{{ query }}" placeholder="Search messages...">
+        <input type="submit" value="Search">
+    </fieldset>
+    <details>
+        <summary>Filters</summary>
+        <label>Session ID
+            <input type="text" name="session_id" value="{{ session_id or '' }}" placeholder="Optional session filter">
+        </label>
+    </details>
+</form>
+
+{% if query %}
+<section>
+    <h2>Results for "{{ query }}"</h2>
+    {% if results %}
+    {% for r in results %}
+    <article>
+        <header>
+            <strong>{{ r.role | capitalize }}</strong>
+            {% if r.model %}<small>({{ r.model }})</small>{% endif %}
+            {% if r.message_ts %}<small class="ts">{{ r.message_ts }}</small>{% endif %}
+            | <a href="/conversation/{{ r.session_id }}">View conversation</a>
+        </header>
+        <div class="search-snippet">{{ r.snippet | safe if r.snippet else '(no text)' }}</div>
+    </article>
+    {% endfor %}
+    {% else %}
+    <p>No results found.</p>
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}

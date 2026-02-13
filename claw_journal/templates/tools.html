@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Tool Invocations - Claw Journal{% endblock %}
+{% block content %}
+<hgroup>
+    <h1>Sub-Agent & Tool Tracking</h1>
+    <p>Tool invocations extracted from conversations.
+    {% if session_id %} Session: <code>{{ session_id }}</code> |{% endif %}
+    {% if tool_name %} Tool: <code>{{ tool_name }}</code> |{% endif %}
+    <a href="/tools">Show all</a>
+    </p>
+</hgroup>
+
+{% if summary %}
+<section>
+    <h2>Usage Summary</h2>
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tool</th>
+                    <th>Invocations</th>
+                    <th>Errors</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in summary %}
+                <tr>
+                    <td><a href="/tools?tool_name={{ s.tool_name }}">{{ s.tool_name }}</a></td>
+                    <td>{{ s.invocation_count }}</td>
+                    <td>{{ s.error_count or 0 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </figure>
+</section>
+{% endif %}
+
+{% if invocations %}
+<section>
+    <h2>Invocations</h2>
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Session</th>
+                    <th>Tool</th>
+                    <th>Input</th>
+                    <th>Result</th>
+                    <th>Error</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in invocations %}
+                <tr>
+                    <td>{{ inv.invocation_ts or '-' }}</td>
+                    <td><a href="/conversation/{{ inv.session_id }}">{{ inv.session_id[:12] }}...</a></td>
+                    <td><strong>{{ inv.tool_name }}</strong></td>
+                    <td>
+                        {% if inv.tool_input %}
+                        <details>
+                            <summary>View</summary>
+                            <pre>{{ inv.tool_input[:500] }}</pre>
+                        </details>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if inv.tool_result %}
+                        <details>
+                            <summary>View</summary>
+                            <pre>{{ inv.tool_result[:500] }}</pre>
+                        </details>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>{{ 'Yes' if inv.is_error else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </figure>
+</section>
+{% else %}
+<p>No tool invocations found.</p>
+{% endif %}
+{% endblock %}

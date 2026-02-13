@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import logging
 import sqlite3
 from pathlib import Path
 from typing import Iterable
 
 from .models import DailyUsageRow, NormalizedUsageEvent, SessionUsageRow
+from .transcript_models import ConversationMessage, ThinkingBlock, ToolInvocation
+
+logger = logging.getLogger(__name__)
 
 
 class UsageRepository:
@@ -69,8 +73,96 @@ class UsageRepository:
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_session_snapshots_updated_at ON session_snapshots(updated_at);
+
+                CREATE TABLE IF NOT EXISTS conversation_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    agent_id TEXT,
+                    turn_index INTEGER NOT NULL,
+                    role TEXT NOT NULL,
+                    message_ts TEXT,
+                    model TEXT,
+                    text_content TEXT,
+                    has_thinking INTEGER NOT NULL DEFAULT 0,
+                    has_tool_use INTEGER NOT NULL DEFAULT 0,
+                    has_tool_result INTEGER NOT NULL DEFAULT 0,
+                    content_json TEXT NOT NULL,
+                    raw_json TEXT NOT NULL,
+                    event_fingerprint TEXT
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_conv_messages_session ON conversation_messages(session_id);
+                CREATE INDEX IF NOT EXISTS idx_conv_messages_ts ON conversation_messages(message_ts);
+                CREATE INDEX IF NOT EXISTS idx_conv_messages_role ON conversation_messages(role);
+                CREATE INDEX IF NOT EXISTS idx_conv_messages_agent ON conversation_messages(agent_id);
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_conv_messages_fingerprint
+                    ON conversation_messages(event_fingerprint) WHERE event_fingerprint IS NOT NULL;
+
+                CREATE TABLE IF NOT EXISTS thinking_blocks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    agent_id TEXT,
+                    message_id INTEGER NOT NULL,
+                    block_index INTEGER NOT NULL,
+                    thinking_text TEXT NOT NULL,
+                    thinking_ts TEXT,
+                    model TEXT,
+                    preceding_user_text TEXT,
+                    FOREIGN KEY (message_id) REFERENCES conversation_messages(id) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_thinking_session ON thinking_blocks(session_id);
+                CREATE INDEX IF NOT EXISTS idx_thinking_ts ON thinking_blocks(thinking_ts);
+                CREATE INDEX IF NOT EXISTS idx_thinking_message ON thinking_blocks(message_id);
+
+                CREATE TABLE IF NOT EXISTS tool_invocations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    agent_id TEXT,
+                    message_id INTEGER NOT NULL,
+                    tool_use_id TEXT,
+                    tool_name TEXT NOT NULL,
+                    tool_input TEXT,
+                    tool_result TEXT,
+                    result_message_id INTEGER,
+                    invocation_ts TEXT,
+                    is_error INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (message_id) REFERENCES conversation_messages(id) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_tool_inv_session ON tool_invocations(session_id);
+                CREATE INDEX IF NOT EXISTS idx_tool_inv_name ON tool_invocations(tool_name);
+                CREATE INDEX IF NOT EXISTS idx_tool_inv_ts ON tool_invocations(invocation_ts);
+                CREATE INDEX IF NOT EXISTS idx_tool_inv_use_id ON tool_invocations(tool_use_id);
                 """
             )
+
+            # FTS5 virtual table for full-text search (may not be available)
+            try:
+                conn.execute(
+                    """
+                    CREATE VIRTUAL TABLE IF NOT EXISTS conversation_messages_fts
+                    USING fts5(text_content, session_id, role,
+                               content='conversation_messages', content_rowid='id')
+                    """
+                )
+                conn.executescript(
+                    """
+                    CREATE TRIGGER IF NOT EXISTS conv_messages_ai AFTER INSERT ON conversation_messages BEGIN
+                        INSERT INTO conversation_messages_fts(rowid, text_content, session_id, role)
+                        VALUES (new.id, new.text_content, new.session_id, new.role);
+                    END;
+
+                    CREATE TRIGGER IF NOT EXISTS conv_messages_ad AFTER DELETE ON conversation_messages BEGIN
+                        INSERT INTO conversation_messages_fts(conversation_messages_fts, rowid, text_content, session_id, role)
+                        VALUES ('delete', old.id, old.text_content, old.session_id, old.role);
+                    END;
+                    """
+                )
+                self._fts_available = True
+            except sqlite3.OperationalError:
+                logger.warning("FTS5 not available; full-text search will be disabled")
+                self._fts_available = False
 
             columns = {
                 row["name"]
@@ -372,3 +464,357 @@ class UsageRepository:
             key = row["cost_source"] or "missing"
             summary[str(key)] = int(row["count"] or 0)
         return summary
+
+    # ── Conversation messages ──────────────────────────────────────────
+
+    def get_message_count_for_session(self, session_id: str) -> int:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM conversation_messages WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+        return int(row["cnt"]) if row else 0
+
+    def insert_conversation_messages(
+        self, messages: list[ConversationMessage]
+    ) -> list[int | None]:
+        if not messages:
+            return []
+
+        inserted_ids: list[int | None] = []
+        with self._connect() as conn:
+            for msg in messages:
+                try:
+                    cursor = conn.execute(
+                        """
+                        INSERT OR IGNORE INTO conversation_messages (
+                            session_id, agent_id, turn_index, role, message_ts, model,
+                            text_content, has_thinking, has_tool_use, has_tool_result,
+                            content_json, raw_json, event_fingerprint
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            msg.session_id,
+                            msg.agent_id,
+                            msg.turn_index,
+                            msg.role,
+                            msg.message_ts,
+                            msg.model,
+                            msg.text_content,
+                            int(msg.has_thinking),
+                            int(msg.has_tool_use),
+                            int(msg.has_tool_result),
+                            msg.content_json,
+                            msg.raw_json,
+                            msg.event_fingerprint,
+                        ),
+                    )
+                    if cursor.rowcount > 0:
+                        inserted_ids.append(cursor.lastrowid)
+                    else:
+                        inserted_ids.append(None)
+                except sqlite3.IntegrityError:
+                    inserted_ids.append(None)
+        return inserted_ids
+
+    def insert_thinking_blocks(self, blocks: list[ThinkingBlock]) -> int:
+        if not blocks:
+            return 0
+
+        rows = [
+            (
+                b.session_id,
+                b.agent_id,
+                b.message_id,
+                b.block_index,
+                b.thinking_text,
+                b.thinking_ts,
+                b.model,
+                b.preceding_user_text,
+            )
+            for b in blocks
+        ]
+
+        with self._connect() as conn:
+            conn.executemany(
+                """
+                INSERT INTO thinking_blocks (
+                    session_id, agent_id, message_id, block_index,
+                    thinking_text, thinking_ts, model, preceding_user_text
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+        return len(rows)
+
+    def insert_tool_invocations(self, invocations: list[ToolInvocation]) -> int:
+        if not invocations:
+            return 0
+
+        rows = [
+            (
+                inv.session_id,
+                inv.agent_id,
+                inv.message_id,
+                inv.tool_use_id,
+                inv.tool_name,
+                inv.tool_input,
+                inv.tool_result,
+                inv.result_message_id,
+                inv.invocation_ts,
+                int(inv.is_error),
+            )
+            for inv in invocations
+        ]
+
+        with self._connect() as conn:
+            conn.executemany(
+                """
+                INSERT INTO tool_invocations (
+                    session_id, agent_id, message_id, tool_use_id, tool_name,
+                    tool_input, tool_result, result_message_id, invocation_ts, is_error
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+        return len(rows)
+
+    def update_tool_result(
+        self, tool_use_id: str, tool_result: str, result_message_id: int, is_error: bool
+    ) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE tool_invocations
+                SET tool_result = ?, result_message_id = ?, is_error = ?
+                WHERE tool_use_id = ? AND tool_result IS NULL
+                """,
+                (tool_result, result_message_id, int(is_error), tool_use_id),
+            )
+
+    def search_conversations(
+        self,
+        query: str,
+        session_id: str | None = None,
+        role: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict]:
+        if not query.strip() or not getattr(self, "_fts_available", False):
+            return self._search_conversations_like(query, session_id, role, limit, offset)
+
+        params: list[object] = [query]
+        where_parts = []
+        if session_id:
+            where_parts.append("c.session_id = ?")
+            params.append(session_id)
+        if role:
+            where_parts.append("c.role = ?")
+            params.append(role)
+
+        extra_where = (" AND " + " AND ".join(where_parts)) if where_parts else ""
+        params.extend([int(limit), int(offset)])
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT c.id, c.session_id, c.agent_id, c.turn_index, c.role,
+                       c.message_ts, c.model,
+                       highlight(conversation_messages_fts, 0, '<mark>', '</mark>') AS snippet,
+                       c.has_thinking, c.has_tool_use
+                FROM conversation_messages_fts fts
+                JOIN conversation_messages c ON c.id = fts.rowid
+                WHERE fts.text_content MATCH ?{extra_where}
+                ORDER BY fts.rank
+                LIMIT ? OFFSET ?
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def _search_conversations_like(
+        self,
+        query: str,
+        session_id: str | None,
+        role: str | None,
+        limit: int,
+        offset: int,
+    ) -> list[dict]:
+        params: list[object] = []
+        where_parts = []
+
+        if query.strip():
+            where_parts.append("text_content LIKE ?")
+            params.append(f"%{query}%")
+        if session_id:
+            where_parts.append("session_id = ?")
+            params.append(session_id)
+        if role:
+            where_parts.append("role = ?")
+            params.append(role)
+
+        where_clause = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+        params.extend([int(limit), int(offset)])
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT id, session_id, agent_id, turn_index, role,
+                       message_ts, model, text_content AS snippet,
+                       has_thinking, has_tool_use
+                FROM conversation_messages
+                {where_clause}
+                ORDER BY message_ts DESC
+                LIMIT ? OFFSET ?
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_session_conversation(self, session_id: str, limit: int = 200) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, session_id, agent_id, turn_index, role, message_ts, model,
+                       text_content, has_thinking, has_tool_use, has_tool_result,
+                       content_json
+                FROM conversation_messages
+                WHERE session_id = ?
+                ORDER BY turn_index ASC
+                LIMIT ?
+                """,
+                (session_id, int(limit)),
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_session_list_with_transcript_info(self, limit: int = 100) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    session_id,
+                    agent_id,
+                    COUNT(*) AS message_count,
+                    SUM(has_thinking) AS thinking_count,
+                    SUM(has_tool_use) AS tool_use_count,
+                    MIN(message_ts) AS first_message_ts,
+                    MAX(message_ts) AS last_message_ts,
+                    MAX(model) AS model
+                FROM conversation_messages
+                GROUP BY session_id
+                ORDER BY last_message_ts DESC
+                LIMIT ?
+                """,
+                (int(limit),),
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    # ── Thinking blocks ────────────────────────────────────────────────
+
+    def get_thinking_blocks(
+        self, session_id: str | None = None, limit: int = 100
+    ) -> list[dict]:
+        params: list[object] = []
+        where = ""
+        if session_id:
+            where = "WHERE t.session_id = ?"
+            params.append(session_id)
+        params.append(int(limit))
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT t.id, t.session_id, t.agent_id, t.block_index,
+                       t.thinking_text, t.thinking_ts, t.model,
+                       t.preceding_user_text, t.message_id
+                FROM thinking_blocks t
+                {where}
+                ORDER BY t.thinking_ts DESC
+                LIMIT ?
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_session_thinking(self, session_id: str, limit: int = 100) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT t.id, t.session_id, t.block_index,
+                       t.thinking_text, t.thinking_ts, t.model,
+                       t.preceding_user_text, t.message_id,
+                       c.turn_index
+                FROM thinking_blocks t
+                JOIN conversation_messages c ON c.id = t.message_id
+                WHERE t.session_id = ?
+                ORDER BY c.turn_index ASC, t.block_index ASC
+                LIMIT ?
+                """,
+                (session_id, int(limit)),
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    # ── Tool invocations ───────────────────────────────────────────────
+
+    def get_tool_invocations(
+        self,
+        session_id: str | None = None,
+        tool_name: str | None = None,
+        limit: int = 100,
+    ) -> list[dict]:
+        params: list[object] = []
+        where_parts = []
+        if session_id:
+            where_parts.append("session_id = ?")
+            params.append(session_id)
+        if tool_name:
+            where_parts.append("tool_name = ?")
+            params.append(tool_name)
+
+        where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+        params.append(int(limit))
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT id, session_id, agent_id, message_id, tool_use_id,
+                       tool_name, tool_input, tool_result, result_message_id,
+                       invocation_ts, is_error
+                FROM tool_invocations
+                {where}
+                ORDER BY invocation_ts DESC
+                LIMIT ?
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_tool_usage_summary(self, session_id: str | None = None) -> list[dict]:
+        params: list[object] = []
+        where = ""
+        if session_id:
+            where = "WHERE session_id = ?"
+            params.append(session_id)
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT tool_name,
+                       COUNT(*) AS invocation_count,
+                       SUM(is_error) AS error_count
+                FROM tool_invocations
+                {where}
+                GROUP BY tool_name
+                ORDER BY invocation_count DESC
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]

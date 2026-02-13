@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Thinking Blocks - Claw Journal{% endblock %}
+{% block content %}
+<hgroup>
+    <h1>Thinking Process</h1>
+    <p>Internal reasoning and "thinking" blocks extracted from conversations.
+    {% if session_id %} Filtered to session: <code>{{ session_id }}</code> | <a href="/thinking">Show all</a>{% endif %}
+    </p>
+</hgroup>
+
+{% if blocks %}
+{% for block in blocks %}
+<article>
+    <header>
+        <strong>{{ block.model or 'unknown' }}</strong>
+        {% if block.thinking_ts %}<small class="ts">{{ block.thinking_ts }}</small>{% endif %}
+        | <a href="/conversation/{{ block.session_id }}">View conversation</a>
+    </header>
+
+    {% if block.preceding_user_text %}
+    <div class="trigger-context">
+        <small><strong>Triggered by:</strong> {{ block.preceding_user_text[:200] }}{% if block.preceding_user_text|length > 200 %}...{% endif %}</small>
+    </div>
+    {% endif %}
+
+    <pre class="thinking-text">{{ block.thinking_text }}</pre>
+</article>
+{% endfor %}
+{% else %}
+<p>No thinking blocks found{% if session_id %} for this session{% endif %}.</p>
+{% endif %}
+{% endblock %}
