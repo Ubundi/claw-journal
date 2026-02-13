@@ -7,6 +7,8 @@ from pathlib import Path
 
 TRUE_VALUES = {"1", "true", "yes", "on"}
 INGEST_MODES = {"rpc", "file", "hybrid"}
+AUTH_MODES = {"auto", "oauth", "api_key"}
+BILLING_MODES = {"token", "claude_max"}
 
 
 @dataclass(frozen=True)
@@ -27,6 +29,10 @@ class Settings:
     session_sync_seconds: float
     cost_estimation_enabled: bool
     pricing_file: Path | None
+    redaction_enabled: bool
+    auth_mode: str
+    billing_mode: str
+    claude_max_monthly_usd: float
     db_path: Path
 
 
@@ -73,10 +79,20 @@ def load_settings() -> Settings:
     cost_estimation_enabled = _parse_bool(os.getenv("CJ_COST_ESTIMATION_ENABLED"), True)
     pricing_file_raw = os.getenv("CJ_PRICING_FILE") or "./pricing.json"
     pricing_file = Path(pricing_file_raw).expanduser() if pricing_file_raw else None
+    redaction_enabled = _parse_bool(os.getenv("CJ_REDACTION_ENABLED"), True)
+    auth_mode = os.getenv("CJ_AUTH_MODE", "auto").strip().lower()
+    billing_mode = os.getenv("CJ_BILLING_MODE", "token").strip().lower()
+    claude_max_monthly_usd = float(os.getenv("CJ_CLAUDE_MAX_MONTHLY_USD", "200.0"))
     db_path = Path(os.getenv("CJ_DB_PATH", "./data/claw_journal.db")).expanduser()
 
     if remote_ingest_mode not in INGEST_MODES:
         raise ValueError(f"CJ_REMOTE_INGEST_MODE must be one of: {sorted(INGEST_MODES)}")
+
+    if auth_mode not in AUTH_MODES:
+        raise ValueError(f"CJ_AUTH_MODE must be one of: {sorted(AUTH_MODES)}")
+
+    if billing_mode not in BILLING_MODES:
+        raise ValueError(f"CJ_BILLING_MODE must be one of: {sorted(BILLING_MODES)}")
 
     if remote_enabled and remote_ingest_mode in {"rpc", "hybrid"}:
         missing = []
@@ -96,6 +112,9 @@ def load_settings() -> Settings:
 
     if session_sync_seconds <= 0:
         raise ValueError("CJ_SESSION_SYNC_SECONDS must be > 0")
+
+    if claude_max_monthly_usd < 0:
+        raise ValueError("CJ_CLAUDE_MAX_MONTHLY_USD must be >= 0")
 
     if session_sync_enabled and remote_enabled and not remote_ssh_host:
         raise ValueError("CJ_REMOTE_SSH_HOST is required when remote sync is enabled")
@@ -119,5 +138,9 @@ def load_settings() -> Settings:
         session_sync_seconds=session_sync_seconds,
         cost_estimation_enabled=cost_estimation_enabled,
         pricing_file=pricing_file,
+        redaction_enabled=redaction_enabled,
+        auth_mode=auth_mode,
+        billing_mode=billing_mode,
+        claude_max_monthly_usd=claude_max_monthly_usd,
         db_path=db_path,
     )

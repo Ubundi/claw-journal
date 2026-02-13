@@ -22,7 +22,10 @@ class NormalizedUsageEvent:
     total_tokens: int
     context_tokens: int
     cost_usd: float | None
+    input_cost_usd: float | None
+    output_cost_usd: float | None
     cost_source: str
+    billing_mode: str
     duration_ms: int | None
     reasoning_text: str | None
     raw_json: str
@@ -35,6 +38,8 @@ class DailyUsageRow:
     input_tokens: int
     output_tokens: int
     total_tokens: int
+    input_cost_usd: float
+    output_cost_usd: float
     cost_usd: float
 
 
@@ -44,6 +49,8 @@ class SessionUsageRow:
     provider: str | None
     model: str | None
     total_tokens: int
+    input_cost_usd: float
+    output_cost_usd: float
     cost_usd: float
     last_event_ts: str
 
@@ -199,6 +206,12 @@ def normalize_log_event(payload: dict[str, Any], raw_json: str) -> NormalizedUsa
     cost_usd = _to_float(
         _pick_first(containers, ["cost", "costUsd", "openclaw.cost.usd", "usdCost"])
     )
+    input_cost_usd = _to_float(
+        _pick_first(containers, ["inputCostUsd", "openclaw.cost.input.usd", "cost_input"])
+    )
+    output_cost_usd = _to_float(
+        _pick_first(containers, ["outputCostUsd", "openclaw.cost.output.usd", "cost_output"])
+    )
     cost_source = "observed" if cost_usd is not None else "missing"
     duration_ms = _to_int(
         _pick_first(containers, ["durationMs", "duration_ms", "latencyMs", "responseMs"])
@@ -232,7 +245,10 @@ def normalize_log_event(payload: dict[str, Any], raw_json: str) -> NormalizedUsa
         total_tokens=total_tokens,
         context_tokens=context_tokens,
         cost_usd=cost_usd,
+        input_cost_usd=input_cost_usd,
+        output_cost_usd=output_cost_usd,
         cost_source=cost_source,
+        billing_mode="token",
         duration_ms=duration_ms,
         reasoning_text=reasoning_text,
         raw_json=raw_json,

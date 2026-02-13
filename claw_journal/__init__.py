@@ -5,6 +5,7 @@ __all__ = [
     "ingest",
     "models",
     "pricing",
+    "redaction",
     "session_sync",
     "service",
     "storage",

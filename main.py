@@ -24,16 +24,17 @@ logging.basicConfig(
 def build_runtime() -> tuple[object, IngestLoop, SessionSyncLoop | None, object]:
     settings = load_settings()
     repository = UsageRepository(settings.db_path)
-    usage_service = UsageService(repository)
-    app = create_app(usage_service)
-
     pricing_engine = PricingEngine.from_file(settings.pricing_file)
+    usage_service = UsageService(repository, settings, pricing_engine)
+    app = create_app(usage_service)
 
     ingestor = LogIngestor(
         repository=repository,
         log_glob=settings.openclaw_log_glob,
         pricing_engine=pricing_engine,
         cost_estimation_enabled=settings.cost_estimation_enabled,
+        redaction_enabled=settings.redaction_enabled,
+        billing_mode=settings.billing_mode,
     )
     ingest_loop = IngestLoop(ingestor=ingestor, poll_seconds=settings.poll_seconds)
 

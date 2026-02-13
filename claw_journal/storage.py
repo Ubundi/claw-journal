@@ -36,7 +36,10 @@ class UsageRepository:
                     total_tokens INTEGER NOT NULL,
                     context_tokens INTEGER NOT NULL,
                     cost_usd REAL,
+                    input_cost_usd REAL,
+                    output_cost_usd REAL,
                     cost_source TEXT NOT NULL DEFAULT 'missing',
+                    billing_mode TEXT NOT NULL DEFAULT 'token',
                     duration_ms INTEGER,
                     reasoning_text TEXT,
                     raw_json TEXT NOT NULL,
@@ -80,6 +83,12 @@ class UsageRepository:
                 conn.execute(
                     "ALTER TABLE usage_events ADD COLUMN cost_source TEXT NOT NULL DEFAULT 'missing'"
                 )
+            if "input_cost_usd" not in columns:
+                conn.execute("ALTER TABLE usage_events ADD COLUMN input_cost_usd REAL")
+            if "output_cost_usd" not in columns:
+                conn.execute("ALTER TABLE usage_events ADD COLUMN output_cost_usd REAL")
+            if "billing_mode" not in columns:
+                conn.execute("ALTER TABLE usage_events ADD COLUMN billing_mode TEXT NOT NULL DEFAULT 'token'")
             if "event_fingerprint" not in columns:
                 conn.execute("ALTER TABLE usage_events ADD COLUMN event_fingerprint TEXT")
             conn.execute(
@@ -102,7 +111,10 @@ class UsageRepository:
                 e.total_tokens,
                 e.context_tokens,
                 e.cost_usd,
+                e.input_cost_usd,
+                e.output_cost_usd,
                 e.cost_source,
+                e.billing_mode,
                 e.duration_ms,
                 e.reasoning_text,
                 e.raw_json,
@@ -132,12 +144,15 @@ class UsageRepository:
                     total_tokens,
                     context_tokens,
                     cost_usd,
+                    input_cost_usd,
+                    output_cost_usd,
                     cost_source,
+                    billing_mode,
                     duration_ms,
                     reasoning_text,
                     raw_json,
                     event_fingerprint
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 rows,
             )
@@ -153,6 +168,8 @@ class UsageRepository:
                     SUM(input_tokens) AS input_tokens,
                     SUM(output_tokens) AS output_tokens,
                     SUM(total_tokens) AS total_tokens,
+                    COALESCE(SUM(input_cost_usd), 0.0) AS input_cost_usd,
+                    COALESCE(SUM(output_cost_usd), 0.0) AS output_cost_usd,
                     COALESCE(SUM(cost_usd), 0.0) AS cost_usd
                 FROM usage_events
                 WHERE event_ts >= datetime('now', ?)
@@ -168,6 +185,8 @@ class UsageRepository:
                 input_tokens=row["input_tokens"] or 0,
                 output_tokens=row["output_tokens"] or 0,
                 total_tokens=row["total_tokens"] or 0,
+                input_cost_usd=row["input_cost_usd"] or 0.0,
+                output_cost_usd=row["output_cost_usd"] or 0.0,
                 cost_usd=row["cost_usd"] or 0.0,
             )
             for row in rows
@@ -182,6 +201,8 @@ class UsageRepository:
                     provider,
                     model,
                     SUM(total_tokens) AS total_tokens,
+                    COALESCE(SUM(input_cost_usd), 0.0) AS input_cost_usd,
+                    COALESCE(SUM(output_cost_usd), 0.0) AS output_cost_usd,
                     COALESCE(SUM(cost_usd), 0.0) AS cost_usd,
                     MAX(event_ts) AS last_event_ts
                 FROM usage_events
@@ -198,6 +219,8 @@ class UsageRepository:
                 provider=row["provider"],
                 model=row["model"],
                 total_tokens=row["total_tokens"] or 0,
+                input_cost_usd=row["input_cost_usd"] or 0.0,
+                output_cost_usd=row["output_cost_usd"] or 0.0,
                 cost_usd=row["cost_usd"] or 0.0,
                 last_event_ts=row["last_event_ts"],
             )
@@ -367,8 +390,22 @@ class UsageRepository:
                 """
             ).fetchall()
 
-        summary = {"observed": 0, "estimated": 0, "missing": 0}
+        summary = {"observed": 0, "estimated": 0, "missing": 0, "subscription": 0}
         for row in rows:
             key = row["cost_source"] or "missing"
             summary[str(key)] = int(row["count"] or 0)
         return summary
+
+    def get_data_status(self) -> dict:
+        with self._connect() as conn:
+            usage_count = conn.execute("SELECT COUNT(*) AS count FROM usage_events").fetchone()["count"]
+            snapshot_count = conn.execute("SELECT COUNT(*) AS count FROM session_snapshots").fetchone()["count"]
+            latest_usage = conn.execute("SELECT MAX(event_ts) AS ts FROM usage_events").fetchone()["ts"]
+
+        return {
+            "usage_events": int(usage_count or 0),
+            "session_snapshots": int(snapshot_count or 0),
+            "latest_usage_event_ts": latest_usage,
+            "log_usage_available": int(usage_count or 0) > 0,
+            "reconciled_available": int(snapshot_count or 0) > 0,
+        }

@@ -61,6 +61,10 @@ Edit `.env` to configure your settings:
 - `CJ_SESSION_SYNC_SECONDS`: Session sync interval in seconds (default: `30`).
 - `CJ_COST_ESTIMATION_ENABLED`: Estimate cost when logs contain tokens but no cost (default: `true`).
 - `CJ_PRICING_FILE`: Pricing table JSON path (default: `./pricing.json`).
+- `CJ_REDACTION_ENABLED`: Redact sensitive keys/tokens before storing `raw_json` (default: `true`).
+- `CJ_AUTH_MODE`: `auto`, `oauth`, or `api_key` (default: `auto`).
+- `CJ_BILLING_MODE`: `token` or `claude_max` (default: `token`).
+- `CJ_CLAUDE_MAX_MONTHLY_USD`: Monthly Claude Max subscription amount used for dashboard context (default: `200`).
 
 ## 🖥️ Running (Backend MVP)
 
@@ -70,6 +74,9 @@ Start the local API service:
 python main.py
 ```
 
+Open local dashboard (MVP):
+- `http://127.0.0.1:3000/`
+
 Available endpoints:
 - `GET /health`
 - `GET /api/usage/daily?days=30`
@@ -77,6 +84,9 @@ Available endpoints:
 - `GET /api/reasoning?limit=100`
 - `GET /api/usage/reconciled?limit=100` (gateway session truth + observed log costs)
 - `GET /api/usage/cost-sources` (observed vs estimated vs missing cost counts)
+- `GET /api/system/profile` (auth mode, billing mode, data-source diagnostics, notes)
+- `GET /api/pricing` and `POST /api/pricing/upsert` (manage input/output token pricing)
+- `GET /api/usage/plan-cost` (Claude Max plan summary when enabled)
 
 ## ✅ Tested Safe Workflow (Remote Instance)
 
@@ -90,6 +100,26 @@ This project was tested in **read-only** mode against a live remote OpenClaw hos
   - `GET /api/usage/reconciled`
 
 No write operations were performed on the OpenClaw instance.
+
+### Local dashboard test with real OpenClaw data
+
+1. Copy remote logs locally (read-only):
+   - `ssh -o BatchMode=yes rune 'cat /tmp/openclaw/openclaw-2026-02-11.log' > /tmp/openclaw-real-2026-02-11.log`
+   - `ssh -o BatchMode=yes rune 'cat /tmp/openclaw/openclaw-2026-02-12.log' > /tmp/openclaw-real-2026-02-12.log`
+2. Run Claw Journal with real-log ingest + read-only session sync:
+   - `CJ_REMOTE_ENABLED=true CJ_REMOTE_INGEST_MODE=file CJ_REMOTE_SSH_HOST=rune CJ_REMOTE_OPENCLAW_BIN=/opt/homebrew/bin/openclaw CJ_REMOTE_PATH_PREFIX=/opt/homebrew/bin CJ_SESSION_SYNC_ENABLED=true CJ_OPENCLAW_LOG_GLOB='/tmp/openclaw-real-2026-02-*.log' CJ_DB_PATH=./data/test_real_logs.db CJ_PORT=3007 python3 main.py`
+3. Open dashboard:
+   - `http://127.0.0.1:3007/`
+4. Verify APIs:
+   - `http://127.0.0.1:3007/api/usage/sessions?limit=20`
+   - `http://127.0.0.1:3007/api/usage/reconciled?limit=20`
+
+Note: if your OpenClaw file logs do not contain `model.usage` token fields, `/api/usage/sessions` can be empty while `/api/usage/reconciled` still shows gateway session token totals.
+
+Dashboard behavior:
+- In `token` billing mode, dashboard shows input/output/total costs from observed or estimated rates.
+- In `claude_max` billing mode, dashboard marks event costs as subscription-included and shows plan summary.
+- In `auth_mode=auto`, auth mode is inferred from available data (`api_key` when observed costs exist, otherwise `oauth`).
 
 ## 👤 Setup Instructions for New Users
 
@@ -145,7 +175,7 @@ No write operations were performed on the OpenClaw instance.
 - [ ] Expand parser mappings for additional provider-specific token/cost keys observed in production logs.
 - [x] Add log-derived cost estimation using model pricing table when cost is absent (OAuth-safe fallback).
 - [x] Add dedupe keying for repeated log lines across rotations/restarts.
-- [ ] Add redaction guardrails for sensitive values in stored `raw_json`.
+- [x] Add redaction guardrails for sensitive values in stored `raw_json`.
 
 ### Medium Priority
 

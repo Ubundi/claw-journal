@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .models import normalize_log_event
 from .pricing import PricingEngine
+from .redaction import redact_raw_json_line
 from .storage import UsageRepository
 
 
@@ -21,11 +22,15 @@ class LogIngestor:
         log_glob: str,
         pricing_engine: PricingEngine | None = None,
         cost_estimation_enabled: bool = True,
+        redaction_enabled: bool = True,
+        billing_mode: str = "token",
     ) -> None:
         self._repository = repository
         self._log_glob = log_glob
         self._pricing_engine = pricing_engine
         self._cost_estimation_enabled = cost_estimation_enabled
+        self._redaction_enabled = redaction_enabled
+        self._billing_mode = billing_mode
 
     def poll_once(self) -> int:
         files = sorted(glob(self._log_glob))
@@ -59,22 +64,43 @@ class LogIngestor:
                         logger.debug("Skipping invalid JSON line in %s", file_name)
                         continue
 
-                    normalized = normalize_log_event(payload, line.strip())
+                    raw_json = line.strip()
+                    safe_raw_json = redact_raw_json_line(raw_json) if self._redaction_enabled else raw_json
+
+                    normalized = normalize_log_event(payload, safe_raw_json)
                     if normalized:
+                        normalized.billing_mode = self._billing_mode
+
+                        if self._billing_mode == "claude_max":
+                            normalized.cost_usd = 0.0
+                            normalized.input_cost_usd = 0.0
+                            normalized.output_cost_usd = 0.0
+                            normalized.cost_source = "subscription"
+
                         if (
-                            self._cost_estimation_enabled
+                            self._billing_mode == "token"
+                            and self._cost_estimation_enabled
                             and normalized.cost_usd is None
                             and self._pricing_engine is not None
                         ):
-                            estimated = self._pricing_engine.estimate_cost(
+                            breakdown = self._pricing_engine.estimate_cost_breakdown(
                                 provider=normalized.provider,
                                 model=normalized.model,
                                 input_tokens=normalized.input_tokens,
                                 output_tokens=normalized.output_tokens,
                             )
-                            if estimated is not None:
-                                normalized.cost_usd = estimated
+                            if breakdown is not None:
+                                normalized.cost_usd = breakdown.total_cost_usd
+                                normalized.input_cost_usd = breakdown.input_cost_usd
+                                normalized.output_cost_usd = breakdown.output_cost_usd
                                 normalized.cost_source = "estimated"
+
+                        if normalized.cost_usd is not None:
+                            if normalized.input_cost_usd is None:
+                                normalized.input_cost_usd = 0.0
+                            if normalized.output_cost_usd is None:
+                                normalized.output_cost_usd = 0.0
+
                         events.append(normalized)
 
                 new_offset = handle.tell()
