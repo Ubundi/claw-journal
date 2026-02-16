@@ -21,10 +21,11 @@ def create_app(usage_service: UsageService) -> FastAPI:
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 24px; background: #0b0d10; color: #e6edf3; }
         h1, h2 { margin: 0 0 12px; }
-        .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
-        .card { background: #151a21; border: 1px solid #2d333b; border-radius: 10px; padding: 14px; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th, td { border-bottom: 1px solid #2d333b; text-align: left; padding: 6px; }
+        .grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+        .card { background: #151a21; border: 1px solid #2d333b; border-radius: 10px; padding: 14px; overflow: hidden; }
+        .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 600px; }
+        th, td { border-bottom: 1px solid #2d333b; text-align: left; padding: 6px; white-space: nowrap; }
         .muted { color: #8b949e; font-size: 12px; }
         .pill { display:inline-block; padding:4px 8px; border-radius:999px; border:1px solid #2d333b; margin-right:8px; }
         .clickable { cursor: pointer; }
@@ -60,43 +61,53 @@ def create_app(usage_service: UsageService) -> FastAPI:
         <section class="card">
             <h2>Session Usage (Logs)</h2>
             <p class="muted" id="logsStatus"></p>
-            <table id="sessionsTable">
-                <thead><tr><th>Session</th><th>Provider</th><th>Model</th><th>Tokens</th><th class="cost-col">Input Cost</th><th class="cost-col">Output Cost</th><th class="cost-col">Total Cost</th></tr></thead>
-                <tbody></tbody>
-            </table>
+            <div class="table-container">
+                <table id="sessionsTable">
+                    <thead><tr><th>Session</th><th>Provider</th><th>Model</th><th>Tokens</th><th class="cost-col">Input Cost</th><th class="cost-col">Output Cost</th><th class="cost-col">Total Cost</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </section>
 
         <section class="card">
             <h2>Reconciled Sessions</h2>
-            <table id="reconciledTable">
-                <thead><tr><th>Session</th><th>Model</th><th>Total Tokens</th><th>Observed Cost</th></tr></thead>
-                <tbody></tbody>
-            </table>
+            <div class="table-container">
+                <table id="reconciledTable">
+                    <thead><tr><th>Session</th><th>Model</th><th>Total Tokens</th><th>Observed Cost</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </section>
 
         <section class="card">
             <h2>Daily Usage</h2>
-            <table id="dailyTable">
-                <thead><tr><th>Date</th><th>Input</th><th>Output</th><th>Total</th><th class="cost-col">Input Cost</th><th class="cost-col">Output Cost</th><th class="cost-col">Total Cost</th></tr></thead>
-                <tbody></tbody>
-            </table>
+            <div class="table-container">
+                <table id="dailyTable">
+                    <thead><tr><th>Date</th><th>Input</th><th>Output</th><th>Total</th><th class="cost-col">Input Cost</th><th class="cost-col">Output Cost</th><th class="cost-col">Total Cost</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </section>
 
         <section class="card">
             <h2>Models Used by OpenClaw</h2>
-            <table id="modelsTable">
-                <thead><tr><th>Provider</th><th>Model</th><th>Sessions</th><th>Total Tokens</th><th>Pricing Source</th></tr></thead>
-                <tbody></tbody>
-            </table>
+            <div class="table-container">
+                <table id="modelsTable">
+                    <thead><tr><th>Provider</th><th>Model</th><th>Sessions</th><th>Total Tokens</th><th>Pricing Source</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </section>
 
         <section class="card">
             <h2>Token Accuracy Check</h2>
             <p class="muted" id="accuracySummary"></p>
-            <table id="accuracyTable">
-                <thead><tr><th>Session</th><th>Model</th><th>Snapshot Tokens</th><th>Backfilled Tokens</th><th>Delta</th></tr></thead>
-                <tbody></tbody>
-            </table>
+            <div class="table-container">
+                <table id="accuracyTable">
+                    <thead><tr><th>Session</th><th>Model</th><th>Snapshot Tokens</th><th>Backfilled Tokens</th><th>Delta</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </section>
 
         <section class="card" style="grid-column: 1 / -1;">
