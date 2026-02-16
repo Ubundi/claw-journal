@@ -76,7 +76,7 @@ Edit `.env` to configure your settings:
 Start the local API service:
 
 ```bash
-python main.py
+python3 main.py
 ```
 
 Open local dashboard (MVP):
@@ -96,72 +96,79 @@ Available endpoints:
 - `GET /api/pricing` and `POST /api/pricing/upsert` (auto-loaded pricing plus manual override)
 - `GET /api/usage/plan-cost` (Claude Max plan summary when enabled)
 
-## ✅ Tested Safe Workflow (Remote Instance)
+## 🚀 Quick Start: Connect to Remote OpenClaw
 
-This project was tested in **read-only** mode against a live remote OpenClaw host via SSH tunnel:
+If you have OpenClaw running on a remote server (e.g., a host named `rune`) and want to view the journal locally:
 
-- Verified Control UI availability at `http://localhost:18790/overview`
-- Verified remote logs are readable from `/tmp/openclaw/openclaw-YYYY-MM-DD.log`
-- Verified read-only gateway session access over SSH:
-  - `ssh rune 'export PATH=/opt/homebrew/bin:$PATH && /opt/homebrew/bin/openclaw gateway call sessions.list --params "{}"'`
-- Verified Claw Journal endpoint returns reconciled session rows using remote session truth:
-  - `GET /api/usage/reconciled`
+### 1. Prerequisite: SSH Access
+Ensure you can SSH into your remote host without a password prompt (using keys):
+```bash
+ssh -o BatchMode=yes rune 'hostname'
+# Should print "rune" or the hostname without asking for a password
+```
 
-No write operations were performed on the OpenClaw instance.
+### 2. Run Claw Journal (Remote Mode)
+Run the following command locally. This connects to `rune` to sync session totals via SSH.
 
-### Local dashboard test with real OpenClaw data
+```bash
+# Replace 'rune' with your host alias if different
+CJ_REMOTE_ENABLED=true \
+CJ_REMOTE_SSH_HOST=rune \
+python3 main.py
+```
 
-1. Copy remote logs locally (read-only):
-   - `ssh -o BatchMode=yes rune 'cat /tmp/openclaw/openclaw-2026-02-11.log' > /tmp/openclaw-real-2026-02-11.log`
-   - `ssh -o BatchMode=yes rune 'cat /tmp/openclaw/openclaw-2026-02-12.log' > /tmp/openclaw-real-2026-02-12.log`
-2. Run Claw Journal with real-log ingest + read-only session sync:
-   - `CJ_REMOTE_ENABLED=true CJ_REMOTE_INGEST_MODE=file CJ_REMOTE_SSH_HOST=rune CJ_REMOTE_OPENCLAW_BIN=/opt/homebrew/bin/openclaw CJ_REMOTE_PATH_PREFIX=/opt/homebrew/bin CJ_SESSION_SYNC_ENABLED=true CJ_OPENCLAW_LOG_GLOB='/tmp/openclaw-real-2026-02-*.log' CJ_DB_PATH=./data/test_real_logs.db CJ_PORT=3007 python3 main.py`
-3. Open dashboard:
-   - `http://127.0.0.1:3007/`
-4. Verify APIs:
-   - `http://127.0.0.1:3007/api/usage/sessions?limit=20`
-   - `http://127.0.0.1:3007/api/usage/reconciled?limit=20`
+*Optional: To see full conversation logs (thinking steps), copy logs from remote:*
+```bash
+ssh user@your-host 'cat /tmp/openclaw/openclaw-*.log' > /tmp/openclaw-remote.log
+CJ_OPENCLAW_LOG_GLOB=/tmp/openclaw-remote.log python3 main.py
+```
 
-Note: if your OpenClaw file logs do not contain `model.usage` token fields, `/api/usage/sessions` can be empty while `/api/usage/reconciled` still shows gateway session token totals.
+### 3. View Dashboard
+Open your local browser to:
+- **Dashboard:** [http://127.0.0.1:3000](http://127.0.0.1:3000)
+- **Session List:** [http://127.0.0.1:3000/api/usage/reconciled](http://127.0.0.1:3000/api/usage/reconciled)
 
-Dashboard behavior:
-- In `token` billing mode, dashboard shows input/output/total costs from observed or estimated rates.
-- In `claude_max` billing mode, dashboard hides per-token dollar columns and shows a small info note explaining subscription billing.
-- In `auth_mode=auto`, auth mode is inferred from available data (`api_key` when observed costs exist, otherwise `oauth`).
-- If log-derived usage events are missing, snapshot backfill converts gateway session deltas into historical usage events so daily/session charts still populate.
+> **Note:** This mode syncs session history from the remote `openclaw` instance every 30 seconds and streams logs as they are written. It does NOT modify your remote instance.
 
-## 👤 Setup Instructions for New Users
+## 👥 Setup Instructions (Detailed)
 
-### Option A: Local OpenClaw on same machine
+### Option A: Local OpenClaw (Same Machine)
 
-1. Install dependencies:
-   - `python3 -m pip install -r requirements.txt`
-2. Keep defaults in `.env` (or set):
-   - `CJ_REMOTE_ENABLED=false`
-   - `CJ_OPENCLAW_LOG_GLOB=/tmp/openclaw/openclaw-*.log`
-3. Run:
-   - `python3 main.py`
-4. Open:
-   - `http://127.0.0.1:3000/health`
-   - `http://127.0.0.1:3000/api/usage/daily`
+If OpenClaw is running on the same computer:
 
-### Option B: Remote OpenClaw via SSH
+1. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. **Review configuration (optional):**
+   - The default `.env` assumes logs are at `/tmp/openclaw/openclaw-*.log`.
+3. **Run:**
+   ```bash
+   python3 main.py
+   ```
+4. **Open:**
+   - [http://127.0.0.1:3000](http://127.0.0.1:3000)
 
-1. Confirm SSH works non-interactively:
-   - `ssh -o BatchMode=yes <host> 'hostname'`
-2. Set `.env` values:
-   - `CJ_REMOTE_ENABLED=true`
-   - `CJ_REMOTE_INGEST_MODE=file`
-   - `CJ_REMOTE_SSH_HOST=<host>`
-   - `CJ_SESSION_SYNC_ENABLED=true`
-   - `CJ_REMOTE_OPENCLAW_BIN=/opt/homebrew/bin/openclaw`
-   - `CJ_REMOTE_PATH_PREFIX=/opt/homebrew/bin`
-3. Choose log ingest source:
-   - Mounted/forwarded logs path via `CJ_OPENCLAW_LOG_GLOB`, or leave default if local copy exists.
-4. Run:
-   - `python3 main.py`
-5. Validate reconciliation:
-   - `http://127.0.0.1:3000/api/usage/reconciled`
+### Option B: Remote OpenClaw via SSH (Advanced)
+
+If you need more control than the Quick Start provides, you can configure `.env` persistently:
+
+1. **Copy example config:**
+   ```bash
+   cp .env.example .env
+   ```
+2. **Edit `.env`:**
+   ```bash
+   CJ_REMOTE_ENABLED=true
+   CJ_REMOTE_SSH_HOST=rune  # Replace with your host
+   CJ_SESSION_SYNC_ENABLED=true
+   # Optional: Path to OpenClaw binary on remote
+   CJ_REMOTE_OPENCLAW_BIN=/opt/homebrew/bin/openclaw
+   ```
+3. **Run:**
+   ```bash
+   python3 main.py
+   ```
 
 ### Pricing file format
 
