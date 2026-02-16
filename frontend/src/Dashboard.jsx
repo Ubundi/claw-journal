@@ -15,10 +15,36 @@ const Dashboard = () => {
   const [pricingMessage, setPricingMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [explorerTab, setExplorerTab] = useState('raw-events');
+  const [selectedSessionId, setSelectedSessionId] = useState('');
+  const [sessionEventsData, setSessionEventsData] = useState({ rows: [] });
+  const [sessionEventsLoading, setSessionEventsLoading] = useState(false);
+  const [sessionEventsError, setSessionEventsError] = useState('');
+  const [snapshotData, setSnapshotData] = useState({ rows: [] });
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [snapshotError, setSnapshotError] = useState('');
+  const [logsExplorerData, setLogsExplorerData] = useState(null);
+  const [logsExplorerLoading, setLogsExplorerLoading] = useState(false);
+  const [logsExplorerError, setLogsExplorerError] = useState('');
 
   const money = (value) => {
     const number = Number(value || 0);
     return `$${number.toFixed(6)}`;
+  };
+
+  const formatIsoOrDash = (value) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString();
+  };
+
+  const formatEpochMsOrDash = (value) => {
+    const number = Number(value || 0);
+    if (!number) return '-';
+    const date = new Date(number);
+    if (Number.isNaN(date.getTime())) return String(value || '-');
+    return date.toLocaleString();
   };
 
   const fetchData = async () => {
@@ -74,6 +100,61 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    const sessionIds = (legacyData?.reconciled || []).map((row) => row.session_id).filter(Boolean);
+    if (!selectedSessionId && sessionIds.length > 0) {
+      setSelectedSessionId(sessionIds[0]);
+    }
+  }, [legacyData, selectedSessionId]);
+
+  useEffect(() => {
+    const loadTabData = async () => {
+      if (explorerTab === 'raw-events' && selectedSessionId) {
+        try {
+          setSessionEventsLoading(true);
+          setSessionEventsError('');
+          const response = await axios.get(`/api/usage/session/${encodeURIComponent(selectedSessionId)}?limit=120`);
+          setSessionEventsData(response.data || { rows: [] });
+        } catch (err) {
+          console.error(err);
+          setSessionEventsError('Failed to load session events.');
+        } finally {
+          setSessionEventsLoading(false);
+        }
+      }
+
+      if (explorerTab === 'snapshots' && snapshotData.rows.length === 0 && !snapshotLoading) {
+        try {
+          setSnapshotLoading(true);
+          setSnapshotError('');
+          const response = await axios.get('/api/system/session-snapshots?limit=50');
+          setSnapshotData(response.data || { rows: [] });
+        } catch (err) {
+          console.error(err);
+          setSnapshotError('Failed to load session snapshots.');
+        } finally {
+          setSnapshotLoading(false);
+        }
+      }
+
+      if ((explorerTab === 'log-files' || explorerTab === 'diagnostics') && !logsExplorerData && !logsExplorerLoading) {
+        try {
+          setLogsExplorerLoading(true);
+          setLogsExplorerError('');
+          const response = await axios.get('/api/system/logs-explorer?file_limit=12&tail_lines=60');
+          setLogsExplorerData(response.data || null);
+        } catch (err) {
+          console.error(err);
+          setLogsExplorerError('Failed to load log explorer diagnostics.');
+        } finally {
+          setLogsExplorerLoading(false);
+        }
+      }
+    };
+
+    loadTabData();
+  }, [explorerTab, selectedSessionId, snapshotData.rows.length, snapshotLoading, logsExplorerData, logsExplorerLoading]);
+
   if (loading) return <div className="bg-[#0a0a0a] min-h-screen text-orange-500 p-10 font-mono">Loading data...</div>;
   if (error) return <div className="bg-[#0a0a0a] min-h-screen text-red-500 p-10 font-mono">{error} <button onClick={fetchData} className="underline ml-4">Retry</button></div>;
   if (!data) return null;
@@ -83,6 +164,7 @@ const Dashboard = () => {
   const notes = Array.isArray(profile.notes) ? profile.notes.join(' ') : '';
   const billingMode = profile.billing_mode || 'token';
   const showCostColumns = billingMode !== 'claude_max';
+  const sessionOptions = (legacyData?.reconciled || []).map((row) => row.session_id).filter(Boolean);
 
   return (
     <div className="bg-[#0a0a0a] min-h-screen text-gray-300 p-6 font-mono">
@@ -384,6 +466,182 @@ const Dashboard = () => {
               {pricingMessage && <span className="text-xs text-gray-500">{pricingMessage}</span>}
             </div>
           </form>
+        </div>
+
+        <div className="bg-[#141414] rounded border border-gray-900 p-4 xl:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h3 className="text-xs uppercase text-gray-500">Remote Logs Explorer</h3>
+            <button
+              onClick={() => {
+                if (explorerTab === 'raw-events' && selectedSessionId) {
+                  setSessionEventsData({ rows: [] });
+                }
+                if (explorerTab === 'snapshots') {
+                  setSnapshotData({ rows: [] });
+                }
+                if (explorerTab === 'log-files' || explorerTab === 'diagnostics') {
+                  setLogsExplorerData(null);
+                }
+              }}
+              className="bg-[#1a1a1a] border border-gray-800 px-3 py-1 rounded text-xs text-white hover:bg-gray-800 transition"
+            >
+              Refresh Tab
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-2 mb-4">
+            {[
+              { id: 'raw-events', label: 'Raw Session Events' },
+              { id: 'snapshots', label: 'Session Snapshots' },
+              { id: 'log-files', label: 'Log Files Tail' },
+              { id: 'diagnostics', label: 'Diagnostics' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setExplorerTab(tab.id)}
+                className={`px-3 py-1 rounded text-xs border transition ${
+                  explorerTab === tab.id
+                    ? 'bg-[#1f1f1f] border-gray-700 text-orange-400'
+                    : 'bg-[#111111] border-gray-800 text-gray-400 hover:bg-[#1a1a1a]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {explorerTab === 'raw-events' && (
+            <div>
+              <div className="flex flex-wrap items-center gap-3 mb-3">
+                <label className="text-xs text-gray-500">Session</label>
+                <select
+                  value={selectedSessionId}
+                  onChange={(event) => setSelectedSessionId(event.target.value)}
+                  className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-1 text-xs text-gray-200"
+                >
+                  {sessionOptions.length === 0 && <option value="">No reconciled sessions</option>}
+                  {sessionOptions.map((sessionId) => (
+                    <option key={sessionId} value={sessionId}>{sessionId}</option>
+                  ))}
+                </select>
+              </div>
+
+              {sessionEventsLoading && <p className="text-xs text-gray-500">Loading raw session events...</p>}
+              {sessionEventsError && <p className="text-xs text-red-400">{sessionEventsError}</p>}
+
+              {!sessionEventsLoading && !sessionEventsError && (
+                <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
+                  {(sessionEventsData.rows || []).map((row, index) => (
+                    <div key={`${row.event_ts || 'na'}-${index}`} className="bg-[#111111] border border-gray-900 rounded p-3">
+                      <p className="text-[11px] text-gray-500 mb-2">
+                        {formatIsoOrDash(row.event_ts)} · {row.event_type || '-'} · tokens={row.total_tokens || 0} · source={row.cost_source || '-'}
+                      </p>
+                      <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words">{row.raw_json || '-'}</pre>
+                    </div>
+                  ))}
+                  {(sessionEventsData.rows || []).length === 0 && (
+                    <p className="text-xs text-gray-600">No raw usage events found for this session.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {explorerTab === 'snapshots' && (
+            <div>
+              {snapshotLoading && <p className="text-xs text-gray-500">Loading session snapshots...</p>}
+              {snapshotError && <p className="text-xs text-red-400">{snapshotError}</p>}
+
+              {!snapshotLoading && !snapshotError && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-gray-400">
+                    <thead className="bg-[#1a1a1a] text-gray-500 uppercase font-medium">
+                      <tr>
+                        <th className="px-3 py-2">Session</th>
+                        <th className="px-3 py-2">Provider</th>
+                        <th className="px-3 py-2">Model</th>
+                        <th className="px-3 py-2 text-right">Total Tokens</th>
+                        <th className="px-3 py-2 text-right">Updated</th>
+                        <th className="px-3 py-2">Raw Snapshot</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-900">
+                      {(snapshotData.rows || []).map((row) => (
+                        <tr key={row.session_id} className="hover:bg-[#1a1a1a] transition-colors align-top">
+                          <td className="px-3 py-2 text-gray-300">{row.session_id || '-'}</td>
+                          <td className="px-3 py-2">{row.provider || '-'}</td>
+                          <td className="px-3 py-2">{row.model || '-'}</td>
+                          <td className="px-3 py-2 text-right">{row.total_tokens || 0}</td>
+                          <td className="px-3 py-2 text-right">{formatEpochMsOrDash(row.updated_at)}</td>
+                          <td className="px-3 py-2">
+                            <details>
+                              <summary className="cursor-pointer text-orange-400">View</summary>
+                              <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words mt-2">{row.raw_json || '-'}</pre>
+                            </details>
+                          </td>
+                        </tr>
+                      ))}
+                      {(snapshotData.rows || []).length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="px-3 py-6 text-center text-gray-600 italic">No session snapshots found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {explorerTab === 'log-files' && (
+            <div>
+              {logsExplorerLoading && <p className="text-xs text-gray-500">Loading log files...</p>}
+              {logsExplorerError && <p className="text-xs text-red-400">{logsExplorerError}</p>}
+
+              {!logsExplorerLoading && !logsExplorerError && logsExplorerData && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Glob: {logsExplorerData.log_glob} · matched: {logsExplorerData.matched_files} · returned: {logsExplorerData.returned_files} · tail lines: {logsExplorerData.tail_lines}
+                  </p>
+                  <div className="space-y-4 max-h-[32rem] overflow-y-auto pr-1">
+                    {(logsExplorerData.files || []).map((file) => (
+                      <div key={file.path} className="bg-[#111111] border border-gray-900 rounded p-3">
+                        <p className="text-[11px] text-gray-400 break-all">{file.path}</p>
+                        <p className="text-[11px] text-gray-600 mt-1">
+                          size={file.size_bytes} bytes · modified={formatIsoOrDash(file.modified_at)} · checkpoint={file.checkpoint?.cursor ?? 'none'}
+                        </p>
+                        <pre className="mt-2 text-[11px] text-gray-300 whitespace-pre-wrap break-words max-h-64 overflow-y-auto">{(file.tail_lines || []).join('\n') || '(No lines)'}</pre>
+                      </div>
+                    ))}
+                    {(logsExplorerData.files || []).length === 0 && (
+                      <p className="text-xs text-gray-600">No files matched the configured log glob.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {explorerTab === 'diagnostics' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-[#111111] border border-gray-900 rounded p-3">
+                <p className="text-xs text-gray-500 mb-2 uppercase">Data Status</p>
+                <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words">{JSON.stringify(profile.data_status || {}, null, 2)}</pre>
+              </div>
+              <div className="bg-[#111111] border border-gray-900 rounded p-3">
+                <p className="text-xs text-gray-500 mb-2 uppercase">Cost Sources</p>
+                <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words">{JSON.stringify(costSources || {}, null, 2)}</pre>
+              </div>
+              <div className="bg-[#111111] border border-gray-900 rounded p-3 md:col-span-2">
+                <p className="text-xs text-gray-500 mb-2 uppercase">Ingest + File Diagnostics</p>
+                {logsExplorerLoading && <p className="text-xs text-gray-500">Loading diagnostics...</p>}
+                {logsExplorerError && <p className="text-xs text-red-400">{logsExplorerError}</p>}
+                {!logsExplorerLoading && !logsExplorerError && (
+                  <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words">{JSON.stringify(logsExplorerData || {}, null, 2)}</pre>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

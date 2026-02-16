@@ -445,6 +445,17 @@ def create_app(usage_service: UsageService) -> FastAPI:
     def token_accuracy(limit: int = Query(default=100, ge=1, le=1000)) -> dict[str, object]:
         return usage_service.token_accuracy(limit=limit)
 
+    @app.get("/api/system/session-snapshots")
+    def session_snapshots(limit: int = Query(default=100, ge=1, le=1000)) -> dict[str, object]:
+        return usage_service.session_snapshots(limit=limit)
+
+    @app.get("/api/system/logs-explorer")
+    def logs_explorer(
+        file_limit: int = Query(default=12, ge=1, le=30),
+        tail_lines: int = Query(default=80, ge=1, le=300),
+    ) -> dict[str, object]:
+        return usage_service.logs_explorer(file_limit=file_limit, tail_lines=tail_lines)
+
     @app.get("/api/usage/session/{session_id}")
     def session_detail(session_id: str, limit: int = Query(default=300, ge=1, le=2000)) -> dict[str, object]:
         return usage_service.session_detail(session_id=session_id, limit=limit)

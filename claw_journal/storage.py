@@ -893,6 +893,75 @@ class UsageRepository:
             for row in rows
         ]
 
+    def get_session_snapshots(self, limit: int = 200) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    session_id,
+                    session_key,
+                    provider,
+                    model,
+                    account_id,
+                    input_tokens,
+                    output_tokens,
+                    total_tokens,
+                    context_tokens,
+                    updated_at,
+                    raw_json
+                FROM session_snapshots
+                ORDER BY updated_at DESC
+                LIMIT ?
+                """,
+                (int(limit),),
+            ).fetchall()
+
+        return [
+            {
+                "session_id": row["session_id"],
+                "session_key": row["session_key"],
+                "provider": row["provider"],
+                "model": row["model"],
+                "account_id": row["account_id"],
+                "input_tokens": int(row["input_tokens"] or 0),
+                "output_tokens": int(row["output_tokens"] or 0),
+                "total_tokens": int(row["total_tokens"] or 0),
+                "context_tokens": int(row["context_tokens"] or 0),
+                "updated_at": int(row["updated_at"] or 0),
+                "raw_json": row["raw_json"],
+            }
+            for row in rows
+        ]
+
+    def get_checkpoints(self, limit: int = 500) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT source_key, cursor, updated_at
+                FROM checkpoints
+                ORDER BY updated_at DESC
+                LIMIT ?
+                """,
+                (int(limit),),
+            ).fetchall()
+
+        checkpoints: list[dict] = []
+        for row in rows:
+            cursor_value: int | str = row["cursor"]
+            try:
+                cursor_value = int(row["cursor"])
+            except (TypeError, ValueError):
+                cursor_value = str(row["cursor"] or "")
+
+            checkpoints.append(
+                {
+                    "source_key": row["source_key"],
+                    "cursor": cursor_value,
+                    "updated_at": row["updated_at"],
+                }
+            )
+        return checkpoints
+
     def get_token_accuracy(self, limit: int = 200) -> list[dict]:
         with self._connect() as conn:
             rows = conn.execute(

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import json
+from collections import deque
+from datetime import datetime, timezone
+from glob import glob
+from pathlib import Path
 
 from .config import Settings
 from .pricing import PricingEngine
+from .redaction import redact_raw_json_line
 from .storage import UsageRepository
 
 
@@ -139,6 +144,53 @@ class UsageService:
             )
         return {"session_id": session_id, "rows": detail_rows}
 
+    def session_snapshots(self, limit: int = 200) -> dict:
+        rows = self._repository.get_session_snapshots(limit=limit)
+        return {"limit": limit, "rows": rows}
+
+    def logs_explorer(self, file_limit: int = 12, tail_lines: int = 80) -> dict:
+        safe_file_limit = max(1, min(file_limit, 30))
+        safe_tail_lines = max(1, min(tail_lines, 300))
+
+        all_files = sorted(glob(self._settings.openclaw_log_glob))
+        selected_files = all_files[-safe_file_limit:]
+        checkpoints = self._repository.get_checkpoints(limit=1000)
+        checkpoint_map = {
+            str(row.get("source_key") or ""): row
+            for row in checkpoints
+        }
+
+        file_rows: list[dict] = []
+        for file_name in selected_files:
+            path = Path(file_name)
+            source_key = f"log:{path.resolve()}"
+            checkpoint = checkpoint_map.get(source_key)
+            tail = _read_tail_lines(path=path, line_limit=safe_tail_lines)
+            stat = path.stat()
+
+            file_rows.append(
+                {
+                    "path": str(path),
+                    "source_key": source_key,
+                    "size_bytes": int(stat.st_size),
+                    "modified_at": datetime.fromtimestamp(
+                        stat.st_mtime, tz=timezone.utc
+                    ).isoformat(),
+                    "checkpoint": checkpoint,
+                    "tail_lines": tail,
+                }
+            )
+
+        data_status = self._repository.get_data_status()
+        return {
+            "log_glob": self._settings.openclaw_log_glob,
+            "matched_files": len(all_files),
+            "returned_files": len(file_rows),
+            "tail_lines": safe_tail_lines,
+            "data_status": data_status,
+            "files": file_rows,
+        }
+
     def upsert_model_pricing(
         self,
         provider: str,
@@ -185,6 +237,16 @@ def _extract_human_text(raw_json: object, reasoning_text: object) -> str | None:
     if isinstance(found, str) and found.strip():
         return found.strip()
     return None
+
+
+def _read_tail_lines(path: Path, line_limit: int) -> list[str]:
+    lines: deque[str] = deque(maxlen=line_limit)
+    with path.open("r", encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            cleaned = line.rstrip("\n")
+            if cleaned:
+                lines.append(redact_raw_json_line(cleaned))
+    return list(lines)
 
 
 def _find_message_text(value: object) -> str | None:
