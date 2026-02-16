@@ -49,7 +49,6 @@ class UsageRepository:
                 CREATE INDEX IF NOT EXISTS idx_usage_events_ts ON usage_events(event_ts);
                 CREATE INDEX IF NOT EXISTS idx_usage_events_session ON usage_events(session_id);
                 CREATE INDEX IF NOT EXISTS idx_usage_events_model ON usage_events(model);
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_events_fingerprint ON usage_events(event_fingerprint) WHERE event_fingerprint IS NOT NULL;
 
                 CREATE TABLE IF NOT EXISTS checkpoints (
                     source_key TEXT PRIMARY KEY,
@@ -336,28 +335,57 @@ class UsageRepository:
 
     def get_dashboard_summary(self) -> dict:
         with self._connect() as conn:
-            # Stats (total spend, tokens, sessions)
-            row = conn.execute(
+            usage_row = conn.execute(
                 """
                 SELECT
                     SUM(COALESCE(cost_usd, 0.0)) as total_spend,
-                    SUM(total_tokens) as total_tokens,
-                    COUNT(DISTINCT session_id) as sessions,
+                    SUM(total_tokens) as usage_tokens,
+                    COUNT(DISTINCT session_id) as usage_sessions,
                     SUM(context_tokens) as cache_reads
                 FROM usage_events
                 """
             ).fetchone()
 
-            total_spend = row["total_spend"] or 0.0
-            total_tokens = row["total_tokens"] or 0
-            sessions = row["sessions"] or 0
-            cache_reads = row["cache_reads"] or 0
+            snapshot_row = conn.execute(
+                """
+                SELECT
+                    SUM(total_tokens) as snapshot_tokens,
+                    COUNT(DISTINCT session_id) as snapshot_sessions,
+                    COUNT(DISTINCT session_key) as snapshot_agents
+                FROM session_snapshots
+                """
+            ).fetchone()
 
-            # Active agents (active in last 7 days / total known)
-            total_agents = conn.execute("SELECT COUNT(DISTINCT session_key) as c FROM usage_events").fetchone()["c"]
-            active_agents = conn.execute(
-                "SELECT COUNT(DISTINCT session_key) as c FROM usage_events WHERE datetime(event_ts) > datetime('now', '-7 days')"
+            total_spend = usage_row["total_spend"] or 0.0
+            usage_tokens = usage_row["usage_tokens"] or 0
+            usage_sessions = usage_row["usage_sessions"] or 0
+            cache_reads = usage_row["cache_reads"] or 0
+
+            snapshot_tokens = snapshot_row["snapshot_tokens"] or 0
+            snapshot_sessions = snapshot_row["snapshot_sessions"] or 0
+            snapshot_agents = snapshot_row["snapshot_agents"] or 0
+
+            total_tokens = usage_tokens if usage_tokens > 0 else snapshot_tokens
+            sessions = usage_sessions if usage_sessions > 0 else snapshot_sessions
+
+            usage_total_agents = conn.execute(
+                "SELECT COUNT(DISTINCT session_key) as c FROM usage_events WHERE session_key IS NOT NULL"
             ).fetchone()["c"]
+            usage_active_agents = conn.execute(
+                "SELECT COUNT(DISTINCT session_key) as c FROM usage_events WHERE session_key IS NOT NULL AND datetime(event_ts) > datetime('now', '-7 days')"
+            ).fetchone()["c"]
+
+            snapshot_active_agents = conn.execute(
+                """
+                SELECT COUNT(DISTINCT session_key) as c
+                FROM session_snapshots
+                WHERE session_key IS NOT NULL
+                  AND updated_at >= CAST((strftime('%s','now') - 7 * 86400) * 1000 AS INTEGER)
+                """
+            ).fetchone()["c"]
+
+            total_agents = usage_total_agents if usage_total_agents > 0 else snapshot_agents
+            active_agents = usage_active_agents if usage_active_agents > 0 else snapshot_active_agents
 
             avg_session_cost = total_spend / sessions if sessions > 0 else 0.0
 
@@ -417,6 +445,21 @@ class UsageRepository:
                 """,
                 (limit,)
             ).fetchall()
+
+            if not rows:
+                rows = conn.execute(
+                    """
+                    SELECT
+                        session_key as name,
+                        0.0 as cost
+                    FROM session_snapshots
+                    WHERE session_key IS NOT NULL
+                    ORDER BY updated_at DESC
+                    LIMIT ?
+                    """,
+                    (limit,)
+                ).fetchall()
+
         # Clean up session key for display (e.g. "agent:steward:main" -> "Steward")
         data = []
         for r in rows:
@@ -463,6 +506,25 @@ class UsageRepository:
                 """,
                 (limit,)
             ).fetchall()
+
+            if not rows:
+                rows = conn.execute(
+                    """
+                    SELECT
+                        session_key,
+                        session_id,
+                        provider,
+                        model,
+                        0 as msg_count,
+                        0.0 as cost,
+                        total_tokens as tokens,
+                        datetime(updated_at / 1000, 'unixepoch') as last_active
+                    FROM session_snapshots
+                    ORDER BY updated_at DESC
+                    LIMIT ?
+                    """,
+                    (limit,)
+                ).fetchall()
         
         result = []
         for r in rows:
@@ -481,7 +543,7 @@ class UsageRepository:
                 "sessionKey": r["session_key"] or r["session_id"] or "unknown",
                 "msgs": r["msg_count"],
                 "cost": r["cost"] or 0.0,
-                "tokens": f"{r['tokens'] / 1000000:.1f}M" if r['tokens'] >= 1000000 else (f"{r['tokens'] / 1000:.1f}K" if r['tokens'] >= 1000 else str(r['tokens'])),
+                "tokens": f"{r['tokens'] / 1000000:.1f}M" if r["tokens"] >= 1000000 else (f"{r['tokens'] / 1000:.1f}K" if r["tokens"] >= 1000 else str(r["tokens"])),
                 "lastActive": r["last_active"]
             })
         return result
