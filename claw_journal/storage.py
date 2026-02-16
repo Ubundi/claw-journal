@@ -126,10 +126,18 @@ class UsageRepository:
                 conn.execute("ALTER TABLE conversation_messages ADD COLUMN session_id TEXT NOT NULL DEFAULT 'unknown'")
             if convo_columns and "event_ts" not in convo_columns:
                 conn.execute("ALTER TABLE conversation_messages ADD COLUMN event_ts TEXT NOT NULL DEFAULT ''")
+            if convo_columns and "message_ts" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN message_ts TEXT")
             if convo_columns and "role" not in convo_columns:
                 conn.execute("ALTER TABLE conversation_messages ADD COLUMN role TEXT NOT NULL DEFAULT 'unknown'")
+            if convo_columns and "agent_id" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN agent_id TEXT")
+            if convo_columns and "turn_index" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN turn_index INTEGER NOT NULL DEFAULT 0")
             if convo_columns and "message_fingerprint" not in convo_columns:
                 conn.execute("ALTER TABLE conversation_messages ADD COLUMN message_fingerprint TEXT")
+            if convo_columns and "event_fingerprint" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN event_fingerprint TEXT")
             if convo_columns and "source" not in convo_columns:
                 conn.execute("ALTER TABLE conversation_messages ADD COLUMN source TEXT NOT NULL DEFAULT 'transcript'")
             if convo_columns and "source_path" not in convo_columns:
@@ -138,6 +146,10 @@ class UsageRepository:
                 conn.execute("ALTER TABLE conversation_messages ADD COLUMN message_type TEXT")
             if convo_columns and "content_text" not in convo_columns:
                 conn.execute("ALTER TABLE conversation_messages ADD COLUMN content_text TEXT")
+            if convo_columns and "text_content" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN text_content TEXT")
+            if convo_columns and "content_json" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN content_json TEXT NOT NULL DEFAULT ''")
             if convo_columns and "raw_json" not in convo_columns:
                 conn.execute("ALTER TABLE conversation_messages ADD COLUMN raw_json TEXT NOT NULL DEFAULT ''")
             conn.execute(
@@ -976,40 +988,98 @@ class UsageRepository:
         ]
 
     def insert_conversation_messages(self, messages: list[dict]) -> int:
-        rows = [
-            (
-                str(message.get("session_id") or "unknown"),
-                str(message.get("event_ts") or ""),
-                str(message.get("role") or "unknown"),
-                message.get("content_text"),
-                message.get("message_type"),
-                str(message.get("source") or "transcript"),
-                message.get("source_path"),
-                str(message.get("raw_json") or ""),
-                str(message.get("message_fingerprint") or ""),
-            )
+        filtered = [
+            message
             for message in messages
             if message.get("message_fingerprint") and message.get("event_ts")
         ]
 
-        if not rows:
+        if not filtered:
             return 0
 
         with self._connect() as conn:
+            columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(conversation_messages)").fetchall()
+            }
+
+            insert_columns = ["session_id", "role", "raw_json"]
+            if "event_ts" in columns:
+                insert_columns.append("event_ts")
+            if "message_ts" in columns:
+                insert_columns.append("message_ts")
+
+            if "content_text" in columns:
+                insert_columns.append("content_text")
+            if "text_content" in columns:
+                insert_columns.append("text_content")
+            if "content_json" in columns:
+                insert_columns.append("content_json")
+
+            if "message_type" in columns:
+                insert_columns.append("message_type")
+            if "source" in columns:
+                insert_columns.append("source")
+            if "source_path" in columns:
+                insert_columns.append("source_path")
+
+            if "message_fingerprint" in columns:
+                insert_columns.append("message_fingerprint")
+            if "event_fingerprint" in columns:
+                insert_columns.append("event_fingerprint")
+
+            if "turn_index" in columns:
+                insert_columns.append("turn_index")
+            if "agent_id" in columns:
+                insert_columns.append("agent_id")
+
+            rows: list[tuple] = []
+            for message in filtered:
+                session_id = str(message.get("session_id") or "unknown")
+                role = str(message.get("role") or "unknown")
+                event_ts = str(message.get("event_ts") or "")
+                content_text = str(message.get("content_text") or "")
+                raw_json = str(message.get("raw_json") or "")
+                message_fingerprint = str(message.get("message_fingerprint") or "")
+                source = str(message.get("source") or "transcript")
+                source_path = message.get("source_path")
+                message_type = message.get("message_type")
+                turn_index = int(message.get("turn_index") or 0)
+                content_json = str(message.get("content_json") or raw_json)
+
+                agent_id = None
+                if session_id.startswith("agent:"):
+                    parts = session_id.split(":")
+                    if len(parts) > 1:
+                        agent_id = parts[1]
+
+                value_by_column = {
+                    "session_id": session_id,
+                    "role": role,
+                    "raw_json": raw_json,
+                    "event_ts": event_ts,
+                    "message_ts": event_ts,
+                    "content_text": content_text,
+                    "text_content": content_text,
+                    "content_json": content_json,
+                    "message_type": message_type,
+                    "source": source,
+                    "source_path": source_path,
+                    "message_fingerprint": message_fingerprint,
+                    "event_fingerprint": message_fingerprint,
+                    "turn_index": turn_index,
+                    "agent_id": agent_id,
+                }
+                rows.append(tuple(value_by_column.get(column) for column in insert_columns))
+
+            placeholders = ", ".join(["?"] * len(insert_columns))
+            column_names = ",\n                    ".join(insert_columns)
             before = conn.total_changes
             conn.executemany(
-                """
+                f"""
                 INSERT OR IGNORE INTO conversation_messages (
-                    session_id,
-                    event_ts,
-                    role,
-                    content_text,
-                    message_type,
-                    source,
-                    source_path,
-                    raw_json,
-                    message_fingerprint
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    {column_names}
+                ) VALUES ({placeholders})
                 """,
                 rows,
             )
@@ -1023,8 +1093,8 @@ class UsageRepository:
                 SELECT
                     session_id,
                     COUNT(*) AS message_count,
-                    MAX(event_ts) AS last_event_ts,
-                    MIN(event_ts) AS first_event_ts,
+                    MAX(COALESCE(NULLIF(event_ts, ''), message_ts)) AS last_event_ts,
+                    MIN(COALESCE(NULLIF(event_ts, ''), message_ts)) AS first_event_ts,
                     SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END) AS user_messages,
                     SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END) AS assistant_messages
                 FROM conversation_messages
@@ -1088,9 +1158,9 @@ class UsageRepository:
                     SELECT
                         id,
                         session_id,
-                        event_ts,
+                        COALESCE(NULLIF(event_ts, ''), message_ts) AS event_ts,
                         role,
-                        content_text,
+                        COALESCE(NULLIF(content_text, ''), text_content) AS content_text,
                         message_type,
                         source,
                         source_path,
@@ -1108,9 +1178,9 @@ class UsageRepository:
                     SELECT
                         id,
                         session_id,
-                        event_ts,
+                        COALESCE(NULLIF(event_ts, ''), message_ts) AS event_ts,
                         role,
-                        content_text,
+                        COALESCE(NULLIF(content_text, ''), text_content) AS content_text,
                         message_type,
                         source,
                         source_path,
