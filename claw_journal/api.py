@@ -27,6 +27,14 @@ def create_app(usage_service: UsageService) -> FastAPI:
         th, td { border-bottom: 1px solid #2d333b; text-align: left; padding: 6px; }
         .muted { color: #8b949e; font-size: 12px; }
         .pill { display:inline-block; padding:4px 8px; border-radius:999px; border:1px solid #2d333b; margin-right:8px; }
+        .clickable { cursor: pointer; }
+        .clickable:hover { background: #1f2630; }
+        .info { color: #8b949e; margin-left: 6px; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+        #sessionEvents { max-height: 320px; overflow-y: auto; }
+        .event-item { border-bottom: 1px solid #2d333b; padding: 8px 0; }
+        .event-header { font-size: 12px; color: #8b949e; margin-bottom: 4px; }
+        .event-text { white-space: pre-wrap; font-size: 13px; line-height: 1.35; }
         a { color:#58a6ff; }
     </style>
 </head>
@@ -37,6 +45,7 @@ def create_app(usage_service: UsageService) -> FastAPI:
     <div class="card" style="margin-bottom:16px;" id="profileCard">
         <strong id="modeSummary">Mode: loading...</strong>
         <div class="muted" id="modeDetails"></div>
+        <div class="muted" id="costHint"></div>
         <div class="muted" id="dataNotes"></div>
     </div>
 
@@ -52,7 +61,7 @@ def create_app(usage_service: UsageService) -> FastAPI:
             <h2>Session Usage (Logs)</h2>
             <p class="muted" id="logsStatus"></p>
             <table id="sessionsTable">
-                <thead><tr><th>Session</th><th>Provider</th><th>Model</th><th>Tokens</th><th>Input Cost</th><th>Output Cost</th><th>Total Cost</th></tr></thead>
+                <thead><tr><th>Session</th><th>Provider</th><th>Model</th><th>Tokens</th><th class="cost-col">Input Cost</th><th class="cost-col">Output Cost</th><th class="cost-col">Total Cost</th></tr></thead>
                 <tbody></tbody>
             </table>
         </section>
@@ -68,9 +77,33 @@ def create_app(usage_service: UsageService) -> FastAPI:
         <section class="card">
             <h2>Daily Usage</h2>
             <table id="dailyTable">
-                <thead><tr><th>Date</th><th>Input</th><th>Output</th><th>Total</th><th>Input Cost</th><th>Output Cost</th><th>Total Cost</th></tr></thead>
+                <thead><tr><th>Date</th><th>Input</th><th>Output</th><th>Total</th><th class="cost-col">Input Cost</th><th class="cost-col">Output Cost</th><th class="cost-col">Total Cost</th></tr></thead>
                 <tbody></tbody>
             </table>
+        </section>
+
+        <section class="card">
+            <h2>Models Used by OpenClaw</h2>
+            <table id="modelsTable">
+                <thead><tr><th>Provider</th><th>Model</th><th>Sessions</th><th>Total Tokens</th><th>Pricing Source</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
+        <section class="card">
+            <h2>Token Accuracy Check</h2>
+            <p class="muted" id="accuracySummary"></p>
+            <table id="accuracyTable">
+                <thead><tr><th>Session</th><th>Model</th><th>Snapshot Tokens</th><th>Backfilled Tokens</th><th>Delta</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
+        <section class="card" style="grid-column: 1 / -1;">
+            <h2>Session Detail</h2>
+            <p class="muted">Click any session row to inspect extracted text and raw event lines.</p>
+            <div id="sessionDetailTitle" class="mono muted">No session selected.</div>
+            <div id="sessionEvents"></div>
         </section>
 
         <section class="card">
@@ -90,7 +123,9 @@ def create_app(usage_service: UsageService) -> FastAPI:
     <p class="muted" style="margin-top:16px;">APIs: <a href="/api/usage/sessions?limit=20">sessions</a> · <a href="/api/usage/reconciled?limit=20">reconciled</a> · <a href="/api/usage/daily?days=30">daily</a></p>
 
     <script>
-        function renderRows(tableId, rows, fields) {
+        let currentBillingMode = 'token';
+
+        function renderSimpleRows(tableId, rows, fields) {
             const tbody = document.querySelector(`#${tableId} tbody`);
             tbody.innerHTML = "";
             for (const row of rows) {
@@ -105,19 +140,181 @@ def create_app(usage_service: UsageService) -> FastAPI:
             }
         }
 
+        function toggleCostColumns(showCosts) {
+            document.querySelectorAll('.cost-col').forEach(el => {
+                el.style.display = showCosts ? '' : 'none';
+            });
+        }
+
+        function money(value) {
+            const number = Number(value || 0);
+            return `$${number.toFixed(6)}`;
+        }
+
+        function renderSessionRows(tableId, rows) {
+            const tbody = document.querySelector(`#${tableId} tbody`);
+            tbody.innerHTML = "";
+            for (const row of rows) {
+                const tr = document.createElement('tr');
+                tr.classList.add('clickable');
+                tr.addEventListener('click', () => loadSessionDetail(row.session_id));
+
+                const cells = [
+                    row.session_id,
+                    row.provider,
+                    row.model,
+                    row.total_tokens,
+                    money(row.input_cost_usd),
+                    money(row.output_cost_usd),
+                    money(row.cost_usd),
+                ];
+                for (let i = 0; i < cells.length; i++) {
+                    const td = document.createElement('td');
+                    td.textContent = cells[i] === null || cells[i] === undefined ? '-' : String(cells[i]);
+                    if (!currentBillingMode || currentBillingMode === 'claude_max') {
+                        if (i >= 4) {
+                            td.style.display = 'none';
+                        }
+                    }
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+        }
+
+        function renderDailyRows(rows) {
+            const tbody = document.querySelector('#dailyTable tbody');
+            tbody.innerHTML = '';
+            for (const row of rows) {
+                const tr = document.createElement('tr');
+                const cells = [
+                    row.usage_date,
+                    row.input_tokens,
+                    row.output_tokens,
+                    row.total_tokens,
+                    money(row.input_cost_usd),
+                    money(row.output_cost_usd),
+                    money(row.cost_usd),
+                ];
+                for (let i = 0; i < cells.length; i++) {
+                    const td = document.createElement('td');
+                    td.textContent = cells[i] === null || cells[i] === undefined ? '-' : String(cells[i]);
+                    if (!currentBillingMode || currentBillingMode === 'claude_max') {
+                        if (i >= 4) {
+                            td.style.display = 'none';
+                        }
+                    }
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+        }
+
+        function renderModels(modelsResponse) {
+            const tbody = document.querySelector('#modelsTable tbody');
+            tbody.innerHTML = '';
+            const catalog = modelsResponse.available_models || [];
+            const catalogMap = new Map(catalog.map(m => [`${(m.provider || '').toLowerCase()}/${(m.model || '').toLowerCase()}`, m]));
+            for (const row of (modelsResponse.used_models || [])) {
+                const key = `${(row.provider || '').toLowerCase()}/${(row.model || '').toLowerCase()}`;
+                const catalogModel = catalogMap.get(key);
+                const tr = document.createElement('tr');
+                const pricingSource = catalogModel ? 'OpenRouter auto' : 'Local/manual';
+                const values = [row.provider || '-', row.model || '-', row.sessions || 0, row.total_tokens || 0, pricingSource];
+                for (const value of values) {
+                    const td = document.createElement('td');
+                    td.textContent = String(value);
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+        }
+
+        function renderAccuracy(accuracyResponse) {
+            const summary = accuracyResponse.summary || {};
+            document.getElementById('accuracySummary').textContent =
+                `Checked ${summary.sessions_checked || 0} sessions, matches=${summary.snapshot_matches || 0}, mismatches=${summary.snapshot_mismatches || 0}`;
+
+            const tbody = document.querySelector('#accuracyTable tbody');
+            tbody.innerHTML = '';
+            for (const row of (accuracyResponse.rows || [])) {
+                const tr = document.createElement('tr');
+                const values = [
+                    row.session_id,
+                    row.model || '-',
+                    row.snapshot_total_tokens || 0,
+                    row.snapshot_event_total_tokens || 0,
+                    row.snapshot_delta_tokens || 0,
+                ];
+                for (const value of values) {
+                    const td = document.createElement('td');
+                    td.textContent = String(value);
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+        }
+
+        async function loadSessionDetail(sessionId) {
+            if (!sessionId || sessionId === 'unknown') {
+                return;
+            }
+            const result = await fetch(`/api/usage/session/${encodeURIComponent(sessionId)}?limit=120`).then(r => r.json());
+            document.getElementById('sessionDetailTitle').textContent = `Session: ${result.session_id || sessionId}`;
+            const container = document.getElementById('sessionEvents');
+            container.innerHTML = '';
+
+            for (const row of (result.rows || [])) {
+                const item = document.createElement('div');
+                item.className = 'event-item';
+
+                const header = document.createElement('div');
+                header.className = 'event-header';
+                header.textContent = `${row.event_ts || '-'} · ${row.event_type || '-'} · tokens=${row.total_tokens || 0}`;
+                item.appendChild(header);
+
+                const text = document.createElement('div');
+                text.className = 'event-text';
+                text.textContent = row.human_text || row.reasoning_text || '(No user-facing text extracted)';
+                item.appendChild(text);
+
+                const raw = document.createElement('details');
+                const rawSummary = document.createElement('summary');
+                rawSummary.className = 'muted';
+                rawSummary.textContent = 'Raw event JSON';
+                raw.appendChild(rawSummary);
+                const rawBody = document.createElement('pre');
+                rawBody.className = 'mono';
+                rawBody.textContent = row.raw_json || '';
+                raw.appendChild(rawBody);
+                item.appendChild(raw);
+
+                container.appendChild(item);
+            }
+        }
+
         async function load() {
-            const [sessions, reconciled, daily, costs, profile, planCost] = await Promise.all([
+            const [sessions, reconciled, daily, costs, profile, planCost, models, accuracy] = await Promise.all([
                 fetch('/api/usage/sessions?limit=20').then(r => r.json()),
                 fetch('/api/usage/reconciled?limit=20').then(r => r.json()),
                 fetch('/api/usage/daily?days=30').then(r => r.json()),
                 fetch('/api/usage/cost-sources').then(r => r.json()),
                 fetch('/api/system/profile').then(r => r.json()),
-                fetch('/api/usage/plan-cost').then(r => r.json())
+                fetch('/api/usage/plan-cost').then(r => r.json()),
+                fetch('/api/system/models').then(r => r.json()),
+                fetch('/api/system/token-accuracy?limit=40').then(r => r.json())
             ]);
 
-            renderRows('sessionsTable', sessions.rows || [], ['session_id', 'provider', 'model', 'total_tokens', 'input_cost_usd', 'output_cost_usd', 'cost_usd']);
-            renderRows('reconciledTable', reconciled.rows || [], ['session_id', 'model', 'total_tokens', 'observed_cost_usd']);
-            renderRows('dailyTable', daily.rows || [], ['usage_date', 'input_tokens', 'output_tokens', 'total_tokens', 'input_cost_usd', 'output_cost_usd', 'cost_usd']);
+            const p = profile || {};
+            currentBillingMode = p.billing_mode || 'token';
+            const showCosts = currentBillingMode !== 'claude_max';
+            toggleCostColumns(showCosts);
+
+            renderSessionRows('sessionsTable', sessions.rows || []);
+            renderSimpleRows('reconciledTable', reconciled.rows || [], ['session_id', 'model', 'total_tokens', 'observed_cost_usd']);
+            renderDailyRows(daily.rows || []);
+            renderModels(models || {});
+            renderAccuracy(accuracy || {});
 
             const c = costs.rows || {};
             document.getElementById('observed').textContent = `Observed: ${c.observed || 0}`;
@@ -125,11 +322,14 @@ def create_app(usage_service: UsageService) -> FastAPI:
             document.getElementById('missing').textContent = `Missing: ${c.missing || 0}`;
             document.getElementById('subscription').textContent = `Subscription: ${c.subscription || 0}`;
 
-            const p = profile || {};
             document.getElementById('modeSummary').textContent = `Mode: auth=${p.auth_mode || 'unknown'} · billing=${p.billing_mode || 'unknown'}`;
             document.getElementById('modeDetails').textContent = p.billing_mode === 'claude_max'
               ? `Claude Max monthly plan: $${p.claude_max_monthly_usd || 0} (token costs shown as subscription-included)`
               : 'Token billing mode: costs shown from observed or estimated per-token rates.';
+
+            document.getElementById('costHint').textContent = p.billing_mode === 'claude_max'
+              ? 'ℹ Monthly subscription billing is active, so per-token dollar values are intentionally hidden in this view.'
+              : '';
 
                         if (planCost && planCost.enabled) {
                                 document.getElementById('modeDetails').textContent += ` Effective daily plan cost: $${planCost.daily_usd}`;
@@ -213,6 +413,18 @@ def create_app(usage_service: UsageService) -> FastAPI:
     @app.get("/api/system/profile")
     def system_profile() -> dict[str, object]:
         return usage_service.system_profile()
+
+    @app.get("/api/system/models")
+    def system_models() -> dict[str, object]:
+        return usage_service.model_catalog()
+
+    @app.get("/api/system/token-accuracy")
+    def token_accuracy(limit: int = Query(default=100, ge=1, le=1000)) -> dict[str, object]:
+        return usage_service.token_accuracy(limit=limit)
+
+    @app.get("/api/usage/session/{session_id}")
+    def session_detail(session_id: str, limit: int = Query(default=300, ge=1, le=2000)) -> dict[str, object]:
+        return usage_service.session_detail(session_id=session_id, limit=limit)
 
     @app.get("/api/pricing")
     def pricing_table() -> dict[str, object]:

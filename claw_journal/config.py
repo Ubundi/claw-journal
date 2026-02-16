@@ -31,6 +31,9 @@ class Settings:
     snapshot_backfill_seconds: float
     cost_estimation_enabled: bool
     pricing_file: Path | None
+    openrouter_models_url: str
+    openrouter_sync_enabled: bool
+    openrouter_timeout_seconds: float
     redaction_enabled: bool
     auth_mode: str
     billing_mode: str
@@ -83,6 +86,9 @@ def load_settings() -> Settings:
     cost_estimation_enabled = _parse_bool(os.getenv("CJ_COST_ESTIMATION_ENABLED"), True)
     pricing_file_raw = os.getenv("CJ_PRICING_FILE") or "./pricing.json"
     pricing_file = Path(pricing_file_raw).expanduser() if pricing_file_raw else None
+    openrouter_models_url = os.getenv("CJ_OPENROUTER_MODELS_URL", "https://openrouter.ai/api/v1/models")
+    openrouter_sync_enabled = _parse_bool(os.getenv("CJ_OPENROUTER_SYNC_ENABLED"), True)
+    openrouter_timeout_seconds = float(os.getenv("CJ_OPENROUTER_TIMEOUT_SECONDS", "8.0"))
     redaction_enabled = _parse_bool(os.getenv("CJ_REDACTION_ENABLED"), True)
     auth_mode = os.getenv("CJ_AUTH_MODE", "auto").strip().lower()
     billing_mode = os.getenv("CJ_BILLING_MODE", "token").strip().lower()
@@ -120,6 +126,9 @@ def load_settings() -> Settings:
     if snapshot_backfill_seconds <= 0:
         raise ValueError("CJ_SNAPSHOT_BACKFILL_SECONDS must be > 0")
 
+    if openrouter_timeout_seconds <= 0:
+        raise ValueError("CJ_OPENROUTER_TIMEOUT_SECONDS must be > 0")
+
     if claude_max_monthly_usd < 0:
         raise ValueError("CJ_CLAUDE_MAX_MONTHLY_USD must be >= 0")
 
@@ -147,6 +156,9 @@ def load_settings() -> Settings:
         snapshot_backfill_seconds=snapshot_backfill_seconds,
         cost_estimation_enabled=cost_estimation_enabled,
         pricing_file=pricing_file,
+        openrouter_models_url=openrouter_models_url,
+        openrouter_sync_enabled=openrouter_sync_enabled,
+        openrouter_timeout_seconds=openrouter_timeout_seconds,
         redaction_enabled=redaction_enabled,
         auth_mode=auth_mode,
         billing_mode=billing_mode,

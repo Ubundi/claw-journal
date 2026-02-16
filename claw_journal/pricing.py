@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.request import Request, urlopen
+
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_PRICING: dict[str, dict[str, float]] = {
@@ -14,6 +19,7 @@ DEFAULT_PRICING: dict[str, dict[str, float]] = {
 class PricingEngine:
     def __init__(self, table: dict[str, dict[str, float]]) -> None:
         self._table = table
+        self._available_models: list[dict[str, object]] = []
 
     @classmethod
     def from_file(cls, pricing_file: Path | None) -> "PricingEngine":
@@ -41,6 +47,77 @@ class PricingEngine:
     @property
     def table(self) -> dict[str, dict[str, float]]:
         return self._table
+
+    @property
+    def available_models(self) -> list[dict[str, object]]:
+        return self._available_models
+
+    def _set_available_models(self, models: list[dict[str, object]]) -> None:
+        self._available_models = models
+
+    def refresh_from_openrouter(self, models_url: str, timeout_seconds: float = 8.0) -> int:
+        request = Request(
+            models_url,
+            headers={
+                "Accept": "application/json",
+                "User-Agent": "claw-journal/0.1",
+            },
+        )
+
+        with urlopen(request, timeout=timeout_seconds) as response:  # noqa: S310
+            payload = json.loads(response.read().decode("utf-8"))
+
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(data, list):
+            logger.warning("OpenRouter models payload missing list data")
+            return 0
+
+        imported = 0
+        available_models: list[dict[str, object]] = []
+
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+
+            model_id = str(item.get("id") or "").strip().lower()
+            if not model_id:
+                continue
+
+            model_name = str(item.get("name") or model_id)
+            pricing = item.get("pricing") if isinstance(item.get("pricing"), dict) else {}
+
+            prompt_rate = _parse_openrouter_price(pricing.get("prompt"))
+            completion_rate = _parse_openrouter_price(pricing.get("completion"))
+            if prompt_rate is not None or completion_rate is not None:
+                self._table[model_id] = {
+                    "input_per_million": float(prompt_rate or 0.0),
+                    "output_per_million": float(completion_rate or 0.0),
+                }
+                imported += 1
+
+                provider, model = _split_model_id(model_id)
+                if provider and model:
+                    provider_key = f"{provider}/{model}"
+                    self._table[provider_key] = {
+                        "input_per_million": float(prompt_rate or 0.0),
+                        "output_per_million": float(completion_rate or 0.0),
+                    }
+
+            provider, model = _split_model_id(model_id)
+            available_models.append(
+                {
+                    "id": model_id,
+                    "name": model_name,
+                    "provider": provider,
+                    "model": model,
+                    "input_per_million": float(prompt_rate or 0.0),
+                    "output_per_million": float(completion_rate or 0.0),
+                    "context_length": int(item.get("context_length") or 0),
+                }
+            )
+
+        self._set_available_models(available_models)
+        return imported
 
     def save_to_file(self, pricing_file: Path) -> None:
         pricing_file.parent.mkdir(parents=True, exist_ok=True)
@@ -79,6 +156,16 @@ class PricingEngine:
         key = f"{provider}/{model}".strip().lower()
         price = self._table.get(key)
         if not price:
+            price = self._table.get(str(model).strip().lower())
+
+        if not price:
+            model_key = str(model).strip().lower()
+            for table_key, table_value in self._table.items():
+                if table_key.endswith(f"/{model_key}"):
+                    price = table_value
+                    break
+
+        if not price:
             return None
 
         in_rate = float(price.get("input_per_million", 0.0))
@@ -114,3 +201,23 @@ class CostBreakdown:
     total_cost_usd: float
     input_cost_usd: float
     output_cost_usd: float
+
+
+def _parse_openrouter_price(value: object) -> float | None:
+    if value is None:
+        return None
+    try:
+        per_token = float(str(value))
+    except (TypeError, ValueError):
+        return None
+
+    if per_token <= 0:
+        return 0.0
+    return per_token * 1_000_000.0
+
+
+def _split_model_id(model_id: str) -> tuple[str | None, str | None]:
+    parts = model_id.split("/", 1)
+    if len(parts) != 2:
+        return None, model_id
+    return parts[0].strip().lower() or None, parts[1].strip().lower() or None

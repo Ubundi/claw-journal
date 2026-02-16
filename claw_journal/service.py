@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from .config import Settings
 from .pricing import PricingEngine
 from .storage import UsageRepository
@@ -75,7 +77,58 @@ class UsageService:
         }
 
     def pricing_table(self) -> dict:
-        return {"rows": self._pricing_engine.table}
+        return {
+            "rows": self._pricing_engine.table,
+            "available_models": self._pricing_engine.available_models,
+        }
+
+    def models_used(self, limit: int = 200) -> list[dict]:
+        return self._repository.get_models_used(limit=limit)
+
+    def model_catalog(self) -> dict:
+        used = self._repository.get_models_used(limit=500)
+        used_keys = {
+            f"{(row.get('provider') or '').strip().lower()}/{(row.get('model') or '').strip().lower()}"
+            for row in used
+        }
+
+        catalog_rows = []
+        for row in self._pricing_engine.available_models:
+            provider = str(row.get("provider") or "").strip().lower()
+            model = str(row.get("model") or "").strip().lower()
+            used_key = f"{provider}/{model}" if provider and model else ""
+            catalog_rows.append(
+                {
+                    **row,
+                    "used_by_openclaw": used_key in used_keys,
+                }
+            )
+        return {"available_models": catalog_rows, "used_models": used}
+
+    def token_accuracy(self, limit: int = 200) -> dict:
+        rows = self._repository.get_token_accuracy(limit=limit)
+        total = len(rows)
+        matched = sum(1 for row in rows if row.get("snapshot_match"))
+        return {
+            "rows": rows,
+            "summary": {
+                "sessions_checked": total,
+                "snapshot_matches": matched,
+                "snapshot_mismatches": max(total - matched, 0),
+            },
+        }
+
+    def session_detail(self, session_id: str, limit: int = 300) -> dict:
+        events = self._repository.get_session_events(session_id=session_id, limit=limit)
+        detail_rows = []
+        for event in events:
+            detail_rows.append(
+                {
+                    **event,
+                    "human_text": _extract_human_text(event.get("raw_json"), event.get("reasoning_text")),
+                }
+            )
+        return {"session_id": session_id, "rows": detail_rows}
 
     def upsert_model_pricing(
         self,
@@ -98,3 +151,75 @@ class UsageService:
             "input_per_million": input_per_million,
             "output_per_million": output_per_million,
         }
+
+
+def _extract_human_text(raw_json: object, reasoning_text: object) -> str | None:
+    if isinstance(reasoning_text, str) and reasoning_text.strip():
+        return reasoning_text.strip()
+
+    if not isinstance(raw_json, str) or not raw_json.strip():
+        return None
+
+    payload = None
+    try:
+        payload = json.loads(raw_json)
+    except json.JSONDecodeError:
+        try:
+            payload = json.loads(raw_json.replace("'", '"'))
+        except Exception:
+            payload = None
+
+    if payload is None:
+        return None
+
+    found = _find_message_text(payload)
+    if isinstance(found, str) and found.strip():
+        return found.strip()
+    return None
+
+
+def _find_message_text(value: object) -> str | None:
+    if isinstance(value, str):
+        trimmed = value.strip()
+        if not trimmed:
+            return None
+        if trimmed.startswith("{") or trimmed.startswith("["):
+            try:
+                nested = json.loads(trimmed)
+                return _find_message_text(nested)
+            except json.JSONDecodeError:
+                pass
+        return trimmed if len(trimmed.split()) >= 3 else None
+
+    if isinstance(value, dict):
+        preferred_keys = [
+            "message",
+            "content",
+            "text",
+            "prompt",
+            "input",
+            "output",
+            "assistant",
+            "user",
+            "reasoning",
+            "thinking",
+        ]
+        for key in preferred_keys:
+            if key in value:
+                found = _find_message_text(value.get(key))
+                if found:
+                    return found
+        for nested_value in value.values():
+            found = _find_message_text(nested_value)
+            if found:
+                return found
+        return None
+
+    if isinstance(value, list):
+        for item in value:
+            found = _find_message_text(item)
+            if found:
+                return found
+        return None
+
+    return None

@@ -4,7 +4,7 @@ import hashlib
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 
 from .models import DailyUsageRow, NormalizedUsageEvent, SessionUsageRow
 
@@ -432,7 +432,11 @@ class UsageRepository:
             "reconciled_available": int(snapshot_count or 0) > 0,
         }
 
-    def backfill_snapshot_deltas(self, billing_mode: str) -> int:
+    def backfill_snapshot_deltas(
+        self,
+        billing_mode: str,
+        cost_estimator: Callable[[str | None, str | None, int, int], tuple[float, float, float] | None] | None = None,
+    ) -> int:
         with self._connect() as conn:
             snapshots = conn.execute(
                 """
@@ -513,10 +517,22 @@ class UsageRepository:
                     output_cost_usd = 0.0
                     cost_source = "subscription"
                 else:
-                    cost_usd = None
-                    input_cost_usd = None
-                    output_cost_usd = None
-                    cost_source = "missing"
+                    estimated = None
+                    if cost_estimator is not None:
+                        estimated = cost_estimator(
+                            row["provider"],
+                            row["model"],
+                            delta_input,
+                            delta_output,
+                        )
+                    if estimated is not None:
+                        cost_usd, input_cost_usd, output_cost_usd = estimated
+                        cost_source = "estimated"
+                    else:
+                        cost_usd = None
+                        input_cost_usd = None
+                        output_cost_usd = None
+                        cost_source = "missing"
 
                 events.append(
                     NormalizedUsageEvent(
@@ -580,3 +596,144 @@ class UsageRepository:
                 )
 
         return inserted
+
+    def get_models_used(self, limit: int = 200) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    provider,
+                    model,
+                    COUNT(DISTINCT session_id) AS sessions,
+                    SUM(total_tokens) AS total_tokens,
+                    MAX(updated_at) AS last_seen_at
+                FROM session_snapshots
+                WHERE model IS NOT NULL AND TRIM(model) <> ''
+                GROUP BY provider, model
+                ORDER BY total_tokens DESC, last_seen_at DESC
+                LIMIT ?
+                """,
+                (int(limit),),
+            ).fetchall()
+
+        return [
+            {
+                "provider": row["provider"],
+                "model": row["model"],
+                "sessions": int(row["sessions"] or 0),
+                "total_tokens": int(row["total_tokens"] or 0),
+                "last_seen_at": row["last_seen_at"],
+            }
+            for row in rows
+        ]
+
+    def get_session_events(self, session_id: str, limit: int = 300) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    event_ts,
+                    event_type,
+                    session_id,
+                    provider,
+                    model,
+                    channel,
+                    input_tokens,
+                    output_tokens,
+                    total_tokens,
+                    context_tokens,
+                    input_cost_usd,
+                    output_cost_usd,
+                    cost_usd,
+                    cost_source,
+                    billing_mode,
+                    reasoning_text,
+                    raw_json
+                FROM usage_events
+                WHERE session_id = ?
+                ORDER BY event_ts DESC
+                LIMIT ?
+                """,
+                (session_id, int(limit)),
+            ).fetchall()
+
+        return [
+            {
+                "event_ts": row["event_ts"],
+                "event_type": row["event_type"],
+                "session_id": row["session_id"],
+                "provider": row["provider"],
+                "model": row["model"],
+                "channel": row["channel"],
+                "input_tokens": int(row["input_tokens"] or 0),
+                "output_tokens": int(row["output_tokens"] or 0),
+                "total_tokens": int(row["total_tokens"] or 0),
+                "context_tokens": int(row["context_tokens"] or 0),
+                "input_cost_usd": float(row["input_cost_usd"] or 0.0),
+                "output_cost_usd": float(row["output_cost_usd"] or 0.0),
+                "cost_usd": float(row["cost_usd"] or 0.0),
+                "cost_source": row["cost_source"],
+                "billing_mode": row["billing_mode"],
+                "reasoning_text": row["reasoning_text"],
+                "raw_json": row["raw_json"],
+            }
+            for row in rows
+        ]
+
+    def get_token_accuracy(self, limit: int = 200) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    s.session_id,
+                    s.provider,
+                    s.model,
+                    s.input_tokens AS snapshot_input_tokens,
+                    s.output_tokens AS snapshot_output_tokens,
+                    s.total_tokens AS snapshot_total_tokens,
+                    COALESCE(e.input_tokens, 0) AS event_input_tokens,
+                    COALESCE(e.output_tokens, 0) AS event_output_tokens,
+                    COALESCE(e.total_tokens, 0) AS event_total_tokens,
+                    COALESCE(e.snapshot_event_total_tokens, 0) AS snapshot_event_total_tokens,
+                    s.updated_at
+                FROM session_snapshots s
+                LEFT JOIN (
+                    SELECT
+                        session_id,
+                        SUM(input_tokens) AS input_tokens,
+                        SUM(output_tokens) AS output_tokens,
+                        SUM(total_tokens) AS total_tokens,
+                        SUM(CASE WHEN event_type = 'session.snapshot' THEN total_tokens ELSE 0 END) AS snapshot_event_total_tokens
+                    FROM usage_events
+                    WHERE session_id IS NOT NULL
+                    GROUP BY session_id
+                ) e ON e.session_id = s.session_id
+                ORDER BY s.updated_at DESC
+                LIMIT ?
+                """,
+                (int(limit),),
+            ).fetchall()
+
+        report = []
+        for row in rows:
+            snapshot_total = int(row["snapshot_total_tokens"] or 0)
+            snapshot_event_total = int(row["snapshot_event_total_tokens"] or 0)
+            total_delta = snapshot_total - snapshot_event_total
+            report.append(
+                {
+                    "session_id": row["session_id"],
+                    "provider": row["provider"],
+                    "model": row["model"],
+                    "snapshot_input_tokens": int(row["snapshot_input_tokens"] or 0),
+                    "snapshot_output_tokens": int(row["snapshot_output_tokens"] or 0),
+                    "snapshot_total_tokens": snapshot_total,
+                    "event_input_tokens": int(row["event_input_tokens"] or 0),
+                    "event_output_tokens": int(row["event_output_tokens"] or 0),
+                    "event_total_tokens": int(row["event_total_tokens"] or 0),
+                    "snapshot_event_total_tokens": snapshot_event_total,
+                    "snapshot_delta_tokens": total_delta,
+                    "snapshot_match": total_delta == 0,
+                    "updated_at": int(row["updated_at"] or 0),
+                }
+            )
+        return report
