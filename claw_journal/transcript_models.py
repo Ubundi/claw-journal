@@ -68,11 +68,66 @@ def normalize_transcript_turn(
     agent_id: str | None,
     turn_index: int,
 ) -> ConversationMessage | None:
-    role = payload.get("role")
-    if role not in ("user", "assistant"):
+    line_type = payload.get("type")
+
+    # Rune format: messages are wrapped in {"type": "message", "message": {...}}
+    if line_type == "message":
+        msg_obj = payload.get("message")
+        if not isinstance(msg_obj, dict):
+            return None
+        role = msg_obj.get("role")
+        content = msg_obj.get("content", [])
+        model = payload.get("model") or msg_obj.get("model")
+        message_ts = _parse_ts(payload)
+
+        # Rune uses "toolResult" as a role for tool results
+        if role == "toolResult":
+            tool_call_id = msg_obj.get("toolCallId")
+            tool_name = msg_obj.get("toolName", "")
+            if isinstance(content, str):
+                content = [{"type": "text", "text": content}]
+            # Normalize to standard format for storage
+            normalized_content = [
+                {
+                    "type": "tool_result",
+                    "tool_use_id": tool_call_id,
+                    "tool_name": tool_name,
+                    "content": content,
+                }
+            ]
+            text_parts = []
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    text_parts.append(block.get("text", ""))
+            return ConversationMessage(
+                session_id=session_id,
+                agent_id=agent_id,
+                turn_index=turn_index,
+                role="user",
+                message_ts=message_ts,
+                model=model,
+                text_content="\n".join(text_parts).strip() or None,
+                has_thinking=False,
+                has_tool_use=False,
+                has_tool_result=True,
+                content_json=json.dumps(normalized_content),
+                raw_json=raw_json,
+                event_fingerprint=hashlib.sha256(raw_json.encode("utf-8")).hexdigest(),
+            )
+
+        if role not in ("user", "assistant"):
+            return None
+
+    # Fallback: direct format (role/content at top level)
+    elif payload.get("role") in ("user", "assistant"):
+        role = payload["role"]
+        content = payload.get("content", [])
+        model = payload.get("model")
+        message_ts = _parse_ts(payload)
+    else:
+        # Skip non-message lines (session, model_change, thinking_level_change, custom, etc.)
         return None
 
-    content = payload.get("content", [])
     if isinstance(content, str):
         content = [{"type": "text", "text": content}]
     if not isinstance(content, list):
@@ -93,15 +148,12 @@ def normalize_transcript_turn(
                 text_parts.append(text)
         elif block_type == "thinking":
             has_thinking = True
-        elif block_type == "tool_use":
+        elif block_type in ("tool_use", "toolCall"):
             has_tool_use = True
-        elif block_type == "tool_result":
+        elif block_type in ("tool_result", "toolResult"):
             has_tool_result = True
 
     text_content = "\n".join(text_parts).strip() or None
-    message_ts = _parse_ts(payload)
-    model = payload.get("model")
-
     return ConversationMessage(
         session_id=session_id,
         agent_id=agent_id,
@@ -163,21 +215,37 @@ def extract_tool_invocations(msg: ConversationMessage) -> list[ToolInvocation]:
     for block in content:
         if not isinstance(block, dict):
             continue
-        if block.get("type") != "tool_use":
-            continue
-        invocations.append(
-            ToolInvocation(
-                session_id=msg.session_id,
-                agent_id=msg.agent_id,
-                message_id=None,
-                tool_use_id=block.get("id"),
-                tool_name=block.get("name", "unknown"),
-                tool_input=json.dumps(block.get("input")) if block.get("input") else None,
-                tool_result=None,
-                result_message_id=None,
-                invocation_ts=msg.message_ts,
-                is_error=False,
+        block_type = block.get("type", "")
+        if block_type == "tool_use":
+            invocations.append(
+                ToolInvocation(
+                    session_id=msg.session_id,
+                    agent_id=msg.agent_id,
+                    message_id=None,
+                    tool_use_id=block.get("id"),
+                    tool_name=block.get("name", "unknown"),
+                    tool_input=json.dumps(block.get("input")) if block.get("input") else None,
+                    tool_result=None,
+                    result_message_id=None,
+                    invocation_ts=msg.message_ts,
+                    is_error=False,
+                )
             )
-        )
+        elif block_type == "toolCall":
+            # Rune format: toolCall with toolCallId and toolName
+            invocations.append(
+                ToolInvocation(
+                    session_id=msg.session_id,
+                    agent_id=msg.agent_id,
+                    message_id=None,
+                    tool_use_id=block.get("toolCallId") or block.get("id"),
+                    tool_name=block.get("toolName") or block.get("name", "unknown"),
+                    tool_input=json.dumps(block.get("input")) if block.get("input") else None,
+                    tool_result=None,
+                    result_message_id=None,
+                    invocation_ts=msg.message_ts,
+                    is_error=False,
+                )
+            )
 
     return invocations

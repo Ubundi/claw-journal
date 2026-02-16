@@ -108,9 +108,13 @@ class TranscriptIngestor:
                         for block in content:
                             if not isinstance(block, dict):
                                 continue
-                            if block.get("type") != "tool_result":
+                            if block.get("type") not in ("tool_result", "toolResult"):
                                 continue
-                            use_id = block.get("tool_use_id")
+                            # Handle both formats: tool_use_id (standard) and toolCallId (Rune)
+                            use_id = (
+                                block.get("tool_use_id")
+                                or block.get("toolCallId")
+                            )
                             result_content = block.get("content", "")
                             if isinstance(result_content, list):
                                 result_content = json.dumps(result_content)
