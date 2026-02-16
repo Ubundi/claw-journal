@@ -26,6 +26,22 @@ def build_runtime() -> tuple[object, IngestLoop, SessionSyncLoop | None, Snapsho
     settings = load_settings()
     repository = UsageRepository(settings.db_path)
     pricing_engine = PricingEngine.from_file(settings.pricing_file)
+
+    if settings.openrouter_sync_enabled:
+        try:
+            imported = pricing_engine.refresh_from_openrouter(
+                models_url=settings.openrouter_models_url,
+                timeout_seconds=settings.openrouter_timeout_seconds,
+            )
+            if imported:
+                logging.info("Imported %s model pricing rows from OpenRouter", imported)
+                if settings.pricing_file:
+                    pricing_engine.save_to_file(settings.pricing_file)
+            else:
+                logging.info("No model pricing rows imported from OpenRouter")
+        except Exception as exc:
+            logging.warning("OpenRouter pricing sync failed; continuing with local pricing table: %s", exc)
+
     usage_service = UsageService(repository, settings, pricing_engine)
     app = create_app(usage_service)
 
@@ -60,6 +76,8 @@ def build_runtime() -> tuple[object, IngestLoop, SessionSyncLoop | None, Snapsho
             repository=repository,
             billing_mode=settings.billing_mode,
             interval_seconds=settings.snapshot_backfill_seconds,
+            pricing_engine=pricing_engine,
+            cost_estimation_enabled=settings.cost_estimation_enabled,
         )
 
     return app, ingest_loop, session_sync_loop, snapshot_backfill_loop, settings
