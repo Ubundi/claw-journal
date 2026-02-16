@@ -1,41 +1,71 @@
 {% extends "base.html" %}
-{% block title %}Conversation {{ session_id[:16] }} - Claw Journal{% endblock %}
+{% block title %}Conversation {{ session_id | short_id }} - Claw Journal{% endblock %}
 {% block content %}
 <hgroup>
     <h1>Conversation</h1>
-    <p>Session: <code>{{ session_id }}</code>
-        | <a href="/thinking?session_id={{ session_id }}">Thinking blocks</a>
-        | <a href="/tools?session_id={{ session_id }}">Tool invocations</a>
+    <p>
+        <code>{{ session_id | short_id(12) }}</code>
+        <a href="/thinking?session_id={{ session_id }}">Thinking</a>
+        | <a href="/tools?session_id={{ session_id }}">Tools</a>
     </p>
 </hgroup>
+
+{% if model_timeline and model_timeline|length > 0 %}
+<section class="model-timeline">
+    <div class="timeline-bar">
+        {% for mc in model_timeline %}
+        <div class="timeline-entry">
+            <span class="timeline-dot"></span>
+            <span class="timeline-label">
+                <strong>{{ mc.model_id }}</strong>
+                <small class="muted">({{ mc.provider }})</small>
+                {% if mc.timestamp %}<small class="muted">{{ mc.timestamp | ts }}</small>{% endif %}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 
 <div class="chat-container">
     {% for msg in messages %}
     <article class="chat-message chat-{{ msg.role }}">
         <header>
             <strong>{{ msg.role | capitalize }}</strong>
-            {% if msg.model %}<small> ({{ msg.model }})</small>{% endif %}
-            {% if msg.message_ts %}<small class="ts">{{ msg.message_ts }}</small>{% endif %}
+            {% if msg.model %}<small class="muted"> {{ msg.model }}</small>{% endif %}
+            {% if msg.message_ts %}<small class="ts">{{ msg.message_ts | ts }}</small>{% endif %}
         </header>
 
         {% set content_blocks = msg.content_json | fromjson if msg.content_json else [] %}
         {% for block in content_blocks %}
             {% if block.type == "thinking" %}
             <details class="thinking-block">
-                <summary>Thinking...</summary>
+                <summary>
+                    Thinking...
+                    {% set tools_after = [] %}
+                    {% for later in content_blocks[loop.index:] %}
+                        {% if later.type in ["tool_use", "toolCall"] %}
+                            {% if tools_after.append(later.name or later.toolName or "unknown") %}{% endif %}
+                        {% elif later.type == "thinking" %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if tools_after %}
+                    <span class="thinking-led-to">Led to: {{ tools_after | join(", ") }}</span>
+                    {% endif %}
+                </summary>
                 <pre>{{ block.thinking or block.text or '' }}</pre>
             </details>
             {% elif block.type == "text" %}
             <div class="text-block">{{ block.text }}</div>
-            {% elif block.type == "tool_use" %}
+            {% elif block.type in ["tool_use", "toolCall"] %}
             <div class="tool-use-block">
-                <strong>Tool: {{ block.name }}</strong>
+                <strong>{{ block.name or block.toolName }}</strong>
                 <details>
                     <summary>Input</summary>
                     <pre>{{ block.input | tojson(indent=2) if block.input else '' }}</pre>
                 </details>
             </div>
-            {% elif block.type == "tool_result" %}
+            {% elif block.type in ["tool_result", "toolResult"] %}
             <details class="tool-result-block">
                 <summary>Tool Result{% if block.is_error %} (error){% endif %}</summary>
                 <pre>{{ block.content if block.content is string else (block.content | tojson(indent=2) if block.content else '') }}</pre>
@@ -51,6 +81,6 @@
 </div>
 
 {% if not messages %}
-<p>No messages found for this session.</p>
+<p class="muted">No messages found for this session.</p>
 {% endif %}
 {% endblock %}

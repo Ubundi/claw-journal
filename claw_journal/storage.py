@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Iterable
 
 from .models import DailyUsageRow, NormalizedUsageEvent, SessionUsageRow
-from .transcript_models import ConversationMessage, ThinkingBlock, ToolInvocation
+from .transcript_models import ConversationMessage, ModelChangeEvent, ThinkingBlock, ToolInvocation
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +134,23 @@ class UsageRepository:
                 CREATE INDEX IF NOT EXISTS idx_tool_inv_name ON tool_invocations(tool_name);
                 CREATE INDEX IF NOT EXISTS idx_tool_inv_ts ON tool_invocations(invocation_ts);
                 CREATE INDEX IF NOT EXISTS idx_tool_inv_use_id ON tool_invocations(tool_use_id);
+
+                CREATE TABLE IF NOT EXISTS model_change_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    agent_id TEXT,
+                    event_id TEXT,
+                    timestamp TEXT,
+                    provider TEXT,
+                    model_id TEXT,
+                    raw_json TEXT NOT NULL,
+                    event_fingerprint TEXT
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_model_change_session ON model_change_events(session_id);
+                CREATE INDEX IF NOT EXISTS idx_model_change_ts ON model_change_events(timestamp);
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_model_change_fingerprint
+                    ON model_change_events(event_fingerprint) WHERE event_fingerprint IS NOT NULL;
                 """
             )
 
@@ -177,6 +194,26 @@ class UsageRepository:
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_events_fingerprint ON usage_events(event_fingerprint) WHERE event_fingerprint IS NOT NULL"
             )
+
+            # Migrate thinking_blocks: add following_tool_names
+            tb_columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(thinking_blocks)").fetchall()
+            }
+            if "following_tool_names" not in tb_columns:
+                conn.execute(
+                    "ALTER TABLE thinking_blocks ADD COLUMN following_tool_names TEXT"
+                )
+
+            # Migrate tool_invocations: add is_subagent
+            ti_columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(tool_invocations)").fetchall()
+            }
+            if "is_subagent" not in ti_columns:
+                conn.execute(
+                    "ALTER TABLE tool_invocations ADD COLUMN is_subagent INTEGER NOT NULL DEFAULT 0"
+                )
 
     def insert_usage_events(self, events: Iterable[NormalizedUsageEvent]) -> int:
         rows = [
@@ -531,6 +568,7 @@ class UsageRepository:
                 b.thinking_ts,
                 b.model,
                 b.preceding_user_text,
+                b.following_tool_names,
             )
             for b in blocks
         ]
@@ -540,8 +578,9 @@ class UsageRepository:
                 """
                 INSERT INTO thinking_blocks (
                     session_id, agent_id, message_id, block_index,
-                    thinking_text, thinking_ts, model, preceding_user_text
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    thinking_text, thinking_ts, model, preceding_user_text,
+                    following_tool_names
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 rows,
             )
@@ -563,6 +602,7 @@ class UsageRepository:
                 inv.result_message_id,
                 inv.invocation_ts,
                 int(inv.is_error),
+                int(inv.is_subagent),
             )
             for inv in invocations
         ]
@@ -572,8 +612,9 @@ class UsageRepository:
                 """
                 INSERT INTO tool_invocations (
                     session_id, agent_id, message_id, tool_use_id, tool_name,
-                    tool_input, tool_result, result_message_id, invocation_ts, is_error
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    tool_input, tool_result, result_message_id, invocation_ts, is_error,
+                    is_subagent
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 rows,
             )
@@ -730,7 +771,8 @@ class UsageRepository:
                 f"""
                 SELECT t.id, t.session_id, t.agent_id, t.block_index,
                        t.thinking_text, t.thinking_ts, t.model,
-                       t.preceding_user_text, t.message_id
+                       t.preceding_user_text, t.message_id,
+                       t.following_tool_names
                 FROM thinking_blocks t
                 {where}
                 ORDER BY t.thinking_ts DESC
@@ -748,6 +790,7 @@ class UsageRepository:
                 SELECT t.id, t.session_id, t.block_index,
                        t.thinking_text, t.thinking_ts, t.model,
                        t.preceding_user_text, t.message_id,
+                       t.following_tool_names,
                        c.turn_index
                 FROM thinking_blocks t
                 JOIN conversation_messages c ON c.id = t.message_id
@@ -785,7 +828,7 @@ class UsageRepository:
                 f"""
                 SELECT id, session_id, agent_id, message_id, tool_use_id,
                        tool_name, tool_input, tool_result, result_message_id,
-                       invocation_ts, is_error
+                       invocation_ts, is_error, is_subagent
                 FROM tool_invocations
                 {where}
                 ORDER BY invocation_ts DESC
@@ -808,11 +851,135 @@ class UsageRepository:
                 f"""
                 SELECT tool_name,
                        COUNT(*) AS invocation_count,
-                       SUM(is_error) AS error_count
+                       SUM(is_error) AS error_count,
+                       SUM(is_subagent) AS subagent_count
                 FROM tool_invocations
                 {where}
                 GROUP BY tool_name
                 ORDER BY invocation_count DESC
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    # ── Model change events ────────────────────────────────────────────
+
+    def insert_model_change_events(self, events: list[ModelChangeEvent]) -> int:
+        if not events:
+            return 0
+
+        rows = [
+            (
+                e.session_id,
+                e.agent_id,
+                e.event_id,
+                e.timestamp,
+                e.provider,
+                e.model_id,
+                e.raw_json,
+                e.event_fingerprint,
+            )
+            for e in events
+        ]
+
+        with self._connect() as conn:
+            before = conn.total_changes
+            conn.executemany(
+                """
+                INSERT OR IGNORE INTO model_change_events (
+                    session_id, agent_id, event_id, timestamp, provider,
+                    model_id, raw_json, event_fingerprint
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+            return conn.total_changes - before
+
+    def get_model_changes(
+        self, session_id: str | None = None, limit: int = 100
+    ) -> list[dict]:
+        params: list[object] = []
+        where = ""
+        if session_id:
+            where = "WHERE session_id = ?"
+            params.append(session_id)
+        params.append(int(limit))
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT id, session_id, agent_id, event_id, timestamp,
+                       provider, model_id
+                FROM model_change_events
+                {where}
+                ORDER BY timestamp DESC
+                LIMIT ?
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_session_model_timeline(self, session_id: str) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT timestamp, provider, model_id
+                FROM model_change_events
+                WHERE session_id = ?
+                ORDER BY timestamp ASC
+                """,
+                (session_id,),
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_tool_detail(self, tool_name: str, limit: int = 100) -> list[dict]:
+        """Get tool invocations joined with the thinking block from the same message."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT ti.id, ti.session_id, ti.agent_id, ti.message_id,
+                       ti.tool_use_id, ti.tool_name, ti.tool_input, ti.tool_result,
+                       ti.invocation_ts, ti.is_error, ti.is_subagent,
+                       tb.thinking_text AS reasoning,
+                       tb.preceding_user_text AS trigger_text
+                FROM tool_invocations ti
+                LEFT JOIN thinking_blocks tb ON tb.message_id = ti.message_id
+                WHERE ti.tool_name = ?
+                GROUP BY ti.id
+                ORDER BY ti.invocation_ts DESC
+                LIMIT ?
+                """,
+                (tool_name, int(limit)),
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    # ── Annotated thinking (with tool links) ───────────────────────────
+
+    def get_annotated_thinking(
+        self, session_id: str | None = None, limit: int = 100
+    ) -> list[dict]:
+        params: list[object] = []
+        where = ""
+        if session_id:
+            where = "WHERE t.session_id = ?"
+            params.append(session_id)
+        params.append(int(limit))
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT t.id, t.session_id, t.agent_id, t.block_index,
+                       t.thinking_text, t.thinking_ts, t.model,
+                       t.preceding_user_text, t.message_id,
+                       t.following_tool_names
+                FROM thinking_blocks t
+                {where}
+                ORDER BY t.thinking_ts DESC
+                LIMIT ?
                 """,
                 params,
             ).fetchall()

@@ -12,6 +12,7 @@ from .transcript_models import (
     extract_thinking_blocks,
     extract_tool_invocations,
     normalize_transcript_turn,
+    parse_model_change,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,7 @@ class TranscriptIngestor:
             with path.open("r", encoding="utf-8") as handle:
                 handle.seek(offset)
                 messages: list[tuple[ConversationMessage, str | None]] = []
+                model_changes = []
                 turn_index = existing_count
                 last_user_text: str | None = None
 
@@ -71,6 +73,12 @@ class TranscriptIngestor:
                         logger.debug("Skipping invalid JSON in transcript %s", file_name)
                         continue
 
+                    # Check for model_change events before message normalization
+                    mc = parse_model_change(payload, line.strip(), session_id, agent_id)
+                    if mc:
+                        model_changes.append(mc)
+                        continue
+
                     msg = normalize_transcript_turn(
                         payload, line.strip(), session_id, agent_id, turn_index
                     )
@@ -81,6 +89,10 @@ class TranscriptIngestor:
                         turn_index += 1
 
                 new_offset = handle.tell()
+
+            # Insert model change events
+            if model_changes:
+                self._repository.insert_model_change_events(model_changes)
 
             if messages:
                 inserted_ids = self._repository.insert_conversation_messages(

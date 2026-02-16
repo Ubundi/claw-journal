@@ -10,7 +10,7 @@
 <body>
     <nav class="container-fluid">
         <ul>
-            <li><strong>Claw Journal</strong></li>
+            <li><a href="/" class="brand"><strong>Claw Journal</strong></a></li>
         </ul>
         <ul>
             <li><a href="/">Dashboard</a></li>
@@ -22,6 +22,9 @@
     <main class="container">
         {% block content %}{% endblock %}
     </main>
+    <footer class="container">
+        <small class="muted">Claw Journal v0.4</small>
+    </footer>
     <script src="/static/app.js"></script>
 </body>
 </html>

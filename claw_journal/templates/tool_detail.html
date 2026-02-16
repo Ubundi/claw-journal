@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ tool_name }} - Tool Detail - Claw Journal{% endblock %}
+{% block content %}
+<hgroup>
+    <h1>{{ tool_name }}</h1>
+    <p>
+        {% if summary %}
+        {{ summary.invocation_count }} invocations | {{ summary.error_count or 0 }} errors
+        {% if summary.subagent_count and summary.subagent_count > 0 %}
+        | <span class="subagent-badge">Subagent</span>
+        {% endif %}
+        {% endif %}
+        | <a href="/tools">Back to all tools</a>
+    </p>
+</hgroup>
+
+{% if invocations %}
+<div class="tool-detail-list">
+    {% for inv in invocations %}
+    <article class="tool-detail-card{% if inv.is_error %} tool-error{% endif %}">
+        <header>
+            <span>{{ inv.invocation_ts | ts }}</span>
+            <small> | <a href="/conversation/{{ inv.session_id }}">{{ inv.session_id | short_id }}</a></small>
+        </header>
+
+        {% if inv.reasoning %}
+        <div class="reasoning-block">
+            <details>
+                <summary><strong>Reasoning:</strong> {{ inv.reasoning[:100] | replace('\n', ' ') }}{% if inv.reasoning|length > 100 %}...{% endif %}</summary>
+                <pre class="thinking-text">{{ inv.reasoning[:500] }}{% if inv.reasoning|length > 500 %}...{% endif %}</pre>
+            </details>
+        </div>
+        {% endif %}
+
+        {% if inv.trigger_text %}
+        <div class="trigger-context">
+            <small><strong>Triggered by:</strong> {{ inv.trigger_text[:150] }}{% if inv.trigger_text|length > 150 %}...{% endif %}</small>
+        </div>
+        {% endif %}
+
+        {% if not inv.reasoning and not inv.trigger_text %}
+        <div class="no-reasoning">
+            <small>No reasoning context available.</small>
+        </div>
+        {% endif %}
+
+        <div class="tool-io">
+            {% if inv.tool_input %}
+            <details>
+                <summary>Input</summary>
+                <pre>{{ inv.tool_input[:1000] }}</pre>
+            </details>
+            {% endif %}
+
+            {% if inv.tool_result %}
+            <details>
+                <summary>Result{% if inv.is_error %} (error){% endif %}</summary>
+                <pre>{{ inv.tool_result[:1000] }}</pre>
+            </details>
+            {% endif %}
+        </div>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<p class="muted">No invocations found for <strong>{{ tool_name }}</strong>.</p>
+{% endif %}
+{% endblock %}

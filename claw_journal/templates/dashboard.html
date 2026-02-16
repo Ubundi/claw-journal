@@ -3,69 +3,88 @@
 {% block content %}
 <h1>Dashboard</h1>
 
+{% if daily %}
+<section class="stats-grid">
+    {% set totals = namespace(input=0, output=0, cost=0.0) %}
+    {% for d in daily %}
+        {% set totals.input = totals.input + d.input_tokens %}
+        {% set totals.output = totals.output + d.output_tokens %}
+        {% set totals.cost = totals.cost + d.cost_usd %}
+    {% endfor %}
+    <article class="stat-card">
+        <small class="muted">14-Day Input Tokens</small>
+        <strong class="stat-value">{{ "{:,.0f}".format(totals.input) }}</strong>
+    </article>
+    <article class="stat-card">
+        <small class="muted">14-Day Output Tokens</small>
+        <strong class="stat-value">{{ "{:,.0f}".format(totals.output) }}</strong>
+    </article>
+    <article class="stat-card">
+        <small class="muted">14-Day Cost</small>
+        <strong class="stat-value">${{ "%.2f"|format(totals.cost) }}</strong>
+    </article>
+    <article class="stat-card">
+        <small class="muted">Sessions</small>
+        <strong class="stat-value">{{ sessions|length if sessions else 0 }}</strong>
+    </article>
+</section>
+{% endif %}
+
 <section>
-    <h2>Sessions with Transcripts</h2>
+    <h2>Recent Sessions</h2>
     {% if sessions %}
-    <figure>
-        <table>
-            <thead>
-                <tr>
-                    <th>Session</th>
-                    <th>Agent</th>
-                    <th>Model</th>
-                    <th>Messages</th>
-                    <th>Thinking</th>
-                    <th>Tool Calls</th>
-                    <th>Last Activity</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for s in sessions %}
-                <tr>
-                    <td><a href="/conversation/{{ s.session_id }}">{{ s.session_id[:16] }}...</a></td>
-                    <td>{{ s.agent_id or '-' }}</td>
-                    <td>{{ s.model or '-' }}</td>
-                    <td>{{ s.message_count }}</td>
-                    <td>{{ s.thinking_count or 0 }}</td>
-                    <td>{{ s.tool_use_count or 0 }}</td>
-                    <td>{{ s.last_message_ts or '-' }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </figure>
+    <div class="session-list">
+        {% for s in sessions %}
+        <a href="/conversation/{{ s.session_id }}" class="session-card">
+            <div class="session-card-header">
+                <code class="session-id">{{ s.session_id | short_id }}</code>
+                <span class="session-time">{{ s.last_message_ts | ts }}</span>
+            </div>
+            <div class="session-card-body">
+                <span class="session-model">{{ s.model or 'unknown' }}</span>
+                <div class="session-stats">
+                    <span title="Messages">{{ s.message_count }} msgs</span>
+                    <span title="Thinking blocks">{{ s.thinking_count or 0 }} thinking</span>
+                    <span title="Tool calls">{{ s.tool_use_count or 0 }} tools</span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
     {% else %}
-    <p>No transcript data yet. Waiting for session JSONL files...</p>
+    <p class="muted">No transcript data yet. Waiting for session JSONL files...</p>
     {% endif %}
 </section>
 
 {% if daily %}
 <section>
-    <h2>Daily Usage (14 days)</h2>
-    <figure>
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Input Tokens</th>
-                    <th>Output Tokens</th>
-                    <th>Total Tokens</th>
-                    <th>Cost (USD)</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for d in daily %}
-                <tr>
-                    <td>{{ d.usage_date }}</td>
-                    <td>{{ "{:,}".format(d.input_tokens) }}</td>
-                    <td>{{ "{:,}".format(d.output_tokens) }}</td>
-                    <td>{{ "{:,}".format(d.total_tokens) }}</td>
-                    <td>${{ "%.4f"|format(d.cost_usd) }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </figure>
+    <details>
+        <summary><h2 style="display:inline">Daily Usage (14 days)</h2></summary>
+        <figure>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Input</th>
+                        <th>Output</th>
+                        <th>Total</th>
+                        <th>Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in daily %}
+                    <tr>
+                        <td>{{ d.usage_date }}</td>
+                        <td>{{ "{:,}".format(d.input_tokens) }}</td>
+                        <td>{{ "{:,}".format(d.output_tokens) }}</td>
+                        <td>{{ "{:,}".format(d.total_tokens) }}</td>
+                        <td>${{ "%.4f"|format(d.cost_usd) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </figure>
+    </details>
 </section>
 {% endif %}
 {% endblock %}

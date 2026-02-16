@@ -60,3 +60,19 @@ class UsageService:
 
     def tool_usage_summary(self, session_id: str | None = None) -> list[dict]:
         return self._repository.get_tool_usage_summary(session_id)
+
+    def tool_detail(self, tool_name: str, limit: int = 100) -> list[dict]:
+        return self._repository.get_tool_detail(tool_name, limit)
+
+    # ── Model changes ──────────────────────────────────────────────────
+
+    def model_changes(self, session_id: str | None = None, limit: int = 100) -> list[dict]:
+        return self._repository.get_model_changes(session_id, limit)
+
+    def session_model_timeline(self, session_id: str) -> list[dict]:
+        return self._repository.get_session_model_timeline(session_id)
+
+    # ── Annotated thinking (with tool links) ───────────────────────────
+
+    def annotated_thinking(self, session_id: str | None = None, limit: int = 100) -> list[dict]:
+        return self._repository.get_annotated_thinking(session_id, limit)

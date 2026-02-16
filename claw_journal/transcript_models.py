@@ -34,6 +34,7 @@ class ThinkingBlock:
     thinking_ts: str | None
     model: str | None
     preceding_user_text: str | None
+    following_tool_names: str | None  # JSON array of tool names invoked after this thinking
 
 
 @dataclass
@@ -48,6 +49,23 @@ class ToolInvocation:
     result_message_id: int | None
     invocation_ts: str | None
     is_error: bool
+    is_subagent: bool  # True if this tool spawns a subagent (Task, subagent, etc.)
+
+
+@dataclass
+class ModelChangeEvent:
+    session_id: str
+    agent_id: str | None
+    event_id: str | None
+    timestamp: str | None
+    provider: str | None
+    model_id: str | None
+    raw_json: str
+    event_fingerprint: str
+
+
+# Tool names that represent subagent invocations
+SUBAGENT_TOOL_NAMES = {"Task", "subagent", "dispatch", "delegate"}
 
 
 def _parse_ts(payload: dict[str, Any]) -> str | None:
@@ -171,6 +189,26 @@ def normalize_transcript_turn(
     )
 
 
+def parse_model_change(
+    payload: dict[str, Any],
+    raw_json: str,
+    session_id: str,
+    agent_id: str | None,
+) -> ModelChangeEvent | None:
+    if payload.get("type") != "model_change":
+        return None
+    return ModelChangeEvent(
+        session_id=session_id,
+        agent_id=agent_id,
+        event_id=payload.get("id"),
+        timestamp=_parse_ts(payload),
+        provider=payload.get("provider"),
+        model_id=payload.get("modelId"),
+        raw_json=raw_json,
+        event_fingerprint=hashlib.sha256(raw_json.encode("utf-8")).hexdigest(),
+    )
+
+
 def extract_thinking_blocks(
     msg: ConversationMessage,
     preceding_user_text: str | None,
@@ -181,6 +219,19 @@ def extract_thinking_blocks(
     content = json.loads(msg.content_json)
     blocks: list[ThinkingBlock] = []
 
+    # Collect all tool names in this message for linking
+    all_tool_names: list[str] = []
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        bt = block.get("type", "")
+        if bt == "tool_use":
+            all_tool_names.append(block.get("name", "unknown"))
+        elif bt == "toolCall":
+            all_tool_names.append(block.get("toolName") or block.get("name", "unknown"))
+
+    following_tools_json = json.dumps(all_tool_names) if all_tool_names else None
+
     for i, block in enumerate(content):
         if not isinstance(block, dict):
             continue
@@ -189,6 +240,22 @@ def extract_thinking_blocks(
         thinking_text = block.get("thinking", "") or block.get("text", "")
         if not thinking_text.strip():
             continue
+
+        # Find tool calls that come AFTER this thinking block in the content array
+        tools_after: list[str] = []
+        for later_block in content[i + 1 :]:
+            if not isinstance(later_block, dict):
+                continue
+            bt = later_block.get("type", "")
+            if bt == "tool_use":
+                tools_after.append(later_block.get("name", "unknown"))
+            elif bt == "toolCall":
+                tools_after.append(
+                    later_block.get("toolName") or later_block.get("name", "unknown")
+                )
+            elif bt == "thinking":
+                break  # next thinking block = new reasoning chain
+
         blocks.append(
             ThinkingBlock(
                 session_id=msg.session_id,
@@ -199,6 +266,7 @@ def extract_thinking_blocks(
                 thinking_ts=msg.message_ts,
                 model=msg.model,
                 preceding_user_text=preceding_user_text,
+                following_tool_names=json.dumps(tools_after) if tools_after else None,
             )
         )
 
@@ -217,34 +285,38 @@ def extract_tool_invocations(msg: ConversationMessage) -> list[ToolInvocation]:
             continue
         block_type = block.get("type", "")
         if block_type == "tool_use":
+            name = block.get("name", "unknown")
             invocations.append(
                 ToolInvocation(
                     session_id=msg.session_id,
                     agent_id=msg.agent_id,
                     message_id=None,
                     tool_use_id=block.get("id"),
-                    tool_name=block.get("name", "unknown"),
+                    tool_name=name,
                     tool_input=json.dumps(block.get("input")) if block.get("input") else None,
                     tool_result=None,
                     result_message_id=None,
                     invocation_ts=msg.message_ts,
                     is_error=False,
+                    is_subagent=name in SUBAGENT_TOOL_NAMES,
                 )
             )
         elif block_type == "toolCall":
             # Rune format: toolCall with toolCallId and toolName
+            name = block.get("toolName") or block.get("name", "unknown")
             invocations.append(
                 ToolInvocation(
                     session_id=msg.session_id,
                     agent_id=msg.agent_id,
                     message_id=None,
                     tool_use_id=block.get("toolCallId") or block.get("id"),
-                    tool_name=block.get("toolName") or block.get("name", "unknown"),
+                    tool_name=name,
                     tool_input=json.dumps(block.get("input")) if block.get("input") else None,
                     tool_result=None,
                     result_message_id=None,
                     invocation_ts=msg.message_ts,
                     is_error=False,
+                    is_subagent=name in SUBAGENT_TOOL_NAMES,
                 )
             )
 

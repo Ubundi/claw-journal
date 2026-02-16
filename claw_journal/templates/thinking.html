@@ -1,32 +1,51 @@
 {% extends "base.html" %}
-{% block title %}Thinking Blocks - Claw Journal{% endblock %}
+{% block title %}Thinking Process - Claw Journal{% endblock %}
 {% block content %}
 <hgroup>
     <h1>Thinking Process</h1>
-    <p>Internal reasoning and "thinking" blocks extracted from conversations.
-    {% if session_id %} Filtered to session: <code>{{ session_id }}</code> | <a href="/thinking">Show all</a>{% endif %}
+    <p>Internal reasoning with tool selection annotations.
+    {% if session_id %} Session: <code>{{ session_id | short_id }}</code> | <a href="/thinking">Show all</a>{% endif %}
     </p>
 </hgroup>
 
 {% if blocks %}
-{% for block in blocks %}
-<article>
-    <header>
-        <strong>{{ block.model or 'unknown' }}</strong>
-        {% if block.thinking_ts %}<small class="ts">{{ block.thinking_ts }}</small>{% endif %}
-        | <a href="/conversation/{{ block.session_id }}">View conversation</a>
-    </header>
+<div class="thinking-list">
+    {% for block in blocks %}
+    <article class="thinking-card">
+        <header>
+            <div class="thinking-card-header">
+                <strong>{{ block.model or 'unknown' }}</strong>
+                {% if block.thinking_ts %}<small class="ts">{{ block.thinking_ts | ts }}</small>{% endif %}
+                <a href="/conversation/{{ block.session_id }}" class="secondary-link">View conversation</a>
+            </div>
+        </header>
 
-    {% if block.preceding_user_text %}
-    <div class="trigger-context">
-        <small><strong>Triggered by:</strong> {{ block.preceding_user_text[:200] }}{% if block.preceding_user_text|length > 200 %}...{% endif %}</small>
-    </div>
-    {% endif %}
+        {% if block.preceding_user_text %}
+        <div class="trigger-context">
+            <small><strong>Triggered by:</strong> {{ block.preceding_user_text[:150] }}{% if block.preceding_user_text|length > 150 %}...{% endif %}</small>
+        </div>
+        {% endif %}
 
-    <pre class="thinking-text">{{ block.thinking_text }}</pre>
-</article>
-{% endfor %}
+        <details class="thinking-text-wrapper">
+            <summary>{{ block.thinking_text[:120] | replace('\n', ' ') }}{% if block.thinking_text|length > 120 %}...{% endif %}</summary>
+            <pre class="thinking-text">{{ block.thinking_text }}</pre>
+        </details>
+
+        {% if block.following_tool_names %}
+        {% set tools = block.following_tool_names | fromjson %}
+        {% if tools %}
+        <div class="tool-annotation">
+            <strong>Led to:</strong>
+            {% for tool in tools %}
+            <a href="/tools/detail/{{ tool }}" class="tool-chip">{{ tool }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endif %}
+    </article>
+    {% endfor %}
+</div>
 {% else %}
-<p>No thinking blocks found{% if session_id %} for this session{% endif %}.</p>
+<p class="muted">No thinking blocks found{% if session_id %} for this session{% endif %}.</p>
 {% endif %}
 {% endblock %}
