@@ -27,6 +27,8 @@ class Settings:
     remote_path_prefix: str
     session_sync_enabled: bool
     session_sync_seconds: float
+    snapshot_backfill_enabled: bool
+    snapshot_backfill_seconds: float
     cost_estimation_enabled: bool
     pricing_file: Path | None
     redaction_enabled: bool
@@ -76,6 +78,8 @@ def load_settings() -> Settings:
     remote_path_prefix = os.getenv("CJ_REMOTE_PATH_PREFIX", "/opt/homebrew/bin")
     session_sync_enabled = _parse_bool(os.getenv("CJ_SESSION_SYNC_ENABLED"), True)
     session_sync_seconds = float(os.getenv("CJ_SESSION_SYNC_SECONDS", "30.0"))
+    snapshot_backfill_enabled = _parse_bool(os.getenv("CJ_SNAPSHOT_BACKFILL_ENABLED"), True)
+    snapshot_backfill_seconds = float(os.getenv("CJ_SNAPSHOT_BACKFILL_SECONDS", "10.0"))
     cost_estimation_enabled = _parse_bool(os.getenv("CJ_COST_ESTIMATION_ENABLED"), True)
     pricing_file_raw = os.getenv("CJ_PRICING_FILE") or "./pricing.json"
     pricing_file = Path(pricing_file_raw).expanduser() if pricing_file_raw else None
@@ -113,6 +117,9 @@ def load_settings() -> Settings:
     if session_sync_seconds <= 0:
         raise ValueError("CJ_SESSION_SYNC_SECONDS must be > 0")
 
+    if snapshot_backfill_seconds <= 0:
+        raise ValueError("CJ_SNAPSHOT_BACKFILL_SECONDS must be > 0")
+
     if claude_max_monthly_usd < 0:
         raise ValueError("CJ_CLAUDE_MAX_MONTHLY_USD must be >= 0")
 
@@ -136,6 +143,8 @@ def load_settings() -> Settings:
         remote_path_prefix=remote_path_prefix,
         session_sync_enabled=session_sync_enabled,
         session_sync_seconds=session_sync_seconds,
+        snapshot_backfill_enabled=snapshot_backfill_enabled,
+        snapshot_backfill_seconds=snapshot_backfill_seconds,
         cost_estimation_enabled=cost_estimation_enabled,
         pricing_file=pricing_file,
         redaction_enabled=redaction_enabled,

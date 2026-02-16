@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
@@ -72,6 +74,15 @@ class UsageRepository:
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_session_snapshots_updated_at ON session_snapshots(updated_at);
+
+                CREATE TABLE IF NOT EXISTS session_backfill_state (
+                    session_id TEXT PRIMARY KEY,
+                    last_updated_at INTEGER NOT NULL,
+                    last_input_tokens INTEGER NOT NULL,
+                    last_output_tokens INTEGER NOT NULL,
+                    last_total_tokens INTEGER NOT NULL,
+                    last_context_tokens INTEGER NOT NULL
+                );
                 """
             )
 
@@ -399,13 +410,173 @@ class UsageRepository:
     def get_data_status(self) -> dict:
         with self._connect() as conn:
             usage_count = conn.execute("SELECT COUNT(*) AS count FROM usage_events").fetchone()["count"]
+            snapshot_usage_count = conn.execute(
+                "SELECT COUNT(*) AS count FROM usage_events WHERE event_type = 'session.snapshot'"
+            ).fetchone()["count"]
             snapshot_count = conn.execute("SELECT COUNT(*) AS count FROM session_snapshots").fetchone()["count"]
             latest_usage = conn.execute("SELECT MAX(event_ts) AS ts FROM usage_events").fetchone()["ts"]
+            latest_snapshot_usage = conn.execute(
+                "SELECT MAX(event_ts) AS ts FROM usage_events WHERE event_type = 'session.snapshot'"
+            ).fetchone()["ts"]
+
+        log_usage_count = int(usage_count or 0) - int(snapshot_usage_count or 0)
 
         return {
             "usage_events": int(usage_count or 0),
+            "snapshot_backfill_events": int(snapshot_usage_count or 0),
             "session_snapshots": int(snapshot_count or 0),
             "latest_usage_event_ts": latest_usage,
-            "log_usage_available": int(usage_count or 0) > 0,
+            "latest_snapshot_backfill_ts": latest_snapshot_usage,
+            "log_usage_available": log_usage_count > 0,
+            "snapshot_backfill_available": int(snapshot_usage_count or 0) > 0,
             "reconciled_available": int(snapshot_count or 0) > 0,
         }
+
+    def backfill_snapshot_deltas(self, billing_mode: str) -> int:
+        with self._connect() as conn:
+            snapshots = conn.execute(
+                """
+                SELECT
+                    session_id,
+                    session_key,
+                    provider,
+                    model,
+                    account_id,
+                    input_tokens,
+                    output_tokens,
+                    total_tokens,
+                    context_tokens,
+                    updated_at,
+                    raw_json
+                FROM session_snapshots
+                ORDER BY updated_at ASC
+                """
+            ).fetchall()
+
+            state_rows = conn.execute(
+                "SELECT * FROM session_backfill_state"
+            ).fetchall()
+
+            state = {row["session_id"]: row for row in state_rows}
+            events: list[NormalizedUsageEvent] = []
+            next_state: list[tuple] = []
+
+            for row in snapshots:
+                session_id = row["session_id"]
+                previous = state.get(session_id)
+                current_updated_at = int(row["updated_at"] or 0)
+                if current_updated_at <= 0:
+                    continue
+
+                if previous is not None and current_updated_at <= int(previous["last_updated_at"] or 0):
+                    continue
+
+                current_input = int(row["input_tokens"] or 0)
+                current_output = int(row["output_tokens"] or 0)
+                current_total = int(row["total_tokens"] or 0)
+                current_context = int(row["context_tokens"] or 0)
+
+                if previous is None:
+                    delta_input = current_input
+                    delta_output = current_output
+                    delta_total = current_total
+                else:
+                    delta_input = max(0, current_input - int(previous["last_input_tokens"] or 0))
+                    delta_output = max(0, current_output - int(previous["last_output_tokens"] or 0))
+                    delta_total = max(0, current_total - int(previous["last_total_tokens"] or 0))
+
+                if delta_total <= 0 and delta_input <= 0 and delta_output <= 0:
+                    next_state.append(
+                        (
+                            session_id,
+                            current_updated_at,
+                            current_input,
+                            current_output,
+                            current_total,
+                            current_context,
+                        )
+                    )
+                    continue
+
+                if delta_total <= 0:
+                    delta_total = delta_input + delta_output
+
+                event_ts = datetime.fromtimestamp(current_updated_at / 1000.0, tz=timezone.utc)
+                fingerprint_src = (
+                    f"snapshot:{session_id}:{current_updated_at}:{delta_input}:{delta_output}:{delta_total}"
+                )
+                fingerprint = hashlib.sha256(fingerprint_src.encode("utf-8")).hexdigest()
+
+                if billing_mode == "claude_max":
+                    cost_usd = 0.0
+                    input_cost_usd = 0.0
+                    output_cost_usd = 0.0
+                    cost_source = "subscription"
+                else:
+                    cost_usd = None
+                    input_cost_usd = None
+                    output_cost_usd = None
+                    cost_source = "missing"
+
+                events.append(
+                    NormalizedUsageEvent(
+                        event_ts=event_ts,
+                        event_type="session.snapshot",
+                        session_id=session_id,
+                        session_key=row["session_key"],
+                        provider=row["provider"],
+                        model=row["model"],
+                        channel="snapshot",
+                        account_id=row["account_id"],
+                        input_tokens=delta_input,
+                        output_tokens=delta_output,
+                        total_tokens=delta_total,
+                        context_tokens=current_context,
+                        cost_usd=cost_usd,
+                        input_cost_usd=input_cost_usd,
+                        output_cost_usd=output_cost_usd,
+                        cost_source=cost_source,
+                        billing_mode=billing_mode,
+                        duration_ms=None,
+                        reasoning_text=None,
+                        raw_json=str(row["raw_json"]),
+                        event_fingerprint=fingerprint,
+                    )
+                )
+
+                next_state.append(
+                    (
+                        session_id,
+                        current_updated_at,
+                        current_input,
+                        current_output,
+                        current_total,
+                        current_context,
+                    )
+                )
+
+            inserted = self.insert_usage_events(events)
+
+            if next_state:
+                conn.executemany(
+                    """
+                    INSERT INTO session_backfill_state (
+                        session_id,
+                        last_updated_at,
+                        last_input_tokens,
+                        last_output_tokens,
+                        last_total_tokens,
+                        last_context_tokens
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(session_id)
+                    DO UPDATE SET
+                        last_updated_at = excluded.last_updated_at,
+                        last_input_tokens = excluded.last_input_tokens,
+                        last_output_tokens = excluded.last_output_tokens,
+                        last_total_tokens = excluded.last_total_tokens,
+                        last_context_tokens = excluded.last_context_tokens
+                    """,
+                    next_state,
+                )
+
+        return inserted

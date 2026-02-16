@@ -140,10 +140,13 @@ def create_app(usage_service: UsageService) -> FastAPI:
 
             const sessionsRows = sessions.rows || [];
             const reconciledRows = reconciled.rows || [];
-            if (sessionsRows.length === 0 && reconciledRows.length > 0) {
-                document.getElementById('logsStatus').textContent = 'No log-derived usage events found in current logs. Reconciled sessions are shown from gateway session totals.';
-            } else if (sessionsRows.length > 0) {
+            const status = (p.data_status || {});
+            if (status.log_usage_available) {
                 document.getElementById('logsStatus').textContent = 'Log-derived usage events detected.';
+            } else if (status.snapshot_backfill_available) {
+                document.getElementById('logsStatus').textContent = 'Log-derived usage events are absent; charts are populated using snapshot-to-timeseries backfill from gateway sessions.';
+            } else if (sessionsRows.length === 0 && reconciledRows.length > 0) {
+                document.getElementById('logsStatus').textContent = 'No log-derived usage events found in current logs. Reconciled sessions are shown from gateway session totals.';
             } else {
                 document.getElementById('logsStatus').textContent = 'No usage data detected yet.';
             }

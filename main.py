@@ -6,6 +6,7 @@ from threading import Thread
 import uvicorn
 
 from claw_journal.api import create_app
+from claw_journal.backfill import SnapshotBackfillLoop
 from claw_journal.config import load_settings
 from claw_journal.gateway_client import SshGatewayClient, SshGatewayClientConfig
 from claw_journal.ingest import IngestLoop, LogIngestor
@@ -21,7 +22,7 @@ logging.basicConfig(
 )
 
 
-def build_runtime() -> tuple[object, IngestLoop, SessionSyncLoop | None, object]:
+def build_runtime() -> tuple[object, IngestLoop, SessionSyncLoop | None, SnapshotBackfillLoop | None, object]:
     settings = load_settings()
     repository = UsageRepository(settings.db_path)
     pricing_engine = PricingEngine.from_file(settings.pricing_file)
@@ -53,11 +54,19 @@ def build_runtime() -> tuple[object, IngestLoop, SessionSyncLoop | None, object]
             interval_seconds=settings.session_sync_seconds,
         )
 
-    return app, ingest_loop, session_sync_loop, settings
+    snapshot_backfill_loop = None
+    if settings.snapshot_backfill_enabled:
+        snapshot_backfill_loop = SnapshotBackfillLoop(
+            repository=repository,
+            billing_mode=settings.billing_mode,
+            interval_seconds=settings.snapshot_backfill_seconds,
+        )
+
+    return app, ingest_loop, session_sync_loop, snapshot_backfill_loop, settings
 
 
 if __name__ == "__main__":
-    app, ingest_loop, session_sync_loop, settings = build_runtime()
+    app, ingest_loop, session_sync_loop, snapshot_backfill_loop, settings = build_runtime()
 
     ingest_thread = Thread(target=ingest_loop.run_forever, daemon=True)
     ingest_thread.start()
@@ -65,5 +74,9 @@ if __name__ == "__main__":
     if session_sync_loop:
         session_thread = Thread(target=session_sync_loop.run_forever, daemon=True)
         session_thread.start()
+
+    if snapshot_backfill_loop:
+        snapshot_thread = Thread(target=snapshot_backfill_loop.run_forever, daemon=True)
+        snapshot_thread.start()
 
     uvicorn.run(app, host=settings.host, port=settings.port)

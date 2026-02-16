@@ -1,5 +1,6 @@
 __all__ = [
     "api",
+    "backfill",
     "config",
     "gateway_client",
     "ingest",

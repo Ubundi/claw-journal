@@ -59,6 +59,8 @@ Edit `.env` to configure your settings:
 - `CJ_REMOTE_PATH_PREFIX`: Prefix added to remote `PATH` for Node/OpenClaw runtime (default: `/opt/homebrew/bin`).
 - `CJ_SESSION_SYNC_ENABLED`: Enable read-only remote session sync (default: `true`).
 - `CJ_SESSION_SYNC_SECONDS`: Session sync interval in seconds (default: `30`).
+- `CJ_SNAPSHOT_BACKFILL_ENABLED`: Backfill usage history from session snapshots when logs are sparse (default: `true`).
+- `CJ_SNAPSHOT_BACKFILL_SECONDS`: Snapshot backfill interval in seconds (default: `10`).
 - `CJ_COST_ESTIMATION_ENABLED`: Estimate cost when logs contain tokens but no cost (default: `true`).
 - `CJ_PRICING_FILE`: Pricing table JSON path (default: `./pricing.json`).
 - `CJ_REDACTION_ENABLED`: Redact sensitive keys/tokens before storing `raw_json` (default: `true`).
@@ -120,6 +122,7 @@ Dashboard behavior:
 - In `token` billing mode, dashboard shows input/output/total costs from observed or estimated rates.
 - In `claude_max` billing mode, dashboard marks event costs as subscription-included and shows plan summary.
 - In `auth_mode=auto`, auth mode is inferred from available data (`api_key` when observed costs exist, otherwise `oauth`).
+- If log-derived usage events are missing, snapshot backfill converts gateway session deltas into historical usage events so daily/session charts still populate.
 
 ## 👤 Setup Instructions for New Users
 
