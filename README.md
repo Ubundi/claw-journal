@@ -66,6 +66,10 @@ Edit `.env` to configure your settings:
 - `CJ_REMOTE_PATH_PREFIX`: Prefix added to remote `PATH` for Node/OpenClaw runtime (default: `/opt/homebrew/bin`).
 - `CJ_SESSION_SYNC_ENABLED`: Enable read-only remote session sync (default: `true`).
 - `CJ_SESSION_SYNC_SECONDS`: Session sync interval in seconds (default: `30`).
+- `CJ_TRANSCRIPT_SYNC_ENABLED`: Enable transcript ingestion for full chat history (default: `true`).
+- `CJ_TRANSCRIPT_SYNC_SECONDS`: Transcript sync interval in seconds (default: `45`).
+- `CJ_TRANSCRIPT_GLOB`: Local transcript glob (default: `~/.openclaw/agents/*/sessions/*.jsonl`).
+- `CJ_REMOTE_TRANSCRIPT_GLOB`: Remote transcript glob used over SSH (default: `~/.openclaw/agents/*/sessions/*.jsonl`).
 - `CJ_SNAPSHOT_BACKFILL_ENABLED`: Backfill usage history from session snapshots when logs are sparse (default: `true`).
 - `CJ_SNAPSHOT_BACKFILL_SECONDS`: Snapshot backfill interval in seconds (default: `10`).
 - `CJ_COST_ESTIMATION_ENABLED`: Estimate cost when logs contain tokens but no cost (default: `true`).
@@ -99,6 +103,8 @@ Open the dashboard at `http://localhost:5173`.
 
 > Use the React UI in `frontend` as the dashboard.
 
+Open chat history at `http://localhost:5173/chat`.
+
 Available endpoints:
 - `GET /health`
 - `GET /api/usage/daily?days=30`
@@ -110,6 +116,8 @@ Available endpoints:
 - `GET /api/system/models` (OpenRouter available models + models currently used by OpenClaw)
 - `GET /api/system/token-accuracy` (snapshot vs backfilled token accuracy by session)
 - `GET /api/usage/session/{session_id}` (click-through event detail with extracted human text + raw JSON)
+- `GET /api/chat/sessions?limit=100&offset=0` (historical chat session list from transcripts)
+- `GET /api/chat/session/{session_id}?limit=300&before_id=<id>` (full conversation messages with pagination)
 - `GET /api/pricing` and `POST /api/pricing/upsert` (auto-loaded pricing plus manual override)
 - `GET /api/usage/plan-cost` (Claude Max plan summary when enabled)
 
@@ -149,6 +157,8 @@ CJ_OPENCLAW_LOG_GLOB=/tmp/openclaw-remote.log uv run python main.py
 
 ### 3. View Dashboard
 Open `http://localhost:5173` in your local browser.
+
+For full conversation transcripts, open `http://localhost:5173/chat`.
 
 > **Note:** This mode syncs session history from the remote `openclaw` instance every 30 seconds and streams logs as they are written. It does NOT modify your remote instance.
 

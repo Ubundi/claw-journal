@@ -78,6 +78,25 @@ def create_app(usage_service: UsageService) -> FastAPI:
     ) -> dict[str, object]:
         return usage_service.logs_explorer(file_limit=file_limit, tail_lines=tail_lines)
 
+    @app.get("/api/chat/sessions")
+    def chat_sessions(
+        limit: int = Query(default=100, ge=1, le=1000),
+        offset: int = Query(default=0, ge=0),
+    ) -> dict[str, object]:
+        return usage_service.chat_sessions(limit=limit, offset=offset)
+
+    @app.get("/api/chat/session/{session_id}")
+    def chat_session_messages(
+        session_id: str,
+        limit: int = Query(default=300, ge=1, le=2000),
+        before_id: int | None = Query(default=None, ge=1),
+    ) -> dict[str, object]:
+        return usage_service.chat_session_messages(
+            session_id=session_id,
+            limit=limit,
+            before_id=before_id,
+        )
+
     @app.get("/api/usage/session/{session_id}")
     def session_detail(session_id: str, limit: int = Query(default=300, ge=1, le=2000)) -> dict[str, object]:
         return usage_service.session_detail(session_id=session_id, limit=limit)

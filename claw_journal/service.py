@@ -150,6 +150,21 @@ class UsageService:
         rows = self._repository.get_session_snapshots(limit=limit)
         return {"limit": limit, "rows": rows}
 
+    def chat_sessions(self, limit: int = 100, offset: int = 0) -> dict:
+        rows = self._repository.get_chat_sessions(limit=limit, offset=offset)
+        return {
+            "limit": limit,
+            "offset": offset,
+            "rows": rows,
+        }
+
+    def chat_session_messages(self, session_id: str, limit: int = 300, before_id: int | None = None) -> dict:
+        return self._repository.get_chat_session_messages(
+            session_id=session_id,
+            limit=limit,
+            before_id=before_id,
+        )
+
     def logs_explorer(self, file_limit: int = 12, tail_lines: int = 80) -> dict:
         safe_file_limit = max(1, min(file_limit, 30))
         safe_tail_lines = max(1, min(tail_lines, 300))

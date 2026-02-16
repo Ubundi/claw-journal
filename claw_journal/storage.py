@@ -82,6 +82,19 @@ class UsageRepository:
                     last_total_tokens INTEGER NOT NULL,
                     last_context_tokens INTEGER NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS conversation_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    event_ts TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    content_text TEXT,
+                    message_type TEXT,
+                    source TEXT NOT NULL,
+                    source_path TEXT,
+                    raw_json TEXT NOT NULL,
+                    message_fingerprint TEXT NOT NULL
+                );
                 """
             )
 
@@ -103,6 +116,35 @@ class UsageRepository:
                 conn.execute("ALTER TABLE usage_events ADD COLUMN event_fingerprint TEXT")
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_events_fingerprint ON usage_events(event_fingerprint) WHERE event_fingerprint IS NOT NULL"
+            )
+
+            convo_columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(conversation_messages)").fetchall()
+            }
+            if convo_columns and "session_id" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN session_id TEXT NOT NULL DEFAULT 'unknown'")
+            if convo_columns and "event_ts" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN event_ts TEXT NOT NULL DEFAULT ''")
+            if convo_columns and "role" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN role TEXT NOT NULL DEFAULT 'unknown'")
+            if convo_columns and "message_fingerprint" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN message_fingerprint TEXT")
+            if convo_columns and "source" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN source TEXT NOT NULL DEFAULT 'transcript'")
+            if convo_columns and "source_path" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN source_path TEXT")
+            if convo_columns and "message_type" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN message_type TEXT")
+            if convo_columns and "content_text" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN content_text TEXT")
+            if convo_columns and "raw_json" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN raw_json TEXT NOT NULL DEFAULT ''")
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_conversation_messages_fingerprint ON conversation_messages(message_fingerprint)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_conversation_messages_session_ts ON conversation_messages(session_id, event_ts)"
             )
 
     def insert_usage_events(self, events: Iterable[NormalizedUsageEvent]) -> int:
@@ -932,6 +974,180 @@ class UsageRepository:
             }
             for row in rows
         ]
+
+    def insert_conversation_messages(self, messages: list[dict]) -> int:
+        rows = [
+            (
+                str(message.get("session_id") or "unknown"),
+                str(message.get("event_ts") or ""),
+                str(message.get("role") or "unknown"),
+                message.get("content_text"),
+                message.get("message_type"),
+                str(message.get("source") or "transcript"),
+                message.get("source_path"),
+                str(message.get("raw_json") or ""),
+                str(message.get("message_fingerprint") or ""),
+            )
+            for message in messages
+            if message.get("message_fingerprint") and message.get("event_ts")
+        ]
+
+        if not rows:
+            return 0
+
+        with self._connect() as conn:
+            before = conn.total_changes
+            conn.executemany(
+                """
+                INSERT OR IGNORE INTO conversation_messages (
+                    session_id,
+                    event_ts,
+                    role,
+                    content_text,
+                    message_type,
+                    source,
+                    source_path,
+                    raw_json,
+                    message_fingerprint
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+            inserted = conn.total_changes - before
+        return inserted
+
+    def get_chat_sessions(self, limit: int = 100, offset: int = 0) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    session_id,
+                    COUNT(*) AS message_count,
+                    MAX(event_ts) AS last_event_ts,
+                    MIN(event_ts) AS first_event_ts,
+                    SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END) AS user_messages,
+                    SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END) AS assistant_messages
+                FROM conversation_messages
+                GROUP BY session_id
+                ORDER BY last_event_ts DESC
+                LIMIT ? OFFSET ?
+                """,
+                (int(limit), int(offset)),
+            ).fetchall()
+
+            snapshot_rows = conn.execute(
+                """
+                SELECT
+                    session_id,
+                    session_key,
+                    provider,
+                    model,
+                    updated_at,
+                    total_tokens
+                FROM session_snapshots
+                """
+            ).fetchall()
+
+        snapshot_by_session = {
+            str(row["session_id"]): {
+                "session_key": row["session_key"],
+                "provider": row["provider"],
+                "model": row["model"],
+                "updated_at": int(row["updated_at"] or 0),
+                "total_tokens": int(row["total_tokens"] or 0),
+            }
+            for row in snapshot_rows
+        }
+
+        result: list[dict] = []
+        for row in rows:
+            session_id = str(row["session_id"] or "unknown")
+            snapshot = snapshot_by_session.get(session_id, {})
+            result.append(
+                {
+                    "session_id": session_id,
+                    "session_key": snapshot.get("session_key"),
+                    "provider": snapshot.get("provider"),
+                    "model": snapshot.get("model"),
+                    "message_count": int(row["message_count"] or 0),
+                    "user_messages": int(row["user_messages"] or 0),
+                    "assistant_messages": int(row["assistant_messages"] or 0),
+                    "first_event_ts": row["first_event_ts"],
+                    "last_event_ts": row["last_event_ts"],
+                    "snapshot_updated_at": snapshot.get("updated_at", 0),
+                    "snapshot_total_tokens": snapshot.get("total_tokens", 0),
+                }
+            )
+        return result
+
+    def get_chat_session_messages(self, session_id: str, limit: int = 300, before_id: int | None = None) -> dict:
+        with self._connect() as conn:
+            if before_id and before_id > 0:
+                rows = conn.execute(
+                    """
+                    SELECT
+                        id,
+                        session_id,
+                        event_ts,
+                        role,
+                        content_text,
+                        message_type,
+                        source,
+                        source_path,
+                        raw_json
+                    FROM conversation_messages
+                    WHERE session_id = ? AND id < ?
+                    ORDER BY id DESC
+                    LIMIT ?
+                    """,
+                    (session_id, int(before_id), int(limit)),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT
+                        id,
+                        session_id,
+                        event_ts,
+                        role,
+                        content_text,
+                        message_type,
+                        source,
+                        source_path,
+                        raw_json
+                    FROM conversation_messages
+                    WHERE session_id = ?
+                    ORDER BY id DESC
+                    LIMIT ?
+                    """,
+                    (session_id, int(limit)),
+                ).fetchall()
+
+        ordered_rows = list(reversed(rows))
+        messages = [
+            {
+                "id": int(row["id"]),
+                "session_id": row["session_id"],
+                "event_ts": row["event_ts"],
+                "role": row["role"],
+                "content_text": row["content_text"],
+                "message_type": row["message_type"],
+                "source": row["source"],
+                "source_path": row["source_path"],
+                "raw_json": row["raw_json"],
+            }
+            for row in ordered_rows
+        ]
+
+        next_before_id = None
+        if rows:
+            next_before_id = int(rows[-1]["id"])
+
+        return {
+            "session_id": session_id,
+            "rows": messages,
+            "next_before_id": next_before_id,
+        }
 
     def get_checkpoints(self, limit: int = 500) -> list[dict]:
         with self._connect() as conn:

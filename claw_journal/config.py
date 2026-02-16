@@ -29,6 +29,10 @@ class Settings:
     remote_path_prefix: str
     session_sync_enabled: bool
     session_sync_seconds: float
+    transcript_sync_enabled: bool
+    transcript_sync_seconds: float
+    transcript_glob: str
+    remote_transcript_glob: str
     snapshot_backfill_enabled: bool
     snapshot_backfill_seconds: float
     cost_estimation_enabled: bool
@@ -85,6 +89,10 @@ def load_settings() -> Settings:
     remote_path_prefix = os.getenv("CJ_REMOTE_PATH_PREFIX", "/opt/homebrew/bin")
     session_sync_enabled = _parse_bool(os.getenv("CJ_SESSION_SYNC_ENABLED"), True)
     session_sync_seconds = float(os.getenv("CJ_SESSION_SYNC_SECONDS", "30.0"))
+    transcript_sync_enabled = _parse_bool(os.getenv("CJ_TRANSCRIPT_SYNC_ENABLED"), True)
+    transcript_sync_seconds = float(os.getenv("CJ_TRANSCRIPT_SYNC_SECONDS", "45.0"))
+    transcript_glob = os.getenv("CJ_TRANSCRIPT_GLOB", "~/.openclaw/agents/*/sessions/*.jsonl")
+    remote_transcript_glob = os.getenv("CJ_REMOTE_TRANSCRIPT_GLOB", "~/.openclaw/agents/*/sessions/*.jsonl")
     snapshot_backfill_enabled = _parse_bool(os.getenv("CJ_SNAPSHOT_BACKFILL_ENABLED"), True)
     snapshot_backfill_seconds = float(os.getenv("CJ_SNAPSHOT_BACKFILL_SECONDS", "10.0"))
     cost_estimation_enabled = _parse_bool(os.getenv("CJ_COST_ESTIMATION_ENABLED"), True)
@@ -136,6 +144,9 @@ def load_settings() -> Settings:
     if snapshot_backfill_seconds <= 0:
         raise ValueError("CJ_SNAPSHOT_BACKFILL_SECONDS must be > 0")
 
+    if transcript_sync_seconds <= 0:
+        raise ValueError("CJ_TRANSCRIPT_SYNC_SECONDS must be > 0")
+
     if openrouter_timeout_seconds <= 0:
         raise ValueError("CJ_OPENROUTER_TIMEOUT_SECONDS must be > 0")
 
@@ -164,6 +175,10 @@ def load_settings() -> Settings:
         remote_path_prefix=remote_path_prefix,
         session_sync_enabled=session_sync_enabled,
         session_sync_seconds=session_sync_seconds,
+        transcript_sync_enabled=transcript_sync_enabled,
+        transcript_sync_seconds=transcript_sync_seconds,
+        transcript_glob=transcript_glob,
+        remote_transcript_glob=remote_transcript_glob,
         snapshot_backfill_enabled=snapshot_backfill_enabled,
         snapshot_backfill_seconds=snapshot_backfill_seconds,
         cost_estimation_enabled=cost_estimation_enabled,

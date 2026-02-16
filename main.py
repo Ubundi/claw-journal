@@ -15,6 +15,7 @@ from claw_journal.pricing import PricingEngine
 from claw_journal.session_sync import SessionSyncLoop
 from claw_journal.service import UsageService
 from claw_journal.storage import UsageRepository
+from claw_journal.transcript_sync import TranscriptSyncLoop
 
 
 logging.basicConfig(
@@ -50,7 +51,14 @@ def _build_local_url(host: str, port: int) -> str:
     return f"http://{display_host}:{port}"
 
 
-def build_runtime() -> tuple[object, IngestLoop, SessionSyncLoop | None, SnapshotBackfillLoop | None, object]:
+def build_runtime() -> tuple[
+    object,
+    IngestLoop,
+    SessionSyncLoop | None,
+    TranscriptSyncLoop | None,
+    SnapshotBackfillLoop | None,
+    object,
+]:
     settings = load_settings()
     repository = UsageRepository(settings.db_path)
     pricing_engine = PricingEngine.from_file(settings.pricing_file)
@@ -98,6 +106,17 @@ def build_runtime() -> tuple[object, IngestLoop, SessionSyncLoop | None, Snapsho
             interval_seconds=settings.session_sync_seconds,
         )
 
+    transcript_sync_loop = None
+    if settings.transcript_sync_enabled:
+        transcript_sync_loop = TranscriptSyncLoop(
+            repository=repository,
+            interval_seconds=settings.transcript_sync_seconds,
+            local_transcript_glob=settings.transcript_glob,
+            remote_enabled=settings.remote_enabled,
+            remote_ssh_host=settings.remote_ssh_host,
+            remote_transcript_glob=settings.remote_transcript_glob,
+        )
+
     snapshot_backfill_loop = None
     if settings.snapshot_backfill_enabled:
         snapshot_backfill_loop = SnapshotBackfillLoop(
@@ -108,11 +127,18 @@ def build_runtime() -> tuple[object, IngestLoop, SessionSyncLoop | None, Snapsho
             cost_estimation_enabled=settings.cost_estimation_enabled,
         )
 
-    return app, ingest_loop, session_sync_loop, snapshot_backfill_loop, settings
+    return (
+        app,
+        ingest_loop,
+        session_sync_loop,
+        transcript_sync_loop,
+        snapshot_backfill_loop,
+        settings,
+    )
 
 
 if __name__ == "__main__":
-    app, ingest_loop, session_sync_loop, snapshot_backfill_loop, settings = build_runtime()
+    app, ingest_loop, session_sync_loop, transcript_sync_loop, snapshot_backfill_loop, settings = build_runtime()
 
     ingest_thread = Thread(target=ingest_loop.run_forever, daemon=True)
     ingest_thread.start()
@@ -120,6 +146,10 @@ if __name__ == "__main__":
     if session_sync_loop:
         session_thread = Thread(target=session_sync_loop.run_forever, daemon=True)
         session_thread.start()
+
+    if transcript_sync_loop:
+        transcript_thread = Thread(target=transcript_sync_loop.run_forever, daemon=True)
+        transcript_thread.start()
 
     if snapshot_backfill_loop:
         snapshot_thread = Thread(target=snapshot_backfill_loop.run_forever, daemon=True)

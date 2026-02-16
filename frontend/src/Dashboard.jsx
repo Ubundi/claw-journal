@@ -199,6 +199,7 @@ const Dashboard = () => {
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-xl font-bold text-white">ClawDash <span className="text-gray-500">Local</span></h1>
         <div className="flex gap-4 items-center">
+          <a href="/chat" className="bg-[#1a1a1a] border border-gray-800 px-4 py-1 rounded hover:bg-gray-800 transition text-xs text-white">Chat History</a>
             <span className="text-xs text-gray-500">Last scan: Just now</span>
             <button onClick={fetchData} className="bg-[#1a1a1a] border border-gray-800 px-4 py-1 rounded flex items-center gap-2 hover:bg-gray-800 transition text-xs text-white">
             <RefreshCcw size={14} /> Rescan
