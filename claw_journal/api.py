@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from .service import UsageService
@@ -8,6 +9,13 @@ from .service import UsageService
 
 def create_app(usage_service: UsageService) -> FastAPI:
     app = FastAPI(title="Claw Journal", version="0.1.0")
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard_home() -> str:
@@ -186,6 +194,10 @@ def create_app(usage_service: UsageService) -> FastAPI:
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/dashboard-data")
+    def dashboard_data() -> dict[str, object]:
+        return usage_service.get_dashboard_data()
 
     @app.get("/api/usage/daily")
     def daily_usage(days: int = Query(default=30, ge=1, le=365)) -> dict[str, object]:

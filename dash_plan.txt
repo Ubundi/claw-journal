@@ -1,0 +1,188 @@
+The dashboard in your image, "ClawDash Local," is a sophisticated monitoring tool for AI agent usage. Recreating this exactly requires a robust frontend for the charts and a backend to serve the telemetry.
+
+To keep this simple and functional, I’ve broken this down into a **FastAPI (Python)** backend and a **React (Node.js)** frontend using **Tailwind CSS** and **Recharts**.
+
+### 1. The Backend (Python / FastAPI)
+
+This script sets up an API that provides the summary stats, cost trends, and agent breakdowns.
+
+```python
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import datetime
+
+app = FastAPI()
+
+# Allow frontend to connect
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/api/dashboard-data")
+async def get_dashboard_data():
+    return {
+        "summary": {
+            "totalSpend": 15.79,
+            "totalTokens": "11.8M",
+            "sessions": 6,
+            "activeAgents": "3/5",
+            "avgSession": 2.63,
+            "cacheHit": "99.7%",
+            "cacheReads": "10.3M",
+            "cacheCost": 8.89
+        },
+        "costTrend": [
+            {"date": "02-07", "cost": 0.5},
+            {"date": "02-08", "cost": 15.79}
+        ],
+        "costByAgent": [
+            {"name": "Donna", "cost": 11.2},
+            {"name": "The Steward", "cost": 4.5},
+            {"name": "The Scout", "cost": 0.05},
+            {"name": "The Engineer", "cost": 0.02},
+            {"name": "The Artisan", "cost": 0.02}
+        ],
+        "topTools": [
+            {"name": "web_fetch", "count": 48},
+            {"name": "web_search", "count": 42},
+            {"name": "exec", "count": 28},
+            {"name": "write", "count": 18},
+            {"name": "read", "count": 12}
+        ]
+    }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+```
+
+---
+
+### 2. The Frontend (Node.js / React)
+
+For the frontend, you'll need a standard React setup. I recommend using `shadcn/ui` components or raw `recharts` for the visualizations.
+
+**Install dependencies:**
+`npm install lucide-react recharts axios`
+
+**Dashboard Component (`Dashboard.jsx`):**
+
+```jsx
+import React, { useEffect, useState } from 'react';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell, PieChart, Pie } from 'recharts';
+import { RefreshCcw } from 'lucide-react';
+
+const COLORS = ['#f97316', '#fb923c', '#fdba74', '#fed7aa'];
+
+const Dashboard = () => {
+  const [data, setData] = useState(null);
+
+  // In a real app, you'd fetch from http://localhost:8000/api/dashboard-data
+  useEffect(() => {
+    // Mocking the API response for this example
+    setData({
+        summary: { totalSpend: 15.79, totalTokens: "11.8M", activeAgents: "3/5", cacheHit: "99.7%" },
+        costTrend: [{d: '02-07', c: 0}, {d: '02-08', c: 15.79}],
+        costByAgent: [{n: 'Donna', v: 11}, {n: 'Steward', v: 4.5}, {n: 'Scout', v: 0.2}],
+        topTools: [{n: 'web_fetch', v: 50}, {n: 'web_search', v: 40}, {n: 'exec', v: 30}]
+    });
+  }, []);
+
+  if (!data) return <div className="bg-black text-orange-500 p-10">Loading...</div>;
+
+  return (
+    <div className="bg-[#0a0a0a] min-h-screen text-gray-300 p-6 font-mono">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-xl font-bold text-white">ClawDash <span className="text-gray-500">Local</span></h1>
+        <button className="bg-[#1a1a1a] border border-gray-800 px-4 py-1 rounded flex items-center gap-2 hover:bg-gray-800 transition">
+          <RefreshCcw size={14} /> Rescan
+        </button>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-4 md:grid-cols-8 gap-4 mb-8">
+        {Object.entries(data.summary).map(([key, val]) => (
+          <div key={key} className="bg-[#141414] p-3 border border-gray-900 rounded shadow-sm">
+            <p className="text-[10px] uppercase text-gray-500 mb-1">{key.replace(/([A-Z])/g, ' $1')}</p>
+            <p className="text-lg font-bold text-orange-500">{typeof val === 'number' ? `$${val}` : val}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts Row 1 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="md:col-span-2 bg-[#141414] p-4 rounded border border-gray-900">
+          <h3 className="text-xs uppercase mb-4 text-gray-500">Cost by Day</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data.costTrend}>
+                <XAxis dataKey="d" stroke="#444" fontSize={10} />
+                <YAxis stroke="#444" fontSize={10} />
+                <Tooltip contentStyle={{backgroundColor: '#111', border: '1px solid #333'}} />
+                <Line type="monotone" dataKey="c" stroke="#f97316" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-[#141414] p-4 rounded border border-gray-900">
+          <h3 className="text-xs uppercase mb-4 text-gray-500">Cost Trend</h3>
+          <div className="space-y-4">
+             <div><p className="text-xs text-gray-500">TODAY</p><p className="text-xl text-white font-bold">$15.76</p></div>
+             <div className="h-[2px] bg-gradient-to-r from-orange-500 to-transparent w-full"></div>
+             <div><p className="text-xs text-gray-500">7D AVG</p><p className="text-xl text-white font-bold">$2.26</p></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Row 2 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="bg-[#141414] p-4 rounded border border-gray-900">
+          <h3 className="text-xs uppercase mb-4 text-gray-500">Cost By Agent</h3>
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart layout="vertical" data={data.costByAgent}>
+                <XAxis type="number" hide />
+                <YAxis dataKey="n" type="category" stroke="#666" fontSize={10} width={70} />
+                <Bar dataKey="v" fill="#f97316" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-[#141414] p-4 rounded border border-gray-900">
+          <h3 className="text-xs uppercase mb-4 text-gray-500">Top Tools</h3>
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart layout="vertical" data={data.topTools}>
+                <XAxis type="number" hide />
+                <YAxis dataKey="n" type="category" stroke="#666" fontSize={10} width={80} />
+                <Bar dataKey="v" fill="#ea580c" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
+
+```
+
+---
+
+### Implementation Details
+
+* **Color Palette:** The UI uses a strict `#0a0a0a` (background) and `#f97316` (brand orange) theme.
+* **Typography:** I used a mono-space font stack (`font-mono`) to match the developer-centric aesthetic of the original.
+* **Responsiveness:** The layout uses CSS Grid (`grid-cols-4 md:grid-cols-8`) so it scales from mobile to desktop.
+* **Charts:** Recharts is used because it handles the dark-mode aesthetic very cleanly without much configuration.
+
+Would you like me to add the logic for the "Recent Sessions" table at the bottom of the image as well?

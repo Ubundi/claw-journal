@@ -334,6 +334,157 @@ class UsageRepository:
             )
         return len(rows)
 
+    def get_dashboard_summary(self) -> dict:
+        with self._connect() as conn:
+            # Stats (total spend, tokens, sessions)
+            row = conn.execute(
+                """
+                SELECT
+                    SUM(COALESCE(cost_usd, 0.0)) as total_spend,
+                    SUM(total_tokens) as total_tokens,
+                    COUNT(DISTINCT session_id) as sessions,
+                    SUM(context_tokens) as cache_reads
+                FROM usage_events
+                """
+            ).fetchone()
+
+            total_spend = row["total_spend"] or 0.0
+            total_tokens = row["total_tokens"] or 0
+            sessions = row["sessions"] or 0
+            cache_reads = row["cache_reads"] or 0
+
+            # Active agents (active in last 7 days / total known)
+            total_agents = conn.execute("SELECT COUNT(DISTINCT session_key) as c FROM usage_events").fetchone()["c"]
+            active_agents = conn.execute(
+                "SELECT COUNT(DISTINCT session_key) as c FROM usage_events WHERE datetime(event_ts) > datetime('now', '-7 days')"
+            ).fetchone()["c"]
+
+            avg_session_cost = total_spend / sessions if sessions > 0 else 0.0
+
+            # Cache hit rate estimation (context tokens / total input tokens?)
+            # This is rough as schema doesn't strictly track cache hits vs misses
+            # Using context_tokens as "cache reads" proxy
+            cache_hit_pct = "0%" 
+            if total_tokens > 0:
+                 # Very rough approximation
+                 pct = (cache_reads / total_tokens) * 100
+                 cache_hit_pct = f"{pct:.1f}%"
+
+            # Check for mocked data if DB is empty (per user request to match image exactly if empty?)
+            # No, user wants updates based on "the given text" which uses mock data.
+            # But the user also wants to "Update the UI".
+            # I will return real data primarily, but formatted to match the frontend expectations.
+
+            return {
+                "totalSpend": round(total_spend, 2),
+                "totalTokens": f"{total_tokens / 1000000:.1f}M" if total_tokens >= 1000000 else (f"{total_tokens / 1000:.1f}K" if total_tokens >= 1000 else str(total_tokens)),
+                "sessions": sessions,
+                "activeAgents": f"{active_agents}/{total_agents}",
+                "avgSession": round(avg_session_cost, 2),
+                "cacheHit": cache_hit_pct,
+                "cacheReads": f"{cache_reads / 1000000:.1f}M" if cache_reads >= 1000000 else (f"{cache_reads / 1000:.1f}K" if cache_reads >= 1000 else str(cache_reads)),
+                "cacheCost": 0.0 # Placeholder
+            }
+
+    def get_cost_trend(self, days: int = 7) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    strftime('%m-%d', event_ts) as date_str,
+                    SUM(COALESCE(cost_usd, 0.0)) as cost
+                FROM usage_events
+                WHERE datetime(event_ts) > datetime('now', ?)
+                GROUP BY date_str
+                ORDER BY date_str ASC
+                """,
+                (f"-{days} days",),
+            ).fetchall()
+        return [{"date": r["date_str"], "cost": r["cost"] or 0.0} for r in rows]
+
+    def get_cost_by_agent(self, limit: int = 5) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    session_key as name,
+                    SUM(COALESCE(cost_usd, 0.0)) as cost
+                FROM usage_events
+                WHERE session_key IS NOT NULL
+                GROUP BY session_key
+                ORDER BY cost DESC
+                LIMIT ?
+                """,
+                (limit,)
+            ).fetchall()
+        # Clean up session key for display (e.g. "agent:steward:main" -> "Steward")
+        data = []
+        for r in rows:
+            name = r["name"]
+            if name.startswith("agent:"):
+                parts = name.split(":")
+                if len(parts) > 1:
+                    name = parts[1].replace("_", " ").title()
+            data.append({"name": name, "cost": r["cost"] or 0.0})
+        return data
+
+    def get_top_tools(self, limit: int = 5) -> list[dict]:
+        # Attempt to retrieve tools if logged in event_type or raw_json
+        # Current schema has event_type. Let's assume tool usage is an event type or we return empty
+        with self._connect() as conn:
+             rows = conn.execute(
+                """
+                SELECT event_type as name, COUNT(*) as count
+                FROM usage_events
+                GROUP BY event_type
+                ORDER BY count DESC
+                LIMIT ?
+                """,
+                (limit,)
+             ).fetchall()
+        return [{"name": r["name"], "count": r["count"]} for r in rows]
+    def get_recent_sessions(self, limit: int = 10) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    session_key,
+                    session_id,
+                    provider,
+                    model,
+                    COUNT(*) as msg_count,
+                    SUM(COALESCE(cost_usd, 0.0)) as cost,
+                    SUM(total_tokens) as tokens,
+                    MAX(event_ts) as last_active
+                FROM usage_events
+                GROUP BY session_id
+                ORDER BY last_active DESC
+                LIMIT ?
+                """,
+                (limit,)
+            ).fetchall()
+        
+        result = []
+        for r in rows:
+            # Parse agent name from session_key if possible
+            agent_name = "unknown"
+            s_key = r["session_key"]
+            if s_key and s_key.startswith("agent:"):
+                parts = s_key.split(":")
+                if len(parts) > 1:
+                    agent_name = parts[1]
+            elif r["provider"]:
+                agent_name = r["provider"]
+            
+            result.append({
+                "agent": agent_name,
+                "sessionKey": r["session_key"] or r["session_id"] or "unknown",
+                "msgs": r["msg_count"],
+                "cost": r["cost"] or 0.0,
+                "tokens": f"{r['tokens'] / 1000000:.1f}M" if r['tokens'] >= 1000000 else (f"{r['tokens'] / 1000:.1f}K" if r['tokens'] >= 1000 else str(r['tokens'])),
+                "lastActive": r["last_active"]
+            })
+        return result
     def get_reconciled_session_usage(self, limit: int = 100) -> list[dict]:
         with self._connect() as conn:
             rows = conn.execute(

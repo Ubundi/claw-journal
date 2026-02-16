@@ -28,6 +28,15 @@ class UsageService:
     def reconciled_session_usage(self, limit: int = 100) -> list[dict]:
         return self._repository.get_reconciled_session_usage(limit=limit)
 
+    def get_dashboard_data(self) -> dict:
+        return {
+            "summary": self._repository.get_dashboard_summary(),
+            "costTrend": self._repository.get_cost_trend(days=7),
+            "costByAgent": self._repository.get_cost_by_agent(limit=5),
+            "topTools": self._repository.get_top_tools(limit=5),
+            "recentSessions": self._repository.get_recent_sessions(limit=10),
+        }
+
     def cost_source_summary(self) -> dict:
         return self._repository.get_cost_source_summary()
 
