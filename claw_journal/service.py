@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import getpass
 import json
+import socket
 from collections import deque
 from datetime import datetime, timezone
 from glob import glob
@@ -191,6 +193,38 @@ class UsageService:
             "files": file_rows,
         }
 
+    def connection_info(self) -> dict:
+        remote_host_raw = (self._settings.remote_ssh_host or "").strip()
+        remote_user = None
+        remote_host = remote_host_raw
+        if "@" in remote_host_raw:
+            remote_user, remote_host = remote_host_raw.split("@", 1)
+
+        local_hostname = socket.gethostname()
+
+        return {
+            "local": {
+                "user": getpass.getuser(),
+                "hostname": local_hostname,
+                "fqdn": socket.getfqdn(),
+                "ip": _resolve_host_ip(local_hostname),
+            },
+            "remote": {
+                "enabled": self._settings.remote_enabled,
+                "ingest_mode": self._settings.remote_ingest_mode,
+                "ssh_host_raw": remote_host_raw or None,
+                "ssh_user": remote_user,
+                "ssh_host": remote_host or None,
+                "ssh_host_ip": _resolve_host_ip(remote_host) if remote_host else None,
+                "session_sync_enabled": self._settings.session_sync_enabled,
+            },
+            "runtime": {
+                "api_host": self._settings.host,
+                "api_port": self._settings.port,
+                "log_glob": self._settings.openclaw_log_glob,
+            },
+        }
+
     def upsert_model_pricing(
         self,
         provider: str,
@@ -247,6 +281,15 @@ def _read_tail_lines(path: Path, line_limit: int) -> list[str]:
             if cleaned:
                 lines.append(redact_raw_json_line(cleaned))
     return list(lines)
+
+
+def _resolve_host_ip(host: str) -> str | None:
+    if not host:
+        return None
+    try:
+        return socket.gethostbyname(host)
+    except OSError:
+        return None
 
 
 def _find_message_text(value: object) -> str | None:

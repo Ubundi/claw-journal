@@ -6,13 +6,10 @@ import axios from 'axios';
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [legacyData, setLegacyData] = useState(null);
-  const [pricingForm, setPricingForm] = useState({
-    provider: '',
-    model: '',
-    input_per_million: '',
-    output_per_million: ''
-  });
-  const [pricingMessage, setPricingMessage] = useState('');
+  const [modelCatalog, setModelCatalog] = useState({ available_models: [], used_models: [] });
+  const [connectionInfo, setConnectionInfo] = useState(null);
+  const [pricingSortBy, setPricingSortBy] = useState('input_per_million');
+  const [pricingSortDir, setPricingSortDir] = useState('desc');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [explorerTab, setExplorerTab] = useState('raw-events');
@@ -51,16 +48,29 @@ const Dashboard = () => {
     try {
       setLoading(true);
       setError(null);
-      const [dashboardResponse, sessionsResponse, reconciledResponse, dailyResponse, costSourcesResponse, profileResponse] = await Promise.all([
+      const [
+        dashboardResponse,
+        sessionsResponse,
+        reconciledResponse,
+        dailyResponse,
+        costSourcesResponse,
+        profileResponse,
+        modelsResponse,
+        connectionResponse,
+      ] = await Promise.all([
         axios.get('/api/dashboard-data'),
         axios.get('/api/usage/sessions?limit=20'),
         axios.get('/api/usage/reconciled?limit=20'),
         axios.get('/api/usage/daily?days=30'),
         axios.get('/api/usage/cost-sources'),
-        axios.get('/api/system/profile')
+        axios.get('/api/system/profile'),
+        axios.get('/api/system/models'),
+        axios.get('/api/system/connection')
       ]);
 
       setData(dashboardResponse.data);
+      setModelCatalog(modelsResponse.data || { available_models: [], used_models: [] });
+      setConnectionInfo(connectionResponse.data || null);
       setLegacyData({
         sessions: sessionsResponse.data?.rows || [],
         reconciled: reconciledResponse.data?.rows || [],
@@ -73,26 +83,6 @@ const Dashboard = () => {
       setError("Failed to load dashboard data. Ensure backend is running.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const savePricing = async (event) => {
-    event.preventDefault();
-    setPricingMessage('');
-    try {
-      const payload = {
-        provider: pricingForm.provider.trim(),
-        model: pricingForm.model.trim(),
-        input_per_million: Number(pricingForm.input_per_million),
-        output_per_million: Number(pricingForm.output_per_million)
-      };
-      await axios.post('/api/pricing/upsert', payload);
-      setPricingMessage(`Saved ${payload.provider}/${payload.model}`);
-      setPricingForm({ provider: '', model: '', input_per_million: '', output_per_million: '' });
-      await fetchData();
-    } catch (err) {
-      console.error(err);
-      setPricingMessage('Failed to save pricing.');
     }
   };
 
@@ -165,6 +155,43 @@ const Dashboard = () => {
   const billingMode = profile.billing_mode || 'token';
   const showCostColumns = billingMode !== 'claude_max';
   const sessionOptions = (legacyData?.reconciled || []).map((row) => row.session_id).filter(Boolean);
+  const availableModels = Array.isArray(modelCatalog?.available_models) ? modelCatalog.available_models : [];
+
+  const sortedModels = [...availableModels].sort((left, right) => {
+    if (pricingSortBy === 'model') {
+      const leftValue = String(left.model || left.id || '').toLowerCase();
+      const rightValue = String(right.model || right.id || '').toLowerCase();
+      return pricingSortDir === 'asc'
+        ? leftValue.localeCompare(rightValue)
+        : rightValue.localeCompare(leftValue);
+    }
+
+    if (pricingSortBy === 'context_length') {
+      const leftValue = Number(left.context_length || 0);
+      const rightValue = Number(right.context_length || 0);
+      return pricingSortDir === 'asc' ? leftValue - rightValue : rightValue - leftValue;
+    }
+
+    const leftValue = Number(left[pricingSortBy] || 0);
+    const rightValue = Number(right[pricingSortBy] || 0);
+    return pricingSortDir === 'asc' ? leftValue - rightValue : rightValue - leftValue;
+  });
+
+  const providerMap = new Map();
+  for (const row of sortedModels) {
+    const provider = String(row.provider || 'unknown');
+    const list = providerMap.get(provider) || [];
+    list.push(row);
+    providerMap.set(provider, list);
+  }
+
+  const providerGroups = [...providerMap.entries()]
+    .map(([provider, rows]) => ({
+      provider,
+      rows,
+      usedCount: rows.filter((row) => row.used_by_openclaw).length,
+    }))
+    .sort((left, right) => left.provider.localeCompare(right.provider));
 
   return (
     <div className="bg-[#0a0a0a] min-h-screen text-gray-300 p-6 font-mono">
@@ -187,6 +214,13 @@ const Dashboard = () => {
             : 'Token billing mode: costs shown from observed or estimated per-token rates.'}
         </p>
         {notes && <p className="text-xs text-gray-500 mt-1">{notes}</p>}
+        <p className="text-xs text-gray-500 mt-2">
+          Local: {connectionInfo?.local?.user || '-'}@{connectionInfo?.local?.hostname || '-'} ({connectionInfo?.local?.ip || 'n/a'})
+        </p>
+        <p className="text-xs text-gray-500 mt-1">
+          Remote: {connectionInfo?.remote?.ssh_user ? `${connectionInfo.remote.ssh_user}@` : ''}{connectionInfo?.remote?.ssh_host || '-'}
+          {connectionInfo?.remote?.ssh_host_ip ? ` (${connectionInfo.remote.ssh_host_ip})` : ''} · mode={connectionInfo?.remote?.ingest_mode || '-'} · sync={String(connectionInfo?.remote?.session_sync_enabled ?? false)}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -420,52 +454,77 @@ const Dashboard = () => {
         </div>
 
         <div className="bg-[#141414] rounded border border-gray-900 p-4 xl:col-span-2">
-          <h3 className="text-xs uppercase text-gray-500 mb-4">Pricing Configuration</h3>
-          <form onSubmit={savePricing} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input
-              value={pricingForm.provider}
-              onChange={(event) => setPricingForm((prev) => ({ ...prev, provider: event.target.value }))}
-              placeholder="provider (e.g. anthropic)"
-              className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-gray-700"
-              required
-            />
-            <input
-              value={pricingForm.model}
-              onChange={(event) => setPricingForm((prev) => ({ ...prev, model: event.target.value }))}
-              placeholder="model (e.g. claude-opus-4-5)"
-              className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-gray-700"
-              required
-            />
-            <input
-              type="number"
-              min="0"
-              step="0.0001"
-              value={pricingForm.input_per_million}
-              onChange={(event) => setPricingForm((prev) => ({ ...prev, input_per_million: event.target.value }))}
-              placeholder="input_per_million"
-              className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-gray-700"
-              required
-            />
-            <input
-              type="number"
-              min="0"
-              step="0.0001"
-              value={pricingForm.output_per_million}
-              onChange={(event) => setPricingForm((prev) => ({ ...prev, output_per_million: event.target.value }))}
-              placeholder="output_per_million"
-              className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-gray-700"
-              required
-            />
-            <div className="md:col-span-2 flex items-center gap-3">
-              <button
-                type="submit"
-                className="bg-[#1a1a1a] border border-gray-800 px-4 py-2 rounded text-xs text-white hover:bg-gray-800 transition"
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h3 className="text-xs uppercase text-gray-500">OpenRouter Pricing Catalog</h3>
+            <div className="flex items-center gap-2">
+              <select
+                value={pricingSortBy}
+                onChange={(event) => setPricingSortBy(event.target.value)}
+                className="bg-[#1a1a1a] border border-gray-800 rounded px-2 py-1 text-xs text-gray-200"
               >
-                Save Pricing
+                <option value="input_per_million">Sort: Input Price</option>
+                <option value="output_per_million">Sort: Output Price</option>
+                <option value="context_length">Sort: Context Length</option>
+                <option value="model">Sort: Model Name</option>
+              </select>
+              <button
+                onClick={() => setPricingSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                className="bg-[#1a1a1a] border border-gray-800 px-2 py-1 rounded text-xs text-white hover:bg-gray-800 transition"
+              >
+                {pricingSortDir === 'asc' ? 'Asc' : 'Desc'}
               </button>
-              {pricingMessage && <span className="text-xs text-gray-500">{pricingMessage}</span>}
             </div>
-          </form>
+          </div>
+
+          <p className="text-xs text-gray-500 mb-3">
+            Models from OpenRouter: {availableModels.length} · used on this instance: {availableModels.filter((row) => row.used_by_openclaw).length}
+          </p>
+
+          {providerGroups.length === 0 && (
+            <p className="text-xs text-gray-600">No OpenRouter catalog loaded yet. Enable startup sync or refresh pricing import.</p>
+          )}
+
+          <div className="space-y-3 max-h-[34rem] overflow-y-auto pr-1">
+            {providerGroups.map((group) => (
+              <details key={group.provider} open={group.usedCount > 0} className="bg-[#111111] border border-gray-900 rounded">
+                <summary className="cursor-pointer px-3 py-2 text-xs text-gray-300 flex items-center justify-between gap-2">
+                  <span>{group.provider}</span>
+                  <span className="text-gray-500">{group.rows.length} models · used {group.usedCount}</span>
+                </summary>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-gray-400">
+                    <thead className="bg-[#161616] text-gray-500 uppercase font-medium">
+                      <tr>
+                        <th className="px-3 py-2">Model</th>
+                        <th className="px-3 py-2 text-right">Input / 1M</th>
+                        <th className="px-3 py-2 text-right">Output / 1M</th>
+                        <th className="px-3 py-2 text-right">Context</th>
+                        <th className="px-3 py-2">Usage</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-900">
+                      {group.rows.map((row) => (
+                        <tr
+                          key={row.id || `${row.provider}/${row.model}`}
+                          className={row.used_by_openclaw ? 'bg-[#1f1608]' : 'hover:bg-[#1a1a1a]'}
+                        >
+                          <td className="px-3 py-2 text-gray-300">{row.model || row.id || '-'}</td>
+                          <td className="px-3 py-2 text-right">${Number(row.input_per_million || 0).toFixed(4)}</td>
+                          <td className="px-3 py-2 text-right">${Number(row.output_per_million || 0).toFixed(4)}</td>
+                          <td className="px-3 py-2 text-right">{Number(row.context_length || 0).toLocaleString()}</td>
+                          <td className="px-3 py-2">
+                            {row.used_by_openclaw
+                              ? <span className="text-orange-400">Used on instance</span>
+                              : <span className="text-gray-600">Not used</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            ))}
+          </div>
         </div>
 
         <div className="bg-[#141414] rounded border border-gray-900 p-4 xl:col-span-2">
@@ -631,6 +690,10 @@ const Dashboard = () => {
               <div className="bg-[#111111] border border-gray-900 rounded p-3">
                 <p className="text-xs text-gray-500 mb-2 uppercase">Cost Sources</p>
                 <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words">{JSON.stringify(costSources || {}, null, 2)}</pre>
+              </div>
+              <div className="bg-[#111111] border border-gray-900 rounded p-3 md:col-span-2">
+                <p className="text-xs text-gray-500 mb-2 uppercase">Connection</p>
+                <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words">{JSON.stringify(connectionInfo || {}, null, 2)}</pre>
               </div>
               <div className="bg-[#111111] border border-gray-900 rounded p-3 md:col-span-2">
                 <p className="text-xs text-gray-500 mb-2 uppercase">Ingest + File Diagnostics</p>

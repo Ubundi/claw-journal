@@ -441,6 +441,10 @@ def create_app(usage_service: UsageService) -> FastAPI:
     def system_models() -> dict[str, object]:
         return usage_service.model_catalog()
 
+    @app.get("/api/system/connection")
+    def system_connection() -> dict[str, object]:
+        return usage_service.connection_info()
+
     @app.get("/api/system/token-accuracy")
     def token_accuracy(limit: int = Query(default=100, ge=1, le=1000)) -> dict[str, object]:
         return usage_service.token_accuracy(limit=limit)
