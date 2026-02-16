@@ -1,10 +1,1378 @@
 {
+  "ai21/jamba-large-1.7": {
+    "input_per_million": 2.0,
+    "output_per_million": 8.0
+  },
+  "aion-labs/aion-1.0": {
+    "input_per_million": 4.0,
+    "output_per_million": 8.0
+  },
+  "aion-labs/aion-1.0-mini": {
+    "input_per_million": 0.7,
+    "output_per_million": 1.4
+  },
+  "aion-labs/aion-rp-llama-3.1-8b": {
+    "input_per_million": 0.7999999999999999,
+    "output_per_million": 1.5999999999999999
+  },
+  "alfredpros/codellama-7b-instruct-solidity": {
+    "input_per_million": 0.7999999999999999,
+    "output_per_million": 1.2
+  },
+  "alibaba/tongyi-deepresearch-30b-a3b": {
+    "input_per_million": 0.09,
+    "output_per_million": 0.44999999999999996
+  },
+  "allenai/molmo-2-8b": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.19999999999999998
+  },
+  "allenai/olmo-2-0325-32b-instruct": {
+    "input_per_million": 0.049999999999999996,
+    "output_per_million": 0.19999999999999998
+  },
+  "allenai/olmo-3-32b-think": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.5
+  },
+  "allenai/olmo-3-7b-instruct": {
+    "input_per_million": 0.09999999999999999,
+    "output_per_million": 0.19999999999999998
+  },
+  "allenai/olmo-3-7b-think": {
+    "input_per_million": 0.12,
+    "output_per_million": 0.19999999999999998
+  },
+  "allenai/olmo-3.1-32b-instruct": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.6
+  },
+  "allenai/olmo-3.1-32b-think": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.5
+  },
+  "alpindale/goliath-120b": {
+    "input_per_million": 3.75,
+    "output_per_million": 7.5
+  },
+  "amazon/nova-2-lite-v1": {
+    "input_per_million": 0.3,
+    "output_per_million": 2.5
+  },
+  "amazon/nova-lite-v1": {
+    "input_per_million": 0.06,
+    "output_per_million": 0.24
+  },
+  "amazon/nova-micro-v1": {
+    "input_per_million": 0.035,
+    "output_per_million": 0.14
+  },
+  "amazon/nova-premier-v1": {
+    "input_per_million": 2.5,
+    "output_per_million": 12.5
+  },
+  "amazon/nova-pro-v1": {
+    "input_per_million": 0.7999999999999999,
+    "output_per_million": 3.1999999999999997
+  },
+  "anthracite-org/magnum-v4-72b": {
+    "input_per_million": 3.0,
+    "output_per_million": 5.0
+  },
+  "anthropic/claude-3-haiku": {
+    "input_per_million": 0.25,
+    "output_per_million": 1.25
+  },
+  "anthropic/claude-3.5-haiku": {
+    "input_per_million": 0.7999999999999999,
+    "output_per_million": 4.0
+  },
+  "anthropic/claude-3.5-sonnet": {
+    "input_per_million": 6.0,
+    "output_per_million": 30.0
+  },
+  "anthropic/claude-3.7-sonnet": {
+    "input_per_million": 3.0,
+    "output_per_million": 15.0
+  },
+  "anthropic/claude-3.7-sonnet:thinking": {
+    "input_per_million": 3.0,
+    "output_per_million": 15.0
+  },
+  "anthropic/claude-haiku-4.5": {
+    "input_per_million": 1.0,
+    "output_per_million": 5.0
+  },
+  "anthropic/claude-opus-4": {
+    "input_per_million": 15.0,
+    "output_per_million": 75.0
+  },
   "anthropic/claude-opus-4-5": {
     "input_per_million": 15.0,
     "output_per_million": 75.0
   },
+  "anthropic/claude-opus-4.1": {
+    "input_per_million": 15.0,
+    "output_per_million": 75.0
+  },
+  "anthropic/claude-opus-4.5": {
+    "input_per_million": 5.0,
+    "output_per_million": 25.0
+  },
+  "anthropic/claude-opus-4.6": {
+    "input_per_million": 5.0,
+    "output_per_million": 25.0
+  },
+  "anthropic/claude-sonnet-4": {
+    "input_per_million": 3.0,
+    "output_per_million": 15.0
+  },
   "anthropic/claude-sonnet-4-5": {
     "input_per_million": 3.0,
     "output_per_million": 15.0
+  },
+  "anthropic/claude-sonnet-4.5": {
+    "input_per_million": 3.0,
+    "output_per_million": 15.0
+  },
+  "arcee-ai/coder-large": {
+    "input_per_million": 0.5,
+    "output_per_million": 0.7999999999999999
+  },
+  "arcee-ai/maestro-reasoning": {
+    "input_per_million": 0.8999999999999999,
+    "output_per_million": 3.3000000000000003
+  },
+  "arcee-ai/spotlight": {
+    "input_per_million": 0.18,
+    "output_per_million": 0.18
+  },
+  "arcee-ai/trinity-large-preview:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "arcee-ai/trinity-mini": {
+    "input_per_million": 0.045,
+    "output_per_million": 0.15
+  },
+  "arcee-ai/trinity-mini:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "arcee-ai/virtuoso-large": {
+    "input_per_million": 0.75,
+    "output_per_million": 1.2
+  },
+  "baidu/ernie-4.5-21b-a3b": {
+    "input_per_million": 0.07,
+    "output_per_million": 0.28
+  },
+  "baidu/ernie-4.5-21b-a3b-thinking": {
+    "input_per_million": 0.07,
+    "output_per_million": 0.28
+  },
+  "baidu/ernie-4.5-300b-a47b": {
+    "input_per_million": 0.28,
+    "output_per_million": 1.1
+  },
+  "baidu/ernie-4.5-vl-28b-a3b": {
+    "input_per_million": 0.14,
+    "output_per_million": 0.56
+  },
+  "baidu/ernie-4.5-vl-424b-a47b": {
+    "input_per_million": 0.42,
+    "output_per_million": 1.25
+  },
+  "bytedance-seed/seed-1.6": {
+    "input_per_million": 0.25,
+    "output_per_million": 2.0
+  },
+  "bytedance-seed/seed-1.6-flash": {
+    "input_per_million": 0.075,
+    "output_per_million": 0.3
+  },
+  "bytedance/ui-tars-1.5-7b": {
+    "input_per_million": 0.09999999999999999,
+    "output_per_million": 0.19999999999999998
+  },
+  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "cohere/command-a": {
+    "input_per_million": 2.5,
+    "output_per_million": 10.0
+  },
+  "cohere/command-r-08-2024": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.6
+  },
+  "cohere/command-r-plus-08-2024": {
+    "input_per_million": 2.5,
+    "output_per_million": 10.0
+  },
+  "cohere/command-r7b-12-2024": {
+    "input_per_million": 0.0375,
+    "output_per_million": 0.15
+  },
+  "deepcogito/cogito-v2.1-671b": {
+    "input_per_million": 1.25,
+    "output_per_million": 1.25
+  },
+  "deepseek/deepseek-chat": {
+    "input_per_million": 0.3,
+    "output_per_million": 1.2
+  },
+  "deepseek/deepseek-chat-v3-0324": {
+    "input_per_million": 0.19,
+    "output_per_million": 0.87
+  },
+  "deepseek/deepseek-chat-v3.1": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.75
+  },
+  "deepseek/deepseek-r1": {
+    "input_per_million": 0.7,
+    "output_per_million": 2.5
+  },
+  "deepseek/deepseek-r1-0528": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 1.75
+  },
+  "deepseek/deepseek-r1-0528:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "deepseek/deepseek-r1-distill-llama-70b": {
+    "input_per_million": 0.03,
+    "output_per_million": 0.11
+  },
+  "deepseek/deepseek-r1-distill-qwen-32b": {
+    "input_per_million": 0.29,
+    "output_per_million": 0.29
+  },
+  "deepseek/deepseek-v3.1-terminus": {
+    "input_per_million": 0.21,
+    "output_per_million": 0.7899999999999999
+  },
+  "deepseek/deepseek-v3.1-terminus:exacto": {
+    "input_per_million": 0.21,
+    "output_per_million": 0.7899999999999999
+  },
+  "deepseek/deepseek-v3.2": {
+    "input_per_million": 0.25,
+    "output_per_million": 0.38
+  },
+  "deepseek/deepseek-v3.2-exp": {
+    "input_per_million": 0.27,
+    "output_per_million": 0.41
+  },
+  "deepseek/deepseek-v3.2-speciale": {
+    "input_per_million": 0.27,
+    "output_per_million": 0.41
+  },
+  "eleutherai/llemma_7b": {
+    "input_per_million": 0.7999999999999999,
+    "output_per_million": 1.2
+  },
+  "essentialai/rnj-1-instruct": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.15
+  },
+  "google/gemini-2.0-flash-001": {
+    "input_per_million": 0.09999999999999999,
+    "output_per_million": 0.39999999999999997
+  },
+  "google/gemini-2.0-flash-lite-001": {
+    "input_per_million": 0.075,
+    "output_per_million": 0.3
+  },
+  "google/gemini-2.5-flash": {
+    "input_per_million": 0.3,
+    "output_per_million": 2.5
+  },
+  "google/gemini-2.5-flash-image": {
+    "input_per_million": 0.3,
+    "output_per_million": 2.5
+  },
+  "google/gemini-2.5-flash-lite": {
+    "input_per_million": 0.09999999999999999,
+    "output_per_million": 0.39999999999999997
+  },
+  "google/gemini-2.5-flash-lite-preview-09-2025": {
+    "input_per_million": 0.09999999999999999,
+    "output_per_million": 0.39999999999999997
+  },
+  "google/gemini-2.5-flash-preview-09-2025": {
+    "input_per_million": 0.3,
+    "output_per_million": 2.5
+  },
+  "google/gemini-2.5-pro": {
+    "input_per_million": 1.25,
+    "output_per_million": 10.0
+  },
+  "google/gemini-2.5-pro-preview": {
+    "input_per_million": 1.25,
+    "output_per_million": 10.0
+  },
+  "google/gemini-2.5-pro-preview-05-06": {
+    "input_per_million": 1.25,
+    "output_per_million": 10.0
+  },
+  "google/gemini-3-flash-preview": {
+    "input_per_million": 0.5,
+    "output_per_million": 3.0
+  },
+  "google/gemini-3-pro-image-preview": {
+    "input_per_million": 2.0,
+    "output_per_million": 12.0
+  },
+  "google/gemini-3-pro-preview": {
+    "input_per_million": 2.0,
+    "output_per_million": 12.0
+  },
+  "google/gemma-2-27b-it": {
+    "input_per_million": 0.65,
+    "output_per_million": 0.65
+  },
+  "google/gemma-2-9b-it": {
+    "input_per_million": 0.03,
+    "output_per_million": 0.09
+  },
+  "google/gemma-3-12b-it": {
+    "input_per_million": 0.03,
+    "output_per_million": 0.09999999999999999
+  },
+  "google/gemma-3-12b-it:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "google/gemma-3-27b-it": {
+    "input_per_million": 0.04,
+    "output_per_million": 0.15
+  },
+  "google/gemma-3-27b-it:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "google/gemma-3-4b-it": {
+    "input_per_million": 0.01703012,
+    "output_per_million": 0.0681536
+  },
+  "google/gemma-3-4b-it:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "google/gemma-3n-e2b-it:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "google/gemma-3n-e4b-it": {
+    "input_per_million": 0.02,
+    "output_per_million": 0.04
+  },
+  "google/gemma-3n-e4b-it:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "gryphe/mythomax-l2-13b": {
+    "input_per_million": 0.06,
+    "output_per_million": 0.06
+  },
+  "ibm-granite/granite-4.0-h-micro": {
+    "input_per_million": 0.017,
+    "output_per_million": 0.11
+  },
+  "inception/mercury": {
+    "input_per_million": 0.25,
+    "output_per_million": 1.0
+  },
+  "inception/mercury-coder": {
+    "input_per_million": 0.25,
+    "output_per_million": 1.0
+  },
+  "inflection/inflection-3-pi": {
+    "input_per_million": 2.5,
+    "output_per_million": 10.0
+  },
+  "inflection/inflection-3-productivity": {
+    "input_per_million": 2.5,
+    "output_per_million": 10.0
+  },
+  "kwaipilot/kat-coder-pro": {
+    "input_per_million": 0.207,
+    "output_per_million": 0.828
+  },
+  "liquid/lfm-2.2-6b": {
+    "input_per_million": 0.01,
+    "output_per_million": 0.02
+  },
+  "liquid/lfm-2.5-1.2b-instruct:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "liquid/lfm-2.5-1.2b-thinking:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "liquid/lfm2-8b-a1b": {
+    "input_per_million": 0.01,
+    "output_per_million": 0.02
+  },
+  "mancer/weaver": {
+    "input_per_million": 0.75,
+    "output_per_million": 1.0
+  },
+  "meituan/longcat-flash-chat": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.7999999999999999
+  },
+  "meta-llama/llama-3-70b-instruct": {
+    "input_per_million": 0.51,
+    "output_per_million": 0.74
+  },
+  "meta-llama/llama-3-8b-instruct": {
+    "input_per_million": 0.03,
+    "output_per_million": 0.04
+  },
+  "meta-llama/llama-3.1-405b": {
+    "input_per_million": 4.0,
+    "output_per_million": 4.0
+  },
+  "meta-llama/llama-3.1-405b-instruct": {
+    "input_per_million": 4.0,
+    "output_per_million": 4.0
+  },
+  "meta-llama/llama-3.1-70b-instruct": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 0.39999999999999997
+  },
+  "meta-llama/llama-3.1-8b-instruct": {
+    "input_per_million": 0.02,
+    "output_per_million": 0.049999999999999996
+  },
+  "meta-llama/llama-3.2-11b-vision-instruct": {
+    "input_per_million": 0.049,
+    "output_per_million": 0.049
+  },
+  "meta-llama/llama-3.2-1b-instruct": {
+    "input_per_million": 0.027,
+    "output_per_million": 0.19999999999999998
+  },
+  "meta-llama/llama-3.2-3b-instruct": {
+    "input_per_million": 0.02,
+    "output_per_million": 0.02
+  },
+  "meta-llama/llama-3.2-3b-instruct:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "meta-llama/llama-3.3-70b-instruct": {
+    "input_per_million": 0.09999999999999999,
+    "output_per_million": 0.32
+  },
+  "meta-llama/llama-3.3-70b-instruct:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "meta-llama/llama-4-maverick": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.6
+  },
+  "meta-llama/llama-4-scout": {
+    "input_per_million": 0.08,
+    "output_per_million": 0.3
+  },
+  "meta-llama/llama-guard-2-8b": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.19999999999999998
+  },
+  "meta-llama/llama-guard-3-8b": {
+    "input_per_million": 0.02,
+    "output_per_million": 0.06
+  },
+  "meta-llama/llama-guard-4-12b": {
+    "input_per_million": 0.18,
+    "output_per_million": 0.18
+  },
+  "microsoft/phi-4": {
+    "input_per_million": 0.06,
+    "output_per_million": 0.14
+  },
+  "microsoft/wizardlm-2-8x22b": {
+    "input_per_million": 0.62,
+    "output_per_million": 0.62
+  },
+  "minimax/minimax-01": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 1.1
+  },
+  "minimax/minimax-m1": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 2.2
+  },
+  "minimax/minimax-m2": {
+    "input_per_million": 0.255,
+    "output_per_million": 1.0
+  },
+  "minimax/minimax-m2-her": {
+    "input_per_million": 0.3,
+    "output_per_million": 1.2
+  },
+  "minimax/minimax-m2.1": {
+    "input_per_million": 0.27,
+    "output_per_million": 0.95
+  },
+  "minimax/minimax-m2.5": {
+    "input_per_million": 0.3,
+    "output_per_million": 1.2
+  },
+  "mistralai/codestral-2508": {
+    "input_per_million": 0.3,
+    "output_per_million": 0.8999999999999999
+  },
+  "mistralai/devstral-2512": {
+    "input_per_million": 0.049999999999999996,
+    "output_per_million": 0.22
+  },
+  "mistralai/devstral-medium": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 2.0
+  },
+  "mistralai/devstral-small": {
+    "input_per_million": 0.09999999999999999,
+    "output_per_million": 0.3
+  },
+  "mistralai/ministral-14b-2512": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.19999999999999998
+  },
+  "mistralai/ministral-3b-2512": {
+    "input_per_million": 0.09999999999999999,
+    "output_per_million": 0.09999999999999999
+  },
+  "mistralai/ministral-8b-2512": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.15
+  },
+  "mistralai/mistral-7b-instruct": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.19999999999999998
+  },
+  "mistralai/mistral-7b-instruct-v0.1": {
+    "input_per_million": 0.11,
+    "output_per_million": 0.19
+  },
+  "mistralai/mistral-7b-instruct-v0.2": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.19999999999999998
+  },
+  "mistralai/mistral-7b-instruct-v0.3": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.19999999999999998
+  },
+  "mistralai/mistral-large": {
+    "input_per_million": 2.0,
+    "output_per_million": 6.0
+  },
+  "mistralai/mistral-large-2407": {
+    "input_per_million": 2.0,
+    "output_per_million": 6.0
+  },
+  "mistralai/mistral-large-2411": {
+    "input_per_million": 2.0,
+    "output_per_million": 6.0
+  },
+  "mistralai/mistral-large-2512": {
+    "input_per_million": 0.5,
+    "output_per_million": 1.5
+  },
+  "mistralai/mistral-medium-3": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 2.0
+  },
+  "mistralai/mistral-medium-3.1": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 2.0
+  },
+  "mistralai/mistral-nemo": {
+    "input_per_million": 0.02,
+    "output_per_million": 0.04
+  },
+  "mistralai/mistral-saba": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.6
+  },
+  "mistralai/mistral-small-24b-instruct-2501": {
+    "input_per_million": 0.049999999999999996,
+    "output_per_million": 0.08
+  },
+  "mistralai/mistral-small-3.1-24b-instruct": {
+    "input_per_million": 0.03,
+    "output_per_million": 0.11
+  },
+  "mistralai/mistral-small-3.1-24b-instruct:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "mistralai/mistral-small-3.2-24b-instruct": {
+    "input_per_million": 0.06,
+    "output_per_million": 0.18
+  },
+  "mistralai/mistral-small-creative": {
+    "input_per_million": 0.09999999999999999,
+    "output_per_million": 0.3
+  },
+  "mistralai/mixtral-8x22b-instruct": {
+    "input_per_million": 2.0,
+    "output_per_million": 6.0
+  },
+  "mistralai/mixtral-8x7b-instruct": {
+    "input_per_million": 0.54,
+    "output_per_million": 0.54
+  },
+  "mistralai/pixtral-large-2411": {
+    "input_per_million": 2.0,
+    "output_per_million": 6.0
+  },
+  "mistralai/voxtral-small-24b-2507": {
+    "input_per_million": 0.09999999999999999,
+    "output_per_million": 0.3
+  },
+  "moonshotai/kimi-k2": {
+    "input_per_million": 0.5,
+    "output_per_million": 2.4
+  },
+  "moonshotai/kimi-k2-0905": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 2.0
+  },
+  "moonshotai/kimi-k2-0905:exacto": {
+    "input_per_million": 0.6,
+    "output_per_million": 2.5
+  },
+  "moonshotai/kimi-k2-thinking": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 1.75
+  },
+  "moonshotai/kimi-k2.5": {
+    "input_per_million": 0.22999999999999998,
+    "output_per_million": 3.0
+  },
+  "morph/morph-v3-fast": {
+    "input_per_million": 0.7999999999999999,
+    "output_per_million": 1.2
+  },
+  "morph/morph-v3-large": {
+    "input_per_million": 0.8999999999999999,
+    "output_per_million": 1.9
+  },
+  "neversleep/llama-3.1-lumimaid-8b": {
+    "input_per_million": 0.09,
+    "output_per_million": 0.6
+  },
+  "neversleep/noromaid-20b": {
+    "input_per_million": 1.0,
+    "output_per_million": 1.75
+  },
+  "nex-agi/deepseek-v3.1-nex-n1": {
+    "input_per_million": 0.27,
+    "output_per_million": 1.0
+  },
+  "nousresearch/deephermes-3-mistral-24b-preview": {
+    "input_per_million": 0.02,
+    "output_per_million": 0.09999999999999999
+  },
+  "nousresearch/hermes-2-pro-llama-3-8b": {
+    "input_per_million": 0.14,
+    "output_per_million": 0.14
+  },
+  "nousresearch/hermes-3-llama-3.1-405b": {
+    "input_per_million": 1.0,
+    "output_per_million": 1.0
+  },
+  "nousresearch/hermes-3-llama-3.1-405b:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "nousresearch/hermes-3-llama-3.1-70b": {
+    "input_per_million": 0.3,
+    "output_per_million": 0.3
+  },
+  "nousresearch/hermes-4-405b": {
+    "input_per_million": 1.0,
+    "output_per_million": 3.0
+  },
+  "nousresearch/hermes-4-70b": {
+    "input_per_million": 0.11,
+    "output_per_million": 0.38
+  },
+  "nvidia/llama-3.1-nemotron-70b-instruct": {
+    "input_per_million": 1.2,
+    "output_per_million": 1.2
+  },
+  "nvidia/llama-3.1-nemotron-ultra-253b-v1": {
+    "input_per_million": 0.6,
+    "output_per_million": 1.7999999999999998
+  },
+  "nvidia/llama-3.3-nemotron-super-49b-v1.5": {
+    "input_per_million": 0.09999999999999999,
+    "output_per_million": 0.39999999999999997
+  },
+  "nvidia/nemotron-3-nano-30b-a3b": {
+    "input_per_million": 0.049999999999999996,
+    "output_per_million": 0.19999999999999998
+  },
+  "nvidia/nemotron-3-nano-30b-a3b:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "nvidia/nemotron-nano-12b-v2-vl": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.6
+  },
+  "nvidia/nemotron-nano-12b-v2-vl:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "nvidia/nemotron-nano-9b-v2": {
+    "input_per_million": 0.04,
+    "output_per_million": 0.16
+  },
+  "nvidia/nemotron-nano-9b-v2:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "openai/chatgpt-4o-latest": {
+    "input_per_million": 5.0,
+    "output_per_million": 15.0
+  },
+  "openai/gpt-3.5-turbo": {
+    "input_per_million": 0.5,
+    "output_per_million": 1.5
+  },
+  "openai/gpt-3.5-turbo-0613": {
+    "input_per_million": 1.0,
+    "output_per_million": 2.0
+  },
+  "openai/gpt-3.5-turbo-16k": {
+    "input_per_million": 3.0,
+    "output_per_million": 4.0
+  },
+  "openai/gpt-3.5-turbo-instruct": {
+    "input_per_million": 1.5,
+    "output_per_million": 2.0
+  },
+  "openai/gpt-4": {
+    "input_per_million": 30.0,
+    "output_per_million": 60.0
+  },
+  "openai/gpt-4-0314": {
+    "input_per_million": 30.0,
+    "output_per_million": 60.0
+  },
+  "openai/gpt-4-1106-preview": {
+    "input_per_million": 10.0,
+    "output_per_million": 30.0
+  },
+  "openai/gpt-4-turbo": {
+    "input_per_million": 10.0,
+    "output_per_million": 30.0
+  },
+  "openai/gpt-4-turbo-preview": {
+    "input_per_million": 10.0,
+    "output_per_million": 30.0
+  },
+  "openai/gpt-4.1": {
+    "input_per_million": 2.0,
+    "output_per_million": 8.0
+  },
+  "openai/gpt-4.1-mini": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 1.5999999999999999
+  },
+  "openai/gpt-4.1-nano": {
+    "input_per_million": 0.09999999999999999,
+    "output_per_million": 0.39999999999999997
+  },
+  "openai/gpt-4o": {
+    "input_per_million": 2.5,
+    "output_per_million": 10.0
+  },
+  "openai/gpt-4o-2024-05-13": {
+    "input_per_million": 5.0,
+    "output_per_million": 15.0
+  },
+  "openai/gpt-4o-2024-08-06": {
+    "input_per_million": 2.5,
+    "output_per_million": 10.0
+  },
+  "openai/gpt-4o-2024-11-20": {
+    "input_per_million": 2.5,
+    "output_per_million": 10.0
+  },
+  "openai/gpt-4o-audio-preview": {
+    "input_per_million": 2.5,
+    "output_per_million": 10.0
+  },
+  "openai/gpt-4o-mini": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.6
+  },
+  "openai/gpt-4o-mini-2024-07-18": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.6
+  },
+  "openai/gpt-4o-mini-search-preview": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.6
+  },
+  "openai/gpt-4o-search-preview": {
+    "input_per_million": 2.5,
+    "output_per_million": 10.0
+  },
+  "openai/gpt-4o:extended": {
+    "input_per_million": 6.0,
+    "output_per_million": 18.0
+  },
+  "openai/gpt-5": {
+    "input_per_million": 1.25,
+    "output_per_million": 10.0
+  },
+  "openai/gpt-5-chat": {
+    "input_per_million": 1.25,
+    "output_per_million": 10.0
+  },
+  "openai/gpt-5-codex": {
+    "input_per_million": 1.25,
+    "output_per_million": 10.0
+  },
+  "openai/gpt-5-image": {
+    "input_per_million": 10.0,
+    "output_per_million": 10.0
+  },
+  "openai/gpt-5-image-mini": {
+    "input_per_million": 2.5,
+    "output_per_million": 2.0
+  },
+  "openai/gpt-5-mini": {
+    "input_per_million": 0.25,
+    "output_per_million": 2.0
+  },
+  "openai/gpt-5-nano": {
+    "input_per_million": 0.049999999999999996,
+    "output_per_million": 0.39999999999999997
+  },
+  "openai/gpt-5-pro": {
+    "input_per_million": 15.0,
+    "output_per_million": 120.0
+  },
+  "openai/gpt-5.1": {
+    "input_per_million": 1.25,
+    "output_per_million": 10.0
+  },
+  "openai/gpt-5.1-chat": {
+    "input_per_million": 1.25,
+    "output_per_million": 10.0
+  },
+  "openai/gpt-5.1-codex": {
+    "input_per_million": 1.25,
+    "output_per_million": 10.0
+  },
+  "openai/gpt-5.1-codex-max": {
+    "input_per_million": 1.25,
+    "output_per_million": 10.0
+  },
+  "openai/gpt-5.1-codex-mini": {
+    "input_per_million": 0.25,
+    "output_per_million": 2.0
+  },
+  "openai/gpt-5.2": {
+    "input_per_million": 1.75,
+    "output_per_million": 14.0
+  },
+  "openai/gpt-5.2-chat": {
+    "input_per_million": 1.75,
+    "output_per_million": 14.0
+  },
+  "openai/gpt-5.2-codex": {
+    "input_per_million": 1.75,
+    "output_per_million": 14.0
+  },
+  "openai/gpt-5.2-pro": {
+    "input_per_million": 21.0,
+    "output_per_million": 168.0
+  },
+  "openai/gpt-audio": {
+    "input_per_million": 2.5,
+    "output_per_million": 10.0
+  },
+  "openai/gpt-audio-mini": {
+    "input_per_million": 0.6,
+    "output_per_million": 2.4
+  },
+  "openai/gpt-oss-120b": {
+    "input_per_million": 0.039,
+    "output_per_million": 0.19
+  },
+  "openai/gpt-oss-120b:exacto": {
+    "input_per_million": 0.039,
+    "output_per_million": 0.19
+  },
+  "openai/gpt-oss-120b:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "openai/gpt-oss-20b": {
+    "input_per_million": 0.03,
+    "output_per_million": 0.14
+  },
+  "openai/gpt-oss-20b:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "openai/gpt-oss-safeguard-20b": {
+    "input_per_million": 0.075,
+    "output_per_million": 0.3
+  },
+  "openai/o1": {
+    "input_per_million": 15.0,
+    "output_per_million": 60.0
+  },
+  "openai/o1-pro": {
+    "input_per_million": 150.0,
+    "output_per_million": 600.0
+  },
+  "openai/o3": {
+    "input_per_million": 2.0,
+    "output_per_million": 8.0
+  },
+  "openai/o3-deep-research": {
+    "input_per_million": 10.0,
+    "output_per_million": 40.0
+  },
+  "openai/o3-mini": {
+    "input_per_million": 1.1,
+    "output_per_million": 4.4
+  },
+  "openai/o3-mini-high": {
+    "input_per_million": 1.1,
+    "output_per_million": 4.4
+  },
+  "openai/o3-pro": {
+    "input_per_million": 20.0,
+    "output_per_million": 80.0
+  },
+  "openai/o4-mini": {
+    "input_per_million": 1.1,
+    "output_per_million": 4.4
+  },
+  "openai/o4-mini-deep-research": {
+    "input_per_million": 2.0,
+    "output_per_million": 8.0
+  },
+  "openai/o4-mini-high": {
+    "input_per_million": 1.1,
+    "output_per_million": 4.4
+  },
+  "opengvlab/internvl3-78b": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.6
+  },
+  "openrouter/aurora-alpha": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "openrouter/auto": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "openrouter/bodybuilder": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "openrouter/free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "perplexity/sonar": {
+    "input_per_million": 1.0,
+    "output_per_million": 1.0
+  },
+  "perplexity/sonar-deep-research": {
+    "input_per_million": 2.0,
+    "output_per_million": 8.0
+  },
+  "perplexity/sonar-pro": {
+    "input_per_million": 3.0,
+    "output_per_million": 15.0
+  },
+  "perplexity/sonar-pro-search": {
+    "input_per_million": 3.0,
+    "output_per_million": 15.0
+  },
+  "perplexity/sonar-reasoning-pro": {
+    "input_per_million": 2.0,
+    "output_per_million": 8.0
+  },
+  "prime-intellect/intellect-3": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 1.1
+  },
+  "qwen/qwen-2.5-72b-instruct": {
+    "input_per_million": 0.12,
+    "output_per_million": 0.39
+  },
+  "qwen/qwen-2.5-7b-instruct": {
+    "input_per_million": 0.04,
+    "output_per_million": 0.09999999999999999
+  },
+  "qwen/qwen-2.5-coder-32b-instruct": {
+    "input_per_million": 0.03,
+    "output_per_million": 0.11
+  },
+  "qwen/qwen-2.5-vl-7b-instruct": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.19999999999999998
+  },
+  "qwen/qwen-max": {
+    "input_per_million": 1.5999999999999999,
+    "output_per_million": 6.3999999999999995
+  },
+  "qwen/qwen-plus": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 1.2
+  },
+  "qwen/qwen-plus-2025-07-28": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 1.2
+  },
+  "qwen/qwen-plus-2025-07-28:thinking": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 1.2
+  },
+  "qwen/qwen-turbo": {
+    "input_per_million": 0.049999999999999996,
+    "output_per_million": 0.19999999999999998
+  },
+  "qwen/qwen-vl-max": {
+    "input_per_million": 0.7999999999999999,
+    "output_per_million": 3.1999999999999997
+  },
+  "qwen/qwen-vl-plus": {
+    "input_per_million": 0.21,
+    "output_per_million": 0.63
+  },
+  "qwen/qwen2.5-coder-7b-instruct": {
+    "input_per_million": 0.03,
+    "output_per_million": 0.09
+  },
+  "qwen/qwen2.5-vl-32b-instruct": {
+    "input_per_million": 0.049999999999999996,
+    "output_per_million": 0.22
+  },
+  "qwen/qwen2.5-vl-72b-instruct": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.6
+  },
+  "qwen/qwen3-14b": {
+    "input_per_million": 0.049999999999999996,
+    "output_per_million": 0.22
+  },
+  "qwen/qwen3-235b-a22b": {
+    "input_per_million": 0.3,
+    "output_per_million": 1.2
+  },
+  "qwen/qwen3-235b-a22b-2507": {
+    "input_per_million": 0.071,
+    "output_per_million": 0.09999999999999999
+  },
+  "qwen/qwen3-235b-a22b-thinking-2507": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "qwen/qwen3-30b-a3b": {
+    "input_per_million": 0.06,
+    "output_per_million": 0.22
+  },
+  "qwen/qwen3-30b-a3b-instruct-2507": {
+    "input_per_million": 0.08,
+    "output_per_million": 0.33
+  },
+  "qwen/qwen3-30b-a3b-thinking-2507": {
+    "input_per_million": 0.051,
+    "output_per_million": 0.33999999999999997
+  },
+  "qwen/qwen3-32b": {
+    "input_per_million": 0.08,
+    "output_per_million": 0.24
+  },
+  "qwen/qwen3-4b": {
+    "input_per_million": 0.0715,
+    "output_per_million": 0.273
+  },
+  "qwen/qwen3-4b:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "qwen/qwen3-8b": {
+    "input_per_million": 0.049999999999999996,
+    "output_per_million": 0.39999999999999997
+  },
+  "qwen/qwen3-coder": {
+    "input_per_million": 0.22,
+    "output_per_million": 1.0
+  },
+  "qwen/qwen3-coder-30b-a3b-instruct": {
+    "input_per_million": 0.07,
+    "output_per_million": 0.27
+  },
+  "qwen/qwen3-coder-flash": {
+    "input_per_million": 0.3,
+    "output_per_million": 1.5
+  },
+  "qwen/qwen3-coder-next": {
+    "input_per_million": 0.07,
+    "output_per_million": 0.3
+  },
+  "qwen/qwen3-coder-plus": {
+    "input_per_million": 1.0,
+    "output_per_million": 5.0
+  },
+  "qwen/qwen3-coder:exacto": {
+    "input_per_million": 0.22,
+    "output_per_million": 1.7999999999999998
+  },
+  "qwen/qwen3-coder:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "qwen/qwen3-max": {
+    "input_per_million": 1.2,
+    "output_per_million": 6.0
+  },
+  "qwen/qwen3-max-thinking": {
+    "input_per_million": 1.2,
+    "output_per_million": 6.0
+  },
+  "qwen/qwen3-next-80b-a3b-instruct": {
+    "input_per_million": 0.09,
+    "output_per_million": 1.1
+  },
+  "qwen/qwen3-next-80b-a3b-instruct:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "qwen/qwen3-next-80b-a3b-thinking": {
+    "input_per_million": 0.15,
+    "output_per_million": 1.2
+  },
+  "qwen/qwen3-vl-235b-a22b-instruct": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.88
+  },
+  "qwen/qwen3-vl-235b-a22b-thinking": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "qwen/qwen3-vl-30b-a3b-instruct": {
+    "input_per_million": 0.13,
+    "output_per_million": 0.52
+  },
+  "qwen/qwen3-vl-30b-a3b-thinking": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "qwen/qwen3-vl-32b-instruct": {
+    "input_per_million": 0.10400000000000001,
+    "output_per_million": 0.41600000000000004
+  },
+  "qwen/qwen3-vl-8b-instruct": {
+    "input_per_million": 0.08,
+    "output_per_million": 0.5
+  },
+  "qwen/qwen3-vl-8b-thinking": {
+    "input_per_million": 0.117,
+    "output_per_million": 1.365
+  },
+  "qwen/qwen3.5-397b-a17b": {
+    "input_per_million": 0.6,
+    "output_per_million": 3.5999999999999996
+  },
+  "qwen/qwen3.5-plus-02-15": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 2.4
+  },
+  "qwen/qwq-32b": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.39999999999999997
+  },
+  "raifle/sorcererlm-8x22b": {
+    "input_per_million": 4.5,
+    "output_per_million": 4.5
+  },
+  "relace/relace-apply-3": {
+    "input_per_million": 0.85,
+    "output_per_million": 1.25
+  },
+  "relace/relace-search": {
+    "input_per_million": 1.0,
+    "output_per_million": 3.0
+  },
+  "sao10k/l3-euryale-70b": {
+    "input_per_million": 1.48,
+    "output_per_million": 1.48
+  },
+  "sao10k/l3-lunaris-8b": {
+    "input_per_million": 0.04,
+    "output_per_million": 0.049999999999999996
+  },
+  "sao10k/l3.1-70b-hanami-x1": {
+    "input_per_million": 3.0,
+    "output_per_million": 3.0
+  },
+  "sao10k/l3.1-euryale-70b": {
+    "input_per_million": 0.65,
+    "output_per_million": 0.75
+  },
+  "sao10k/l3.3-euryale-70b": {
+    "input_per_million": 0.65,
+    "output_per_million": 0.75
+  },
+  "stepfun/step-3.5-flash": {
+    "input_per_million": 0.09999999999999999,
+    "output_per_million": 0.3
+  },
+  "stepfun/step-3.5-flash:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "switchpoint/router": {
+    "input_per_million": 0.85,
+    "output_per_million": 3.4
+  },
+  "tencent/hunyuan-a13b-instruct": {
+    "input_per_million": 0.14,
+    "output_per_million": 0.5700000000000001
+  },
+  "thedrummer/cydonia-24b-v4.1": {
+    "input_per_million": 0.3,
+    "output_per_million": 0.5
+  },
+  "thedrummer/rocinante-12b": {
+    "input_per_million": 0.16999999999999998,
+    "output_per_million": 0.43
+  },
+  "thedrummer/skyfall-36b-v2": {
+    "input_per_million": 0.55,
+    "output_per_million": 0.7999999999999999
+  },
+  "thedrummer/unslopnemo-12b": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 0.39999999999999997
+  },
+  "tngtech/deepseek-r1t-chimera": {
+    "input_per_million": 0.3,
+    "output_per_million": 1.2
+  },
+  "tngtech/deepseek-r1t2-chimera": {
+    "input_per_million": 0.25,
+    "output_per_million": 0.85
+  },
+  "tngtech/tng-r1t-chimera": {
+    "input_per_million": 0.25,
+    "output_per_million": 0.85
+  },
+  "undi95/remm-slerp-l2-13b": {
+    "input_per_million": 0.44999999999999996,
+    "output_per_million": 0.65
+  },
+  "upstage/solar-pro-3:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "writer/palmyra-x5": {
+    "input_per_million": 0.6,
+    "output_per_million": 6.0
+  },
+  "x-ai/grok-3": {
+    "input_per_million": 3.0,
+    "output_per_million": 15.0
+  },
+  "x-ai/grok-3-beta": {
+    "input_per_million": 3.0,
+    "output_per_million": 15.0
+  },
+  "x-ai/grok-3-mini": {
+    "input_per_million": 0.3,
+    "output_per_million": 0.5
+  },
+  "x-ai/grok-3-mini-beta": {
+    "input_per_million": 0.3,
+    "output_per_million": 0.5
+  },
+  "x-ai/grok-4": {
+    "input_per_million": 3.0,
+    "output_per_million": 15.0
+  },
+  "x-ai/grok-4-fast": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.5
+  },
+  "x-ai/grok-4.1-fast": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.5
+  },
+  "x-ai/grok-code-fast-1": {
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 1.5
+  },
+  "xiaomi/mimo-v2-flash": {
+    "input_per_million": 0.09,
+    "output_per_million": 0.29
+  },
+  "z-ai/glm-4-32b": {
+    "input_per_million": 0.09999999999999999,
+    "output_per_million": 0.09999999999999999
+  },
+  "z-ai/glm-4.5": {
+    "input_per_million": 0.35,
+    "output_per_million": 1.55
+  },
+  "z-ai/glm-4.5-air": {
+    "input_per_million": 0.13,
+    "output_per_million": 0.85
+  },
+  "z-ai/glm-4.5-air:free": {
+    "input_per_million": 0.0,
+    "output_per_million": 0.0
+  },
+  "z-ai/glm-4.5v": {
+    "input_per_million": 0.6,
+    "output_per_million": 1.7999999999999998
+  },
+  "z-ai/glm-4.6": {
+    "input_per_million": 0.35,
+    "output_per_million": 1.5
+  },
+  "z-ai/glm-4.6:exacto": {
+    "input_per_million": 0.44,
+    "output_per_million": 1.76
+  },
+  "z-ai/glm-4.6v": {
+    "input_per_million": 0.3,
+    "output_per_million": 0.8999999999999999
+  },
+  "z-ai/glm-4.7": {
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 1.5
+  },
+  "z-ai/glm-4.7-flash": {
+    "input_per_million": 0.06,
+    "output_per_million": 0.39999999999999997
+  },
+  "z-ai/glm-5": {
+    "input_per_million": 0.3,
+    "output_per_million": 2.5500000000000003
   }
 }

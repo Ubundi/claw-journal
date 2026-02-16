@@ -63,6 +63,9 @@ Edit `.env` to configure your settings:
 - `CJ_SNAPSHOT_BACKFILL_SECONDS`: Snapshot backfill interval in seconds (default: `10`).
 - `CJ_COST_ESTIMATION_ENABLED`: Estimate cost when logs contain tokens but no cost (default: `true`).
 - `CJ_PRICING_FILE`: Pricing table JSON path (default: `./pricing.json`).
+- `CJ_OPENROUTER_SYNC_ENABLED`: Auto-fetch model catalog + pricing from OpenRouter on startup (default: `true`).
+- `CJ_OPENROUTER_MODELS_URL`: OpenRouter models endpoint (default: `https://openrouter.ai/api/v1/models`).
+- `CJ_OPENROUTER_TIMEOUT_SECONDS`: OpenRouter request timeout (default: `8`).
 - `CJ_REDACTION_ENABLED`: Redact sensitive keys/tokens before storing `raw_json` (default: `true`).
 - `CJ_AUTH_MODE`: `auto`, `oauth`, or `api_key` (default: `auto`).
 - `CJ_BILLING_MODE`: `token` or `claude_max` (default: `token`).
@@ -87,7 +90,10 @@ Available endpoints:
 - `GET /api/usage/reconciled?limit=100` (gateway session truth + observed log costs)
 - `GET /api/usage/cost-sources` (observed vs estimated vs missing cost counts)
 - `GET /api/system/profile` (auth mode, billing mode, data-source diagnostics, notes)
-- `GET /api/pricing` and `POST /api/pricing/upsert` (manage input/output token pricing)
+- `GET /api/system/models` (OpenRouter available models + models currently used by OpenClaw)
+- `GET /api/system/token-accuracy` (snapshot vs backfilled token accuracy by session)
+- `GET /api/usage/session/{session_id}` (click-through event detail with extracted human text + raw JSON)
+- `GET /api/pricing` and `POST /api/pricing/upsert` (auto-loaded pricing plus manual override)
 - `GET /api/usage/plan-cost` (Claude Max plan summary when enabled)
 
 ## ✅ Tested Safe Workflow (Remote Instance)
@@ -120,7 +126,7 @@ Note: if your OpenClaw file logs do not contain `model.usage` token fields, `/ap
 
 Dashboard behavior:
 - In `token` billing mode, dashboard shows input/output/total costs from observed or estimated rates.
-- In `claude_max` billing mode, dashboard marks event costs as subscription-included and shows plan summary.
+- In `claude_max` billing mode, dashboard hides per-token dollar columns and shows a small info note explaining subscription billing.
 - In `auth_mode=auto`, auth mode is inferred from available data (`api_key` when observed costs exist, otherwise `oauth`).
 - If log-derived usage events are missing, snapshot backfill converts gateway session deltas into historical usage events so daily/session charts still populate.
 
