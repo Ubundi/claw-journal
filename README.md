@@ -28,7 +28,8 @@ Claw Journal runs as a local service alongside your OpenClaw instance to capture
 Prerequisites:
 - [OpenClaw](https://github.com/openclaw/openclaw) installed and configured.
 - Python 3.9+
-- Node.js (frontend planned; backend MVP is now implemented)
+- [uv](https://docs.astral.sh/uv/) installed
+- Node.js 18+
 
 ### 1. Clone the repository
 ```bash
@@ -38,7 +39,13 @@ cd claw-journal
 
 ### 2. Install Dependencies
 ```bash
-pip install -r requirements.txt
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
+
+cd frontend
+npm install
+cd ..
 ```
 
 ### 3. Configure
@@ -73,16 +80,24 @@ Edit `.env` to configure your settings:
 - `CJ_AUTO_PORT`: Automatically bind the first available local port starting at `CJ_PORT` (default: `true`).
 - `CJ_PORT_SEARCH_LIMIT`: Number of incremental ports to try after `CJ_PORT` when occupied (default: `50`).
 
-## 🖥️ Running (Backend MVP)
+## 🖥️ Running (API + Graph Dashboard)
 
-Start the local API service:
+Start the local API service (Terminal 1):
 
 ```bash
-python3 main.py
+uv run python main.py
 ```
 
-On startup, Claw Journal logs the active dashboard URL (for example `Dashboard available at http://127.0.0.1:3002`).
-With `CJ_AUTO_PORT=true`, backend + embedded frontend always stay on the same selected port.
+Start the React dashboard (Terminal 2):
+
+```bash
+cd frontend
+npm run dev
+```
+
+Open the dashboard at `http://localhost:5173`.
+
+> Use the React UI in `frontend` as the dashboard.
 
 Available endpoints:
 - `GET /health`
@@ -109,24 +124,31 @@ ssh -o BatchMode=yes rune 'hostname'
 # Should print "rune" or the hostname without asking for a password
 ```
 
-### 2. Run Claw Journal (Remote Mode)
-Run the following command locally. This connects to `rune` to sync session totals via SSH.
+### 2. Run Claw Journal API (Remote Mode)
+Run the following command locally in Terminal 1. This connects to `rune` to sync session totals via SSH.
 
 ```bash
 # Replace 'rune' with your host alias if different
 CJ_REMOTE_ENABLED=true \
 CJ_REMOTE_SSH_HOST=rune \
-python3 main.py
+uv run python main.py
+```
+
+Start the graph dashboard in Terminal 2:
+
+```bash
+cd frontend
+npm run dev
 ```
 
 *Optional: To see full conversation logs (thinking steps), copy logs from remote:*
 ```bash
 ssh user@your-host 'cat /tmp/openclaw/openclaw-*.log' > /tmp/openclaw-remote.log
-CJ_OPENCLAW_LOG_GLOB=/tmp/openclaw-remote.log python3 main.py
+CJ_OPENCLAW_LOG_GLOB=/tmp/openclaw-remote.log uv run python main.py
 ```
 
 ### 3. View Dashboard
-Open the URL printed in startup logs (`Dashboard available at ...`) in your local browser.
+Open `http://localhost:5173` in your local browser.
 
 > **Note:** This mode syncs session history from the remote `openclaw` instance every 30 seconds and streams logs as they are written. It does NOT modify your remote instance.
 
@@ -138,16 +160,27 @@ If OpenClaw is running on the same computer:
 
 1. **Install dependencies:**
    ```bash
-   pip install -r requirements.txt
+   uv venv
+   source .venv/bin/activate
+   uv pip install -r requirements.txt
+
+   cd frontend
+   npm install
+   cd ..
    ```
 2. **Review configuration (optional):**
    - The default `.env` assumes logs are at `/tmp/openclaw/openclaw-*.log`.
-3. **Run:**
+3. **Run API (Terminal 1):**
    ```bash
-   python3 main.py
+   uv run python main.py
    ```
-4. **Open:**
-   - Open the `Dashboard available at ...` URL printed on startup
+4. **Run dashboard (Terminal 2):**
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+5. **Open:**
+   - Open `http://localhost:5173`
 
 ### Option B: Remote OpenClaw via SSH (Advanced)
 
@@ -165,9 +198,14 @@ If you need more control than the Quick Start provides, you can configure `.env`
    # Optional: Path to OpenClaw binary on remote
    CJ_REMOTE_OPENCLAW_BIN=/opt/homebrew/bin/openclaw
    ```
-3. **Run:**
+3. **Run API (Terminal 1):**
    ```bash
-   python3 main.py
+   uv run python main.py
+   ```
+4. **Run dashboard (Terminal 2):**
+   ```bash
+   cd frontend
+   npm run dev
    ```
 
 ### Pricing file format
@@ -202,7 +240,7 @@ If you need more control than the Quick Start provides, you can configure `.env`
 
 ### Later
 
-- [ ] Frontend dashboard (charts + search UI).
+- [ ] Expand dashboard chart/search views.
 - [ ] Forecasting and benchmark views.
 - [ ] Budget alerting integrations.
 
@@ -219,8 +257,9 @@ Claw Journal continuously monitors your OpenClaw log files (default: `/tmp/openc
 ## 📌 Current Status
 
 - ✅ Analytics backend MVP scaffolded (ingest, normalize, persist, query API)
+- ✅ React graph dashboard available in `frontend/`
 - ✅ Remote OpenClaw config contract added for hybrid integration
-- ⏳ Frontend dashboard, alerts, and forecasting are planned next phases
+- ⏳ Alerts and forecasting are planned next phases
 
 ---
 *Created for the OpenClaw community.*
