@@ -70,6 +70,8 @@ Edit `.env` to configure your settings:
 - `CJ_AUTH_MODE`: `auto`, `oauth`, or `api_key` (default: `auto`).
 - `CJ_BILLING_MODE`: `token` or `claude_max` (default: `token`).
 - `CJ_CLAUDE_MAX_MONTHLY_USD`: Monthly Claude Max subscription amount used for dashboard context (default: `200`).
+- `CJ_AUTO_PORT`: Automatically bind the first available local port starting at `CJ_PORT` (default: `true`).
+- `CJ_PORT_SEARCH_LIMIT`: Number of incremental ports to try after `CJ_PORT` when occupied (default: `50`).
 
 ## 🖥️ Running (Backend MVP)
 
@@ -79,8 +81,8 @@ Start the local API service:
 python3 main.py
 ```
 
-Open local dashboard (MVP):
-- `http://127.0.0.1:3000/`
+On startup, Claw Journal logs the active dashboard URL (for example `Dashboard available at http://127.0.0.1:3002`).
+With `CJ_AUTO_PORT=true`, backend + embedded frontend always stay on the same selected port.
 
 Available endpoints:
 - `GET /health`
@@ -124,9 +126,7 @@ CJ_OPENCLAW_LOG_GLOB=/tmp/openclaw-remote.log python3 main.py
 ```
 
 ### 3. View Dashboard
-Open your local browser to:
-- **Dashboard:** [http://127.0.0.1:3000](http://127.0.0.1:3000)
-- **Session List:** [http://127.0.0.1:3000/api/usage/reconciled](http://127.0.0.1:3000/api/usage/reconciled)
+Open the URL printed in startup logs (`Dashboard available at ...`) in your local browser.
 
 > **Note:** This mode syncs session history from the remote `openclaw` instance every 30 seconds and streams logs as they are written. It does NOT modify your remote instance.
 
@@ -147,7 +147,7 @@ If OpenClaw is running on the same computer:
    python3 main.py
    ```
 4. **Open:**
-   - [http://127.0.0.1:3000](http://127.0.0.1:3000)
+   - Open the `Dashboard available at ...` URL printed on startup
 
 ### Option B: Remote OpenClaw via SSH (Advanced)
 
@@ -212,7 +212,7 @@ Claw Journal continuously monitors your OpenClaw log files (default: `/tmp/openc
 
 1. Start your OpenClaw session (terminal or TUI).
 2. Use commands like `/status` or `/usage` in OpenClaw to verify internal tracking.
-3. Query `http://localhost:3000/api/usage/daily` (or other endpoints) to inspect parsed analytics, including:
+3. Query `http://localhost:<active-port>/api/usage/daily` (or other endpoints) to inspect parsed analytics, including:
    - **Session Costs:** Calculated from token usage even for OAuth providers where API cost data is hidden.
    - **Thinking Logs:** Expanded views of internal chain-of-thought not fully visible in the main chat.
 

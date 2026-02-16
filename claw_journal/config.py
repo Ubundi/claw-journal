@@ -15,6 +15,8 @@ BILLING_MODES = {"token", "claude_max"}
 class Settings:
     host: str
     port: int
+    auto_port: bool
+    port_search_limit: int
     openclaw_log_glob: str
     poll_seconds: float
     remote_enabled: bool
@@ -69,6 +71,8 @@ def load_settings() -> Settings:
 
     host = os.getenv("CJ_HOST", "127.0.0.1")
     port = int(os.getenv("CJ_PORT", "3000"))
+    auto_port = _parse_bool(os.getenv("CJ_AUTO_PORT"), True)
+    port_search_limit = int(os.getenv("CJ_PORT_SEARCH_LIMIT", "50"))
     openclaw_log_glob = os.getenv("CJ_OPENCLAW_LOG_GLOB", "/tmp/openclaw/openclaw-*.log")
     poll_seconds = float(os.getenv("CJ_POLL_SECONDS", "1.0"))
     remote_enabled = _parse_bool(os.getenv("CJ_REMOTE_ENABLED"), False)
@@ -120,6 +124,12 @@ def load_settings() -> Settings:
     if poll_seconds <= 0:
         raise ValueError("CJ_POLL_SECONDS must be > 0")
 
+    if port < 0 or port > 65535:
+        raise ValueError("CJ_PORT must be between 0 and 65535")
+
+    if port_search_limit <= 0:
+        raise ValueError("CJ_PORT_SEARCH_LIMIT must be > 0")
+
     if session_sync_seconds <= 0:
         raise ValueError("CJ_SESSION_SYNC_SECONDS must be > 0")
 
@@ -140,6 +150,8 @@ def load_settings() -> Settings:
     return Settings(
         host=host,
         port=port,
+        auto_port=auto_port,
+        port_search_limit=port_search_limit,
         openclaw_log_glob=openclaw_log_glob,
         poll_seconds=poll_seconds,
         remote_enabled=remote_enabled,

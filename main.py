@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import socket
 from threading import Thread
 
 import uvicorn
@@ -20,6 +21,33 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
 )
+
+
+def _bind_open_port(host: str, requested_port: int, search_limit: int) -> socket.socket:
+    candidates = [requested_port] if requested_port > 0 else [0]
+    if requested_port > 0:
+        candidates.extend(range(requested_port + 1, requested_port + search_limit + 1))
+
+    last_error: OSError | None = None
+    for port in candidates:
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            server_socket.bind((host, port))
+            return server_socket
+        except OSError as exc:
+            last_error = exc
+            server_socket.close()
+
+    max_port = requested_port + search_limit
+    raise RuntimeError(
+        f"Unable to bind an open port on {host} in range {requested_port}-{max_port}"
+    ) from last_error
+
+
+def _build_local_url(host: str, port: int) -> str:
+    display_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
+    return f"http://{display_host}:{port}"
 
 
 def build_runtime() -> tuple[object, IngestLoop, SessionSyncLoop | None, SnapshotBackfillLoop | None, object]:
@@ -97,4 +125,27 @@ if __name__ == "__main__":
         snapshot_thread = Thread(target=snapshot_backfill_loop.run_forever, daemon=True)
         snapshot_thread.start()
 
-    uvicorn.run(app, host=settings.host, port=settings.port)
+    if settings.auto_port:
+        server_socket = _bind_open_port(
+            host=settings.host,
+            requested_port=settings.port,
+            search_limit=settings.port_search_limit,
+        )
+        resolved_port = int(server_socket.getsockname()[1])
+        if settings.port > 0 and resolved_port != settings.port:
+            logging.info(
+                "CJ_PORT=%s is busy; using open port %s instead",
+                settings.port,
+                resolved_port,
+            )
+        logging.info("Dashboard available at %s", _build_local_url(settings.host, resolved_port))
+
+        config = uvicorn.Config(app=app, host=settings.host, port=resolved_port)
+        server = uvicorn.Server(config)
+        try:
+            server.run(sockets=[server_socket])
+        finally:
+            server_socket.close()
+    else:
+        logging.info("Dashboard available at %s", _build_local_url(settings.host, settings.port))
+        uvicorn.run(app, host=settings.host, port=settings.port)
