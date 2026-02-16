@@ -226,8 +226,9 @@ def _parse_lines(lines: list[str], source_path: str, fallback_ts: str) -> list[d
         role = _extract_role(payload)
         text_value = _extract_text(payload)
         event_ts = _extract_timestamp(payload, fallback_ts=fallback_ts)
-        session_id = _extract_session_id(payload) or session_id_from_path
+        session_id = session_id_from_path or _extract_session_id(payload)
         message_type = _extract_message_type(payload)
+        provider, model = _extract_provider_model(payload)
 
         if not session_id:
             session_id = "unknown"
@@ -242,6 +243,8 @@ def _parse_lines(lines: list[str], source_path: str, fallback_ts: str) -> list[d
                 "role": role,
                 "content_text": text_value,
                 "message_type": message_type,
+                "provider": provider,
+                "model": model,
                 "source": "transcript",
                 "source_path": source_path,
                 "raw_json": raw_line,
@@ -253,7 +256,7 @@ def _parse_lines(lines: list[str], source_path: str, fallback_ts: str) -> list[d
 
 
 def _extract_session_id(payload: dict) -> str | None:
-    for key in ["sessionId", "session_id", "session", "id"]:
+    for key in ["sessionId", "session_id", "session"]:
         value = payload.get(key)
         if isinstance(value, str) and value.strip():
             return value.strip()
@@ -265,6 +268,36 @@ def _extract_session_id(payload: dict) -> str | None:
             return value.strip()
 
     return None
+
+
+def _extract_provider_model(payload: dict) -> tuple[str | None, str | None]:
+    provider = None
+    model = None
+
+    for key in ["provider", "modelProvider"]:
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            provider = value.strip()
+            break
+
+    for key in ["model", "modelId"]:
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            model = value.strip()
+            break
+
+    message = payload.get("message")
+    if isinstance(message, dict):
+        if not provider:
+            value = message.get("provider")
+            if isinstance(value, str) and value.strip():
+                provider = value.strip()
+        if not model:
+            value = message.get("model") or message.get("modelId")
+            if isinstance(value, str) and value.strip():
+                model = value.strip()
+
+    return provider, model
 
 
 def _extract_timestamp(payload: dict, fallback_ts: str) -> str:

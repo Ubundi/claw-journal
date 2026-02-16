@@ -144,6 +144,10 @@ class UsageRepository:
                 conn.execute("ALTER TABLE conversation_messages ADD COLUMN source_path TEXT")
             if convo_columns and "message_type" not in convo_columns:
                 conn.execute("ALTER TABLE conversation_messages ADD COLUMN message_type TEXT")
+            if convo_columns and "provider" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN provider TEXT")
+            if convo_columns and "model" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN model TEXT")
             if convo_columns and "content_text" not in convo_columns:
                 conn.execute("ALTER TABLE conversation_messages ADD COLUMN content_text TEXT")
             if convo_columns and "text_content" not in convo_columns:
@@ -157,6 +161,9 @@ class UsageRepository:
             )
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_conversation_messages_session_ts ON conversation_messages(session_id, event_ts)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_conversation_messages_source_path ON conversation_messages(source_path)"
             )
 
     def insert_usage_events(self, events: Iterable[NormalizedUsageEvent]) -> int:
@@ -1018,6 +1025,10 @@ class UsageRepository:
 
             if "message_type" in columns:
                 insert_columns.append("message_type")
+            if "provider" in columns:
+                insert_columns.append("provider")
+            if "model" in columns:
+                insert_columns.append("model")
             if "source" in columns:
                 insert_columns.append("source")
             if "source_path" in columns:
@@ -1044,6 +1055,8 @@ class UsageRepository:
                 source = str(message.get("source") or "transcript")
                 source_path = message.get("source_path")
                 message_type = message.get("message_type")
+                provider = message.get("provider")
+                model = message.get("model")
                 turn_index = int(message.get("turn_index") or 0)
                 content_json = str(message.get("content_json") or raw_json)
 
@@ -1063,6 +1076,8 @@ class UsageRepository:
                     "text_content": content_text,
                     "content_json": content_json,
                     "message_type": message_type,
+                    "provider": provider,
+                    "model": model,
                     "source": source,
                     "source_path": source_path,
                     "message_fingerprint": message_fingerprint,
@@ -1091,14 +1106,19 @@ class UsageRepository:
             rows = conn.execute(
                 """
                 SELECT
-                    session_id,
+                    COALESCE(NULLIF(source_path, ''), session_id) AS session_group,
+                    MIN(session_id) AS session_id,
+                    MIN(source_path) AS source_path,
                     COUNT(*) AS message_count,
                     MAX(COALESCE(NULLIF(event_ts, ''), message_ts)) AS last_event_ts,
                     MIN(COALESCE(NULLIF(event_ts, ''), message_ts)) AS first_event_ts,
                     SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END) AS user_messages,
-                    SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END) AS assistant_messages
+                    SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END) AS assistant_messages,
+                    SUM(CASE WHEN COALESCE(NULLIF(content_text, ''), text_content, '') LIKE 'Read HEARTBEAT%' THEN 1 ELSE 0 END) AS heartbeat_messages,
+                    SUM(CASE WHEN COALESCE(NULLIF(content_text, ''), text_content, '') LIKE '[WhatsApp %' THEN 1 ELSE 0 END) AS whatsapp_messages,
+                    SUM(CASE WHEN COALESCE(NULLIF(content_text, ''), text_content, '') LIKE '[cron:%' THEN 1 ELSE 0 END) AS cron_messages
                 FROM conversation_messages
-                GROUP BY session_id
+                GROUP BY COALESCE(NULLIF(source_path, ''), session_id)
                 ORDER BY last_event_ts DESC
                 LIMIT ? OFFSET ?
                 """,
@@ -1118,6 +1138,18 @@ class UsageRepository:
                 """
             ).fetchall()
 
+            meta_rows = conn.execute(
+                """
+                SELECT
+                    COALESCE(NULLIF(source_path, ''), session_id) AS session_group,
+                    provider,
+                    model,
+                    COALESCE(NULLIF(event_ts, ''), message_ts) AS ts
+                FROM conversation_messages
+                ORDER BY ts DESC
+                """
+            ).fetchall()
+
         snapshot_by_session = {
             str(row["session_id"]): {
                 "session_key": row["session_key"],
@@ -1129,29 +1161,63 @@ class UsageRepository:
             for row in snapshot_rows
         }
 
+        message_meta_by_group: dict[str, dict] = {}
+        for row in meta_rows:
+            session_group = str(row["session_group"] or "")
+            if not session_group or session_group in message_meta_by_group:
+                continue
+            message_meta_by_group[session_group] = {
+                "provider": row["provider"],
+                "model": row["model"],
+            }
+
         result: list[dict] = []
         for row in rows:
-            session_id = str(row["session_id"] or "unknown")
-            snapshot = snapshot_by_session.get(session_id, {})
+            session_id_raw = str(row["session_id"] or "unknown")
+            source_path = row["source_path"]
+            canonical_session_id = _canonical_session_id(session_id=session_id_raw, source_path=source_path)
+            snapshot = snapshot_by_session.get(canonical_session_id, {})
+            session_group = str(row["session_group"] or "")
+            message_meta = message_meta_by_group.get(session_group, {})
+
+            heartbeat_messages = int(row["heartbeat_messages"] or 0)
+            whatsapp_messages = int(row["whatsapp_messages"] or 0)
+            cron_messages = int(row["cron_messages"] or 0)
+            user_messages = int(row["user_messages"] or 0)
+            assistant_messages = int(row["assistant_messages"] or 0)
+
+            session_type = "general"
+            if heartbeat_messages > 0 and user_messages <= max(heartbeat_messages, 1):
+                session_type = "heartbeat"
+            elif whatsapp_messages > 0:
+                session_type = "whatsapp"
+            elif cron_messages > 0:
+                session_type = "cron"
+            elif user_messages > 0 and assistant_messages > 0:
+                session_type = "conversation"
+
             result.append(
                 {
-                    "session_id": session_id,
+                    "session_id": canonical_session_id,
                     "session_key": snapshot.get("session_key"),
-                    "provider": snapshot.get("provider"),
-                    "model": snapshot.get("model"),
+                    "provider": message_meta.get("provider") or snapshot.get("provider"),
+                    "model": message_meta.get("model") or snapshot.get("model"),
                     "message_count": int(row["message_count"] or 0),
-                    "user_messages": int(row["user_messages"] or 0),
-                    "assistant_messages": int(row["assistant_messages"] or 0),
+                    "user_messages": user_messages,
+                    "assistant_messages": assistant_messages,
                     "first_event_ts": row["first_event_ts"],
                     "last_event_ts": row["last_event_ts"],
                     "snapshot_updated_at": snapshot.get("updated_at", 0),
                     "snapshot_total_tokens": snapshot.get("total_tokens", 0),
+                    "session_type": session_type,
+                    "source_path": source_path,
                 }
             )
         return result
 
     def get_chat_session_messages(self, session_id: str, limit: int = 300, before_id: int | None = None) -> dict:
         with self._connect() as conn:
+            source_like = f"%/{session_id}.jsonl"
             if before_id and before_id > 0:
                 rows = conn.execute(
                     """
@@ -1162,15 +1228,17 @@ class UsageRepository:
                         role,
                         COALESCE(NULLIF(content_text, ''), text_content) AS content_text,
                         message_type,
+                        provider,
+                        model,
                         source,
                         source_path,
                         raw_json
                     FROM conversation_messages
-                    WHERE session_id = ? AND id < ?
+                    WHERE (session_id = ? OR source_path LIKE ?) AND id < ?
                     ORDER BY id DESC
                     LIMIT ?
                     """,
-                    (session_id, int(before_id), int(limit)),
+                    (session_id, source_like, int(before_id), int(limit)),
                 ).fetchall()
             else:
                 rows = conn.execute(
@@ -1182,15 +1250,17 @@ class UsageRepository:
                         role,
                         COALESCE(NULLIF(content_text, ''), text_content) AS content_text,
                         message_type,
+                        provider,
+                        model,
                         source,
                         source_path,
                         raw_json
                     FROM conversation_messages
-                    WHERE session_id = ?
+                    WHERE session_id = ? OR source_path LIKE ?
                     ORDER BY id DESC
                     LIMIT ?
                     """,
-                    (session_id, int(limit)),
+                    (session_id, source_like, int(limit)),
                 ).fetchall()
 
         ordered_rows = list(reversed(rows))
@@ -1202,6 +1272,8 @@ class UsageRepository:
                 "role": row["role"],
                 "content_text": row["content_text"],
                 "message_type": row["message_type"],
+                "provider": row["provider"],
+                "model": row["model"],
                 "source": row["source"],
                 "source_path": row["source_path"],
                 "raw_json": row["raw_json"],
@@ -1218,6 +1290,14 @@ class UsageRepository:
             "rows": messages,
             "next_before_id": next_before_id,
         }
+
+
+def _canonical_session_id(session_id: str, source_path: object) -> str:
+    if isinstance(source_path, str) and source_path.strip():
+        stem = Path(source_path).stem
+        if stem:
+            return stem
+    return session_id or "unknown"
 
     def get_checkpoints(self, limit: int = 500) -> list[dict]:
         with self._connect() as conn:

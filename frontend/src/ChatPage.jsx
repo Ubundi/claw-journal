@@ -13,6 +13,99 @@ const ChatPage = () => {
   const [nextBeforeId, setNextBeforeId] = useState(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
 
+  const sessionTypeClass = (sessionType) => {
+    const key = String(sessionType || '').toLowerCase();
+    if (key === 'heartbeat') return 'bg-blue-900/40 text-blue-300 border-blue-800';
+    if (key === 'whatsapp') return 'bg-emerald-900/40 text-emerald-300 border-emerald-800';
+    if (key === 'cron') return 'bg-purple-900/40 text-purple-300 border-purple-800';
+    if (key === 'conversation') return 'bg-orange-900/40 text-orange-300 border-orange-800';
+    return 'bg-gray-800 text-gray-300 border-gray-700';
+  };
+
+  const roleClass = (role) => {
+    const key = String(role || '').toLowerCase();
+    if (key === 'user') return 'text-cyan-300';
+    if (key === 'assistant') return 'text-orange-300';
+    if (key === 'tool' || key === 'toolresult') return 'text-emerald-300';
+    if (key === 'system') return 'text-purple-300';
+    return 'text-gray-300';
+  };
+
+  const safeParseJson = (rawJson) => {
+    if (!rawJson || typeof rawJson !== 'string') return null;
+    try {
+      return JSON.parse(rawJson);
+    } catch {
+      return null;
+    }
+  };
+
+  const prettyJson = (rawJson) => {
+    const parsed = safeParseJson(rawJson);
+    if (!parsed) return rawJson || '-';
+    return JSON.stringify(parsed, null, 2);
+  };
+
+  const renderMessageBlocks = (message) => {
+    const parsed = safeParseJson(message.raw_json);
+    const content = parsed?.message?.content;
+    if (!Array.isArray(content) || content.length === 0) {
+      return (
+        <pre className="text-[12px] text-gray-200 whitespace-pre-wrap break-words">
+          {message.content_text || '(No text content captured)'}
+        </pre>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {content.map((item, index) => {
+          if (!item || typeof item !== 'object') {
+            return (
+              <pre key={index} className="text-[12px] text-gray-200 whitespace-pre-wrap break-words">
+                {String(item)}
+              </pre>
+            );
+          }
+
+          const itemType = String(item.type || '').toLowerCase();
+          if (itemType === 'text') {
+            return (
+              <pre key={index} className="text-[12px] text-gray-200 whitespace-pre-wrap break-words">
+                {item.text || ''}
+              </pre>
+            );
+          }
+
+          if (itemType === 'thinking') {
+            return (
+              <div key={index} className="bg-[#191919] border border-gray-800 rounded p-2">
+                <p className="text-[11px] text-blue-300 mb-1">thinking</p>
+                <pre className="text-[12px] text-gray-200 whitespace-pre-wrap break-words">{item.thinking || ''}</pre>
+              </div>
+            );
+          }
+
+          if (itemType === 'toolcall') {
+            return (
+              <div key={index} className="bg-[#191919] border border-gray-800 rounded p-2">
+                <p className="text-[11px] text-emerald-300 mb-1">toolCall · {item.name || 'unknown'}</p>
+                <pre className="text-[12px] text-gray-200 whitespace-pre-wrap break-words">{JSON.stringify(item.arguments || {}, null, 2)}</pre>
+              </div>
+            );
+          }
+
+          return (
+            <div key={index} className="bg-[#191919] border border-gray-800 rounded p-2">
+              <p className="text-[11px] text-gray-400 mb-1">{item.type || 'content'}</p>
+              <pre className="text-[12px] text-gray-200 whitespace-pre-wrap break-words">{JSON.stringify(item, null, 2)}</pre>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const currentSession = useMemo(
     () => sessions.find((row) => row.session_id === selectedSessionId) || null,
     [sessions, selectedSessionId],
@@ -146,12 +239,20 @@ const ChatPage = () => {
                     selectedSessionId === session.session_id ? 'bg-[#1f1608]' : 'hover:bg-[#1a1a1a]'
                   }`}
                 >
-                  <p className="text-xs text-white truncate">{session.session_id}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs text-white truncate">{session.session_id}</p>
+                    <span className={`text-[10px] uppercase border rounded px-2 py-[1px] ${sessionTypeClass(session.session_type)}`}>
+                      {session.session_type || 'general'}
+                    </span>
+                  </div>
                   <p className="text-[11px] text-gray-500 mt-1">
                     {session.model || 'unknown model'} · {session.provider || 'unknown provider'}
                   </p>
                   <p className="text-[11px] text-gray-600 mt-1">
-                    msgs={session.message_count || 0} · last={formatIso(session.last_event_ts)}
+                    messages={session.message_count || 0} · user={session.user_messages || 0} · assistant={session.assistant_messages || 0}
+                  </p>
+                  <p className="text-[11px] text-gray-600 mt-1">
+                    last={formatIso(session.last_event_ts)}
                   </p>
                 </button>
               ))}
@@ -167,7 +268,7 @@ const ChatPage = () => {
             <h2 className="text-xs uppercase text-gray-500">Conversation</h2>
             {currentSession && (
               <p className="text-[11px] text-gray-500">
-                {currentSession.model || 'unknown model'} · {currentSession.provider || 'unknown provider'} · messages={currentSession.message_count || 0}
+                {currentSession.model || 'unknown model'} · {currentSession.provider || 'unknown provider'} · type={currentSession.session_type || 'general'} · messages={currentSession.message_count || 0}
               </p>
             )}
           </div>
@@ -190,10 +291,17 @@ const ChatPage = () => {
 
                 {messages.map((message) => (
                   <div key={message.id} className="bg-[#111111] border border-gray-900 rounded p-3">
-                    <p className="text-[11px] text-gray-500 mb-2">
-                      {message.role || 'unknown'} · {formatIso(message.event_ts)} · {message.message_type || '-'}
+                    <p className="text-[11px] text-gray-500 mb-2 flex items-center gap-2 flex-wrap">
+                      <span className={roleClass(message.role)}>{message.role || 'unknown'}</span>
+                      <span>· {formatIso(message.event_ts)}</span>
+                      <span>· {message.message_type || '-'}</span>
+                      <span>· {message.model || 'unknown model'}</span>
                     </p>
-                    <pre className="text-[12px] text-gray-200 whitespace-pre-wrap break-words">{message.content_text || '(No text content captured)'}</pre>
+                    {renderMessageBlocks(message)}
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-[11px] text-gray-400 hover:text-gray-200">View raw JSON</summary>
+                      <pre className="mt-2 text-[11px] text-gray-300 whitespace-pre-wrap break-words bg-[#0f0f0f] border border-gray-900 rounded p-2">{prettyJson(message.raw_json)}</pre>
+                    </details>
                   </div>
                 ))}
 
