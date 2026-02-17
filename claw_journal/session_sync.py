@@ -8,6 +8,7 @@ from .storage import UsageRepository
 
 
 logger = logging.getLogger(__name__)
+SESSION_SYNC_LAST_SUCCESS_KEY = "session_sync:last_success_ms"
 
 
 class SessionClient(Protocol):
@@ -34,6 +35,10 @@ class SessionSyncLoop:
                 sessions = self._session_client.list_sessions()
                 upserted = self._repository.upsert_session_snapshots(sessions)
                 if upserted:
+                    self._repository.upsert_checkpoint(
+                        SESSION_SYNC_LAST_SUCCESS_KEY,
+                        int(time.time() * 1000),
+                    )
                     logger.info("Synced %s gateway sessions", upserted)
             except Exception as exc:
                 logger.exception("Session sync cycle failed: %s", exc)

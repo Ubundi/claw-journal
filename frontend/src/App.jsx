@@ -120,13 +120,12 @@ function App() {
 
   const refreshLastSyncFromBackend = async () => {
     try {
-      const response = await fetch('/api/usage/reconciled?limit=1');
+      const response = await fetch('/api/system/connection');
       if (!response.ok) return;
       const payload = await response.json();
-      const firstRow = Array.isArray(payload?.rows) ? payload.rows[0] : null;
-      const updatedAt = Number(firstRow?.updated_at || 0);
-      if (updatedAt <= 0) return;
-      const date = new Date(updatedAt);
+      const lastSuccessMs = Number(payload?.runtime?.session_sync_last_success_ms || 0);
+      if (lastSuccessMs <= 0) return;
+      const date = new Date(lastSuccessMs);
       if (Number.isNaN(date.getTime())) return;
 
       const nextIso = date.toISOString();
@@ -164,7 +163,10 @@ function App() {
     if (!lastSyncAt) return 'Last sync: -';
     const date = new Date(lastSyncAt);
     if (Number.isNaN(date.getTime())) return 'Last sync: -';
-    return `Last sync: ${date.toLocaleString()}`;
+
+    const pad = (value, size = 2) => String(value).padStart(size, '0');
+    const formatted = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())},${pad(date.getMilliseconds(), 3)}`;
+    return `Last sync: ${formatted}`;
   }, [lastSyncAt]);
 
   return (

@@ -265,9 +265,59 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
 
   const costTrendCeiling = Math.max(...costTrendData.map((row) => Number(row.cost_display || 0)), 0);
 
-  const costByAgentData = Array.isArray(data?.costByAgent)
-    ? data.costByAgent.map((row) => ({ ...row, cost_display: convertUsd(row.cost || 0) }))
+  const toIsoDay = (value) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value).slice(0, 10) || '-';
+    return date.toISOString().slice(0, 10);
+  };
+
+  const formatConversationLabel = (sessionKey, lastActive, fallback = 'Unknown') => {
+    const raw = String(sessionKey || '').trim();
+    if (!raw) {
+      return `${fallback} · default · ${toIsoDay(lastActive)}`;
+    }
+
+    if (raw.startsWith('agent:')) {
+      const parts = raw.split(':');
+      const agent = (parts[1] || fallback).replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+      const stream = (parts.slice(2).join(':') || 'default').replace(/_/g, ' ');
+      return `${agent} · ${stream} · ${toIsoDay(lastActive)}`;
+    }
+
+    return `${raw} · default · ${toIsoDay(lastActive)}`;
+  };
+
+  const costByAgentRaw = Array.isArray(data?.costByAgent) ? data.costByAgent : [];
+  const costByAgentLabels = new Set(
+    costByAgentRaw.map((row) => String(row?.name || '').trim().toLowerCase()).filter(Boolean),
+  );
+  const needsLabelEnrichment = costByAgentRaw.length > 0 && costByAgentLabels.size <= 1;
+
+  const recentSessionsByCost = Array.isArray(data?.recentSessions)
+    ? [...data.recentSessions]
+      .map((row) => ({
+        ...row,
+        numericCost: Number(row?.cost || 0),
+      }))
+      .sort((left, right) => right.numericCost - left.numericCost)
     : [];
+
+  const costByAgentData = costByAgentRaw.map((row, index) => {
+    const fallbackSession = recentSessionsByCost[index];
+    const isGeneric = ['main', 'unknown', 'agent'].includes(String(row?.name || '').trim().toLowerCase());
+    const shouldUseFallback = needsLabelEnrichment || isGeneric;
+
+    const label = shouldUseFallback && fallbackSession
+      ? formatConversationLabel(fallbackSession.sessionKey, fallbackSession.lastActive, fallbackSession.agent || row?.name || 'Unknown')
+      : String(row?.name || `Conversation ${index + 1}`);
+
+    return {
+      ...row,
+      name: label,
+      cost_display: convertUsd(row?.cost || 0),
+    };
+  });
 
   const userPromptsByDayData = Array.isArray(data?.userPromptsByDay)
     ? data.userPromptsByDay.map((row) => ({
@@ -362,13 +412,14 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className="text-[11px] border rounded px-2 py-[2px] bg-indigo-900/30 text-indigo-300 border-indigo-800 hover:bg-indigo-900/40"
+            className="text-[11px] border rounded px-2 py-[2px] bg-indigo-900/30 text-indigo-300 border-indigo-800 hover:bg-indigo-900/40 inline-flex items-center gap-1"
             onMouseEnter={() => setActiveKpiTooltip('runtime:token-counting')}
             onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:token-counting' ? '' : prev))}
             onFocus={() => setActiveKpiTooltip('runtime:token-counting')}
             onBlur={() => setActiveKpiTooltip((prev) => (prev === 'runtime:token-counting' ? '' : prev))}
           >
             token counting
+            <HelpCircle size={12} />
           </button>
           <button
             type="button"
@@ -388,7 +439,11 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
         )}
         {activeKpiTooltip === 'runtime:glossary' && (
           <div className="absolute left-4 top-[4.9rem] z-20 max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">
-            Agent = runtime identity (for example, main/subagent) inferred from session key. Conversation = channel/thread stream within an agent (for example whatsapp:dm:+number or cron:job-id). Session = a unique session_id timeline. Message = one transcript event row (user/assistant/tool/system). Token = provider-reported model usage unit, typically split into input and output.
+            <p><strong>Agent:</strong> Runtime identity (for example `main` or a subagent) inferred from session key.</p>
+            <p><strong>Conversation:</strong> Channel/thread stream inside an agent (for example `whatsapp:dm:+number` or `cron:job-id`).</p>
+            <p><strong>Session:</strong> A unique `session_id` timeline.</p>
+            <p><strong>Message:</strong> One transcript event row (`user`, `assistant`, `tool`, or `system`).</p>
+            <p><strong>Token:</strong> Provider-reported model usage unit, usually split into input and output tokens.</p>
           </div>
         )}
       </div>

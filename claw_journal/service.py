@@ -11,6 +11,7 @@ from pathlib import Path
 from .config import Settings
 from .pricing import PricingEngine
 from .redaction import redact_raw_json_line
+from .session_sync import SESSION_SYNC_LAST_SUCCESS_KEY
 from .storage import UsageRepository
 
 
@@ -221,6 +222,7 @@ class UsageService:
             remote_user, remote_host = remote_host_raw.split("@", 1)
 
         local_hostname = socket.gethostname()
+        session_sync_last_success_ms = self._repository.get_checkpoint(SESSION_SYNC_LAST_SUCCESS_KEY)
 
         return {
             "local": {
@@ -242,6 +244,7 @@ class UsageService:
                 "api_host": self._settings.host,
                 "api_port": self._settings.port,
                 "log_glob": self._settings.openclaw_log_glob,
+                "session_sync_last_success_ms": session_sync_last_success_ms or 0,
             },
         }
 
