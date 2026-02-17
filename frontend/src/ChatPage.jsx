@@ -17,14 +17,11 @@ const ChatPage = () => {
   const [providerFilter, setProviderFilter] = useState('all');
   const [modelFilter, setModelFilter] = useState('all');
   const [searchText, setSearchText] = useState('');
-<<<<<<< HEAD
   const [searchSessions, setSearchSessions] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
-=======
   const [theme, setTheme] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_theme')) || 'dark');
   const [showSettings, setShowSettings] = useState(false);
->>>>>>> dashboard
 
   const sessionTypeClass = (sessionType) => {
     const key = String(sessionType || '').toLowerCase();
@@ -371,7 +368,7 @@ const ChatPage = () => {
     <div className={rootClass}>
       {/* Header (copied from dashboard) */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold text-white">ClawDash <span className="text-gray-500">Local</span></h1>
+        <h1 className={`text-xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Claw Journal <span className="text-gray-500">Local</span></h1>
         <div className="flex gap-4 items-center">
           <a href="/" className={`${inputBg} px-4 py-1 rounded hover:bg-gray-100 transition text-xs`}>Back</a>
           <button onClick={fetchSessions} className={`${inputBg} px-4 py-1 rounded flex items-center gap-2 hover:bg-gray-100 transition text-xs`}>Refresh</button>
@@ -379,56 +376,6 @@ const ChatPage = () => {
         </div>
       </div>
 
-<<<<<<< HEAD
-      <div className="bg-[#141414] rounded border border-gray-900 p-3 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <select
-            value={typeFilter}
-            onChange={(event) => setTypeFilter(event.target.value)}
-            className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
-          >
-            {typeOptions.map((option) => (
-              <option key={option} value={option}>
-                Type: {option}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={providerFilter}
-            onChange={(event) => setProviderFilter(event.target.value)}
-            className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
-          >
-            {providerOptions.map((option) => (
-              <option key={option} value={option}>
-                Provider: {option}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={modelFilter}
-            onChange={(event) => setModelFilter(event.target.value)}
-            className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
-          >
-            {modelOptions.map((option) => (
-              <option key={option} value={option}>
-                Model: {option}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="mt-3">
-          <input
-            type="text"
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            placeholder="Search text in sessions + messages"
-            className="w-full bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200 placeholder:text-gray-500"
-          />
-        </div>
-=======
       {showSettings && (
         <div className="fixed inset-0 z-40 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowSettings(false)} />
@@ -458,51 +405,54 @@ const ChatPage = () => {
         </div>
       )}
 
-      <div className={`${panelBg} p-3 mb-6 grid grid-cols-1 md:grid-cols-4 gap-3`}>
-        <select
-          value={typeFilter}
-          onChange={(event) => setTypeFilter(event.target.value)}
-          className={`${inputBg} rounded px-3 py-2 text-xs`}
-        >
-          {typeOptions.map((option) => (
-            <option key={option} value={option}>
-              Type: {option}
-            </option>
-          ))}
-        </select>
+      <div className={`${panelBg} p-3 mb-6`}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <select
+            value={typeFilter}
+            onChange={(event) => setTypeFilter(event.target.value)}
+            className={`${inputBg} rounded px-3 py-2 text-xs`}
+          >
+            {typeOptions.map((option) => (
+              <option key={option} value={option}>
+                Type: {option}
+              </option>
+            ))}
+          </select>
 
-        <select
-          value={providerFilter}
-          onChange={(event) => setProviderFilter(event.target.value)}
-          className={`${inputBg} rounded px-3 py-2 text-xs`}
-        >
-          {providerOptions.map((option) => (
-            <option key={option} value={option}>
-              Provider: {option}
-            </option>
-          ))}
-        </select>
+          <select
+            value={providerFilter}
+            onChange={(event) => setProviderFilter(event.target.value)}
+            className={`${inputBg} rounded px-3 py-2 text-xs`}
+          >
+            {providerOptions.map((option) => (
+              <option key={option} value={option}>
+                Provider: {option}
+              </option>
+            ))}
+          </select>
 
-        <select
-          value={modelFilter}
-          onChange={(event) => setModelFilter(event.target.value)}
-          className={`${inputBg} rounded px-3 py-2 text-xs`}
-        >
-          {modelOptions.map((option) => (
-            <option key={option} value={option}>
-              Model: {option}
-            </option>
-          ))}
-        </select>
+          <select
+            value={modelFilter}
+            onChange={(event) => setModelFilter(event.target.value)}
+            className={`${inputBg} rounded px-3 py-2 text-xs`}
+          >
+            {modelOptions.map((option) => (
+              <option key={option} value={option}>
+                Model: {option}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <input
-          type="text"
-          value={searchText}
-          onChange={(event) => setSearchText(event.target.value)}
-          placeholder="Search text in sessions + messages"
-          className={`${inputBg} rounded px-3 py-2 text-xs placeholder:text-gray-500`}
-        />
->>>>>>> dashboard
+        <div className="mt-3">
+          <input
+            type="text"
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+            placeholder="Search text in sessions + messages"
+            className={`${inputBg} w-full rounded px-3 py-2 text-xs placeholder:text-gray-500`}
+          />
+        </div>
       </div>
 
       {(searchLoading || searchError || searchText.trim()) && (
@@ -654,15 +604,9 @@ const ChatPage = () => {
           </div>
         </div>
       </div>
-<<<<<<< HEAD
-
       <div className="mt-6 py-4 border-t border-gray-900 text-[11px] text-gray-500">
         Chat History shows transcript-based session archives from OpenClaw, including user, assistant, tool, and thinking blocks for debugging and audit.
       </div>
-=======
-      {/* Footer (simple copy) */}
-      <div className="mt-8 text-xs text-gray-500">Claw Journal — local observability · Built for OpenClaw</div>
->>>>>>> dashboard
     </div>
   );
 };
