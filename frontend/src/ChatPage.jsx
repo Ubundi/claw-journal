@@ -351,7 +351,7 @@ const ChatPage = ({ theme = 'dark' }) => {
   return (
     <div className={rootClass}>
       <div className="flex justify-between items-center mb-6">
-        <h1 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Claw Journal <span className="text-gray-500">Local</span></h1>
+        <h1 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Chat History</h1>
         <div className="flex gap-4 items-center">
           <a href="/" className={`${inputBg} px-4 py-1 rounded hover:bg-gray-100 transition text-xs`}>Back</a>
           <button onClick={fetchSessions} className={`${inputBg} px-4 py-1 rounded flex items-center gap-2 hover:bg-gray-100 transition text-xs`}>Refresh</button>

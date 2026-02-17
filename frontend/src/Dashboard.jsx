@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, Area, BarChart, Bar, ScatterChart, Scatter, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { Compass, Database, HelpCircle, LineChart as LineChartIcon } from 'lucide-react';
+import { HelpCircle } from 'lucide-react';
 import axios from 'axios';
 
 const Dashboard = ({ theme = 'dark' }) => {
@@ -160,9 +160,9 @@ const Dashboard = ({ theme = 'dark' }) => {
 
   const profile = legacyData?.profile || {};
   const costSources = legacyData?.costSources || {};
-  const notes = Array.isArray(profile.notes) ? profile.notes.join(' ') : '';
   const billingMode = profile.billing_mode || 'token';
   const showCostColumns = billingMode !== 'claude_max';
+  const cardSurfaceClass = theme === 'light' ? 'bg-gray-100 border-gray-300' : 'bg-[#141414] border-gray-900';
   const sessionOptions = (legacyData?.reconciled || []).map((row) => row.session_id).filter(Boolean);
   const availableModels = Array.isArray(modelCatalog?.available_models) ? modelCatalog.available_models : [];
 
@@ -307,9 +307,9 @@ const Dashboard = ({ theme = 'dark' }) => {
       </div>
 
       <div className="relative z-10">
-      <div id="overview" className="bg-[#141414] p-4 rounded border border-gray-900 mb-6 scroll-mt-24">
+      <div id="overview" className={`${cardSurfaceClass} p-4 rounded border mb-6 scroll-mt-24`}>
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm text-white font-semibold mr-1 whitespace-nowrap">Runtime Mode</p>
+          <p className={`text-sm font-semibold mr-1 whitespace-nowrap ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Runtime Mode</p>
           <span className={`text-[11px] uppercase border rounded px-2 py-[2px] ${String(profile.auth_mode || 'unknown').toLowerCase() === 'oauth' ? 'bg-blue-900/40 text-blue-300 border-blue-800' : 'bg-orange-900/40 text-orange-300 border-orange-800'}`}>
             auth: {profile.auth_mode || 'unknown'}
           </span>
@@ -337,7 +337,7 @@ const Dashboard = ({ theme = 'dark' }) => {
       </div>
 
       <div id="usage-summary" className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8 scroll-mt-24">
-        <div className="bg-[#141414] p-3 border border-gray-900 rounded">
+        <div className={`${cardSurfaceClass} p-3 border rounded`}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] uppercase text-gray-500 mb-1">Observed</p>
             <button type="button" className="text-gray-500 hover:text-orange-400" title="Count of sessions with directly observed provider cost from logs.">
@@ -346,7 +346,7 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
           <p className="text-lg font-bold text-orange-500">{costSources.observed || 0}</p>
         </div>
-        <div className="bg-[#141414] p-3 border border-gray-900 rounded">
+        <div className={`${cardSurfaceClass} p-3 border rounded`}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] uppercase text-gray-500 mb-1">Estimated</p>
             <button type="button" className="text-gray-500 hover:text-orange-400" title="Count of sessions where cost was estimated from token totals and pricing table.">
@@ -355,7 +355,7 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
           <p className="text-lg font-bold text-orange-500">{costSources.estimated || 0}</p>
         </div>
-        <div className="bg-[#141414] p-3 border border-gray-900 rounded">
+        <div className={`${cardSurfaceClass} p-3 border rounded`}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] uppercase text-gray-500 mb-1">Missing</p>
             <button type="button" className="text-gray-500 hover:text-orange-400" title="Count of sessions with no observed or estimable cost.">
@@ -364,7 +364,7 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
           <p className="text-lg font-bold text-orange-500">{costSources.missing || 0}</p>
         </div>
-        <div className="bg-[#141414] p-3 border border-gray-900 rounded">
+        <div className={`${cardSurfaceClass} p-3 border rounded`}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] uppercase text-gray-500 mb-1">Subscription</p>
             <button type="button" className="text-gray-500 hover:text-orange-400" title="Count of sessions attributed to subscription-inclusive billing mode.">
@@ -373,7 +373,7 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
           <p className="text-lg font-bold text-orange-500">{costSources.subscription || 0}</p>
         </div>
-        <div className="bg-[#141414] p-3 border border-gray-900 rounded">
+        <div className={`${cardSurfaceClass} p-3 border rounded`}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] uppercase text-gray-500 mb-1">Tokens Today</p>
             <button type="button" className="text-gray-500 hover:text-orange-400" title="Total input + output tokens for the latest usage date in daily aggregates.">
@@ -382,7 +382,7 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
           <p className="text-lg font-bold text-orange-500">{totalTokensForDay(latestDay).toLocaleString()}</p>
         </div>
-        <div className="bg-[#141414] p-3 border border-gray-900 rounded">
+        <div className={`${cardSurfaceClass} p-3 border rounded`}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] uppercase text-gray-500 mb-1">Tokens Prev Day</p>
             <button type="button" className="text-gray-500 hover:text-orange-400" title="Total input + output tokens for the day prior to the latest usage date.">
@@ -396,7 +396,7 @@ const Dashboard = ({ theme = 'dark' }) => {
       {/* Stats Grid */}
       <div className="grid gap-4 mb-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
         {summaryKpis.map(([key, val]) => (
-          <div key={key} className="bg-[#141414] p-3 border border-gray-900 rounded shadow-sm relative">
+          <div key={key} className={`${cardSurfaceClass} p-3 border rounded shadow-sm relative`}>
             <div className="flex items-center justify-between gap-2">
               <p className="text-[10px] uppercase text-gray-500 mb-1">{key.replace(/([A-Z])/g, ' $1')}</p>
               <button
@@ -423,7 +423,7 @@ const Dashboard = ({ theme = 'dark' }) => {
 
       {/* Charts Row 1 */}
       <div id="analytics" className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 scroll-mt-24">
-        <div className="md:col-span-2 bg-[#141414] p-4 rounded border border-gray-900">
+        <div className={`md:col-span-2 ${cardSurfaceClass} p-4 rounded border`}>
           <h3 className="text-xs uppercase mb-4 text-gray-500">Cost by Day</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -452,7 +452,7 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
         </div>
 
-        <div className="bg-[#141414] p-4 rounded border border-gray-900 flex flex-col justify-center">
+        <div className={`${cardSurfaceClass} p-4 rounded border flex flex-col justify-center`}>
           <h3 className="text-xs uppercase mb-4 text-gray-500">Cost Trend</h3>
           <div className="space-y-6">
              <div>
@@ -470,7 +470,7 @@ const Dashboard = ({ theme = 'dark' }) => {
 
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="bg-[#141414] p-4 rounded border border-gray-900">
+        <div className={`${cardSurfaceClass} p-4 rounded border`}>
           <h3 className="text-xs uppercase mb-4 text-gray-500">Cost By Agent</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -484,7 +484,7 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
         </div>
 
-        <div className="bg-[#141414] p-4 rounded border border-gray-900">
+        <div className={`${cardSurfaceClass} p-4 rounded border`}>
           <h3 className="text-xs uppercase mb-4 text-gray-500">Top Tools</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -500,7 +500,7 @@ const Dashboard = ({ theme = 'dark' }) => {
       </div>
 
       {/* Recent Sessions Table */}
-      <div id="recent-sessions" className="bg-[#141414] rounded border border-gray-900 overflow-hidden scroll-mt-24">
+      <div id="recent-sessions" className={`${cardSurfaceClass} rounded border overflow-hidden scroll-mt-24`}>
         <div className="p-4 border-b border-gray-900">
             <h3 className="text-xs uppercase text-gray-500">Recent Sessions</h3>
         </div>
@@ -538,7 +538,7 @@ const Dashboard = ({ theme = 'dark' }) => {
       </div>
 
       <div id="operations" className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6 scroll-mt-24">
-        <div className="bg-[#141414] rounded border border-gray-900 overflow-hidden flex flex-col h-[24rem]">
+        <div className={`${cardSurfaceClass} rounded border overflow-hidden flex flex-col h-[24rem]`}>
           <div className="p-4 border-b border-gray-900">
             <h3 className="text-xs uppercase text-gray-500">Session Usage (Logs)</h3>
             {!legacyData?.sessions?.length && (
@@ -575,7 +575,7 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
         </div>
 
-        <div className="bg-[#141414] rounded border border-gray-900 overflow-hidden flex flex-col h-[24rem]">
+        <div className={`${cardSurfaceClass} rounded border overflow-hidden flex flex-col h-[24rem]`}>
           <div className="p-4 border-b border-gray-900">
             <h3 className="text-xs uppercase text-gray-500">Reconciled Sessions</h3>
           </div>
@@ -603,7 +603,7 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
         </div>
 
-        <div className="bg-[#141414] rounded border border-gray-900 overflow-hidden xl:col-span-2">
+        <div className={`${cardSurfaceClass} rounded border overflow-hidden xl:col-span-2`}>
           <div className="p-4 border-b border-gray-900">
             <h3 className="text-xs uppercase text-gray-500">Daily Usage</h3>
           </div>
@@ -637,7 +637,7 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
         </div>
 
-        <div id="pricing" className="bg-[#141414] rounded border border-gray-900 p-4 xl:col-span-2 scroll-mt-24">
+        <div id="pricing" className={`${cardSurfaceClass} rounded border p-4 xl:col-span-2 scroll-mt-24`}>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 className="text-xs uppercase text-gray-500">OpenRouter Pricing Catalog</h3>
             <div className="flex items-center gap-2">
@@ -748,7 +748,7 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
         </div>
 
-        <div id="explorer" className="bg-[#141414] rounded border border-gray-900 p-4 xl:col-span-2 scroll-mt-24">
+        <div id="explorer" className={`${cardSurfaceClass} rounded border p-4 xl:col-span-2 scroll-mt-24`}>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 className="text-xs uppercase text-gray-500">Remote Logs Explorer</h3>
             <button
@@ -929,37 +929,6 @@ const Dashboard = ({ theme = 'dark' }) => {
         </div>
       </div>
 
-      <footer className="mt-8 py-8 px-5 bg-[#141414] border border-gray-900 rounded">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <p className="text-sm text-white font-semibold mb-2">Claw Journal</p>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Local observability for OpenClaw sessions. Track token usage, cost trends, model mix, and raw event detail in one place.
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs uppercase text-gray-500 mb-3">Product Focus</p>
-            <div className="space-y-2 text-xs text-gray-400">
-              <p className="flex items-center gap-2"><LineChartIcon size={14} className="text-orange-400" /> Analytics-first usage tracking</p>
-              <p className="flex items-center gap-2"><Database size={14} className="text-orange-400" /> Raw logs + snapshots + reconciled totals</p>
-              <p className="flex items-center gap-2"><Compass size={14} className="text-orange-400" /> Fast diagnostics for local + remote runs</p>
-            </div>
-          </div>
-
-          <div>
-            <p className="text-xs uppercase text-gray-500 mb-3">Navigate Sections</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <a href="#overview" className="text-gray-400 hover:text-orange-400 transition">Overview</a>
-              <a href="#usage-summary" className="text-gray-400 hover:text-orange-400 transition">Summary</a>
-              <a href="#analytics" className="text-gray-400 hover:text-orange-400 transition">Analytics</a>
-              <a href="#recent-sessions" className="text-gray-400 hover:text-orange-400 transition">Sessions</a>
-              <a href="#pricing" className="text-gray-400 hover:text-orange-400 transition">Pricing</a>
-              <a href="#explorer" className="text-gray-400 hover:text-orange-400 transition">Explorer</a>
-            </div>
-          </div>
-        </div>
-      </footer>
       </div>
     </div>
   );

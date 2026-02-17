@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Feather, Moon, Sparkles, Sun } from 'lucide-react';
+import { Compass, Database, Feather, LineChart as LineChartIcon, Moon, Sparkles, Sun } from 'lucide-react';
 
 import ChatPage from './ChatPage';
 import Dashboard from './Dashboard';
@@ -8,6 +8,7 @@ function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
   const [theme, setTheme] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_theme')) || 'dark');
   const [fontSize, setFontSize] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_font_size')) || 'normal');
+  const [lastSyncAt, setLastSyncAt] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_last_sync_at')) || '');
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
@@ -54,7 +55,7 @@ function App() {
   );
 
   const activeTabClass = useMemo(
-    () => (theme === 'light' ? 'bg-gray-900 text-white border-gray-900' : 'bg-orange-900/40 text-orange-300 border-orange-800'),
+    () => (theme === 'light' ? 'bg-gray-200 text-gray-900 border-gray-300' : 'bg-orange-900/40 text-orange-300 border-orange-800'),
     [theme],
   );
 
@@ -71,7 +72,19 @@ function App() {
 
   const triggerRescan = () => {
     window.dispatchEvent(new CustomEvent('cj:rescan'));
+    const timestamp = new Date().toISOString();
+    setLastSyncAt(timestamp);
+    try {
+      window.localStorage.setItem('cj_last_sync_at', timestamp);
+    } catch (_) {}
   };
+
+  const lastSyncLabel = useMemo(() => {
+    if (!lastSyncAt) return 'Last sync: -';
+    const date = new Date(lastSyncAt);
+    if (Number.isNaN(date.getTime())) return 'Last sync: -';
+    return `Last sync: ${date.toLocaleString()}`;
+  }, [lastSyncAt]);
 
   return (
     <div className={shellClass}>
@@ -103,9 +116,18 @@ function App() {
             >
               Chat History
             </button>
-            <button onClick={triggerRescan} className={`px-3 py-1 text-xs rounded border transition ${chromeButtonClass}`}>
-              Rescan
+            <button
+              onClick={triggerRescan}
+              className={`h-7 w-7 rounded border transition flex items-center justify-center ${chromeButtonClass}`}
+              title="Rescan"
+              aria-label="Rescan"
+              type="button"
+            >
+              <Feather size={14} />
             </button>
+            <span className={`text-[11px] ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>
+              {lastSyncLabel}
+            </span>
             <button
               onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
               className={`h-7 w-7 rounded border transition flex items-center justify-center ${chromeButtonClass}`}
@@ -148,6 +170,34 @@ function App() {
       )}
 
       {isChat ? <ChatPage theme={theme} /> : <Dashboard theme={theme} />}
+
+      <footer className={`mt-8 py-8 px-5 border rounded mx-6 mb-6 ${theme === 'light' ? 'bg-gray-100 border-gray-300' : 'bg-[#141414] border-gray-900'}`}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <p className={`text-sm font-semibold mb-2 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Claw Journal</p>
+            <p className={`text-xs leading-relaxed ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>
+              Local observability for OpenClaw sessions. Track token usage, cost trends, model mix, and raw event detail in one place.
+            </p>
+          </div>
+
+          <div>
+            <p className={`text-xs uppercase mb-3 ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>Product Focus</p>
+            <div className={`space-y-2 text-xs ${theme === 'light' ? 'text-gray-700' : 'text-gray-400'}`}>
+              <p className="flex items-center gap-2"><LineChartIcon size={14} className="text-orange-400" /> Analytics-first usage tracking</p>
+              <p className="flex items-center gap-2"><Database size={14} className="text-orange-400" /> Raw logs + snapshots + reconciled totals</p>
+              <p className="flex items-center gap-2"><Compass size={14} className="text-orange-400" /> Fast diagnostics for local + remote runs</p>
+            </div>
+          </div>
+
+          <div>
+            <p className={`text-xs uppercase mb-3 ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>Navigate</p>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <a href="/" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Dashboard</a>
+              <a href="/chat" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Chat History</a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
