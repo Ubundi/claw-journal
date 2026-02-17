@@ -17,6 +17,8 @@ const ChatPage = () => {
   const [providerFilter, setProviderFilter] = useState('all');
   const [modelFilter, setModelFilter] = useState('all');
   const [searchText, setSearchText] = useState('');
+  const [theme, setTheme] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_theme')) || 'dark');
+  const [showSettings, setShowSettings] = useState(false);
 
   const sessionTypeClass = (sessionType) => {
     const key = String(sessionType || '').toLowerCase();
@@ -67,6 +69,14 @@ const ChatPage = () => {
     if (key === 'tool' || key === 'toolresult') return Wrench;
     return HelpCircle;
   };
+
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('cj_theme', theme);
+      }
+    } catch (_) {}
+  }, [theme]);
 
   const safeParseJson = (rawJson) => {
     if (!rawJson || typeof rawJson !== 'string') return null;
@@ -307,32 +317,57 @@ const ChatPage = () => {
   useEffect(() => {
     fetchMessages(selectedSessionId);
   }, [selectedSessionId]);
+  const rootClass = theme === 'light' ? 'bg-white min-h-screen text-gray-900 p-6 font-mono' : 'bg-[#0a0a0a] min-h-screen text-gray-300 p-6 font-mono';
+  const panelBg = theme === 'light' ? 'bg-gray-50 rounded border border-gray-200' : 'bg-[#141414] rounded border border-gray-900';
+  const cardBg = theme === 'light' ? 'bg-white border border-gray-200' : 'bg-[#111111] border border-gray-900';
+  const inputBg = theme === 'light' ? 'bg-white border border-gray-200 text-gray-900' : 'bg-[#1a1a1a] border border-gray-800 text-gray-200';
 
   return (
-    <div className="bg-[#0a0a0a] min-h-screen text-gray-300 p-6 font-mono">
+    <div className={rootClass}>
+      {/* Header (copied from dashboard) */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold text-white">Chat History</h1>
-        <div className="flex items-center gap-3">
-          <a
-            href="/"
-            className="bg-[#1a1a1a] border border-gray-800 px-3 py-1 rounded text-xs text-white hover:bg-gray-800 transition"
-          >
-            Back to Dashboard
-          </a>
-          <button
-            onClick={fetchSessions}
-            className="bg-[#1a1a1a] border border-gray-800 px-3 py-1 rounded text-xs text-white hover:bg-gray-800 transition"
-          >
-            Refresh
-          </button>
+        <h1 className="text-xl font-bold text-white">ClawDash <span className="text-gray-500">Local</span></h1>
+        <div className="flex gap-4 items-center">
+          <a href="/" className={`${inputBg} px-4 py-1 rounded hover:bg-gray-100 transition text-xs`}>Back</a>
+          <button onClick={fetchSessions} className={`${inputBg} px-4 py-1 rounded flex items-center gap-2 hover:bg-gray-100 transition text-xs`}>Refresh</button>
+          <button onClick={() => setShowSettings(true)} className={`${inputBg} px-3 py-1 rounded text-xs`}>Settings</button>
         </div>
       </div>
 
-      <div className="bg-[#141414] rounded border border-gray-900 p-3 mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+      {showSettings && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowSettings(false)} />
+          <div className="relative z-50 w-full max-w-lg p-4">
+            <div className={`rounded shadow-lg p-4 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-[#0b0b0b] text-gray-200'}`}>
+              <h3 className="text-lg font-semibold mb-2">Settings</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm mb-1">Theme</label>
+                  <div className="flex items-center gap-4">
+                    <label className="inline-flex items-center gap-2">
+                      <input type="radio" name="theme" value="dark" checked={theme === 'dark'} onChange={() => setTheme('dark')} />
+                      <span>Dark</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input type="radio" name="theme" value="light" checked={theme === 'light'} onChange={() => setTheme('light')} />
+                      <span>Light</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <button onClick={() => setShowSettings(false)} className="px-3 py-1 rounded bg-gray-600 text-white">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={`${panelBg} p-3 mb-6 grid grid-cols-1 md:grid-cols-4 gap-3`}>
         <select
           value={typeFilter}
           onChange={(event) => setTypeFilter(event.target.value)}
-          className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
+          className={`${inputBg} rounded px-3 py-2 text-xs`}
         >
           {typeOptions.map((option) => (
             <option key={option} value={option}>
@@ -344,7 +379,7 @@ const ChatPage = () => {
         <select
           value={providerFilter}
           onChange={(event) => setProviderFilter(event.target.value)}
-          className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
+          className={`${inputBg} rounded px-3 py-2 text-xs`}
         >
           {providerOptions.map((option) => (
             <option key={option} value={option}>
@@ -356,7 +391,7 @@ const ChatPage = () => {
         <select
           value={modelFilter}
           onChange={(event) => setModelFilter(event.target.value)}
-          className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
+          className={`${inputBg} rounded px-3 py-2 text-xs`}
         >
           {modelOptions.map((option) => (
             <option key={option} value={option}>
@@ -370,12 +405,12 @@ const ChatPage = () => {
           value={searchText}
           onChange={(event) => setSearchText(event.target.value)}
           placeholder="Search text in sessions + messages"
-          className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200 placeholder:text-gray-500"
+          className={`${inputBg} rounded px-3 py-2 text-xs placeholder:text-gray-500`}
         />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        <div className="xl:col-span-4 bg-[#141414] rounded border border-gray-900 overflow-hidden">
+        <div className={`xl:col-span-4 ${panelBg} overflow-hidden`}>
           <div className="p-4 border-b border-gray-900">
             <h2 className="text-xs uppercase text-gray-500">Sessions</h2>
           </div>
@@ -390,7 +425,7 @@ const ChatPage = () => {
                   key={session.session_id}
                   onClick={() => setSelectedSessionId(session.session_id)}
                   className={`w-full text-left px-4 py-3 transition ${
-                    selectedSessionId === session.session_id ? 'bg-[#1f1608]' : 'hover:bg-[#1a1a1a]'
+                    selectedSessionId === session.session_id ? (theme === 'light' ? 'bg-gray-100' : 'bg-[#1f1608]') : (theme === 'light' ? 'hover:bg-gray-50' : 'hover:bg-[#1a1a1a]')
                   }`}
                 >
                   <div className="flex items-center gap-2 flex-wrap">
@@ -423,7 +458,7 @@ const ChatPage = () => {
           )}
         </div>
 
-        <div className="xl:col-span-8 bg-[#141414] rounded border border-gray-900 overflow-hidden">
+        <div className={`xl:col-span-8 ${panelBg} overflow-hidden`}>
           <div className="p-4 border-b border-gray-900 flex items-center justify-between gap-3">
             <h2 className="text-xs uppercase text-gray-500">Conversation</h2>
             {currentSession && (
@@ -437,7 +472,7 @@ const ChatPage = () => {
             )}
           </div>
 
-          <div className="p-4 max-h-[78vh] overflow-y-auto space-y-3">
+          <div className={`p-4 max-h-[78vh] overflow-y-auto space-y-3`}>
             {messagesLoading && <p className="text-xs text-gray-500">Loading messages...</p>}
             {messagesError && <p className="text-xs text-red-400">{messagesError}</p>}
 
@@ -454,17 +489,19 @@ const ChatPage = () => {
                 )}
 
                 {filteredMessages.map((message) => (
-                  <div key={message.id} className="bg-[#111111] border border-gray-900 rounded p-3">
+                  <div key={message.id} className={`${theme === 'light' ? 'bg-white border border-gray-200 rounded p-3' : 'bg-[#111111] border border-gray-900 rounded p-3'}`}>
                     {(() => {
                       const RoleIcon = roleIcon(message.role);
                       const unknownRole = isUnknownRole(message.role);
                       return (
                         <div className="flex items-start gap-3">
-                          <div className="w-10 shrink-0 pt-0.5 flex justify-center">
-                            <RoleIcon size={20} className={roleClass(message.role)} />
+                          <div className="w-14 shrink-0 pt-0.5 flex justify-center">
+                            <div className="rounded-full p-1" style={{background: theme === 'light' ? '#f3f4f6' : 'transparent'}}>
+                              <RoleIcon size={24} className={roleClass(message.role)} />
+                            </div>
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-[11px] text-gray-500 mb-2 flex items-center gap-2 flex-wrap">
+                            <p className="text-[11px] mb-2 flex items-center gap-2 flex-wrap" style={{color: theme === 'light' ? '#4b5563' : ''}}>
                               <span className={roleClass(message.role)}>{roleLabel(message.role)}</span>
                               <span>· {formatIso(message.event_ts)}</span>
                               <span>· {message.message_type || '-'}</span>
@@ -478,7 +515,7 @@ const ChatPage = () => {
                                   {renderMessageBlocks(message)}
                                   <details className="mt-2">
                                     <summary className="cursor-pointer text-[11px] text-gray-400 hover:text-gray-200">View raw JSON</summary>
-                                    <pre className="mt-2 text-[11px] text-gray-300 whitespace-pre-wrap break-words bg-[#0f0f0f] border border-gray-900 rounded p-2">{prettyJson(message.raw_json)}</pre>
+                                    <pre className={`mt-2 text-[11px] whitespace-pre-wrap break-words rounded p-2 ${theme === 'light' ? 'text-gray-900 bg-gray-50 border border-gray-200' : 'text-gray-300 bg-[#0f0f0f] border border-gray-900'}`}>{prettyJson(message.raw_json)}</pre>
                                   </details>
                                 </div>
                               </details>
@@ -487,7 +524,7 @@ const ChatPage = () => {
                                 {renderMessageBlocks(message)}
                                 <details className="mt-2">
                                   <summary className="cursor-pointer text-[11px] text-gray-400 hover:text-gray-200">View raw JSON</summary>
-                                  <pre className="mt-2 text-[11px] text-gray-300 whitespace-pre-wrap break-words bg-[#0f0f0f] border border-gray-900 rounded p-2">{prettyJson(message.raw_json)}</pre>
+                                  <pre className={`mt-2 text-[11px] whitespace-pre-wrap break-words rounded p-2 ${theme === 'light' ? 'text-gray-900 bg-gray-50 border border-gray-200' : 'text-gray-300 bg-[#0f0f0f] border border-gray-900'}`}>{prettyJson(message.raw_json)}</pre>
                                 </details>
                               </>
                             )}
@@ -510,6 +547,8 @@ const ChatPage = () => {
           </div>
         </div>
       </div>
+      {/* Footer (simple copy) */}
+      <div className="mt-8 text-xs text-gray-500">Claw Journal — local observability · Built for OpenClaw</div>
     </div>
   );
 };
