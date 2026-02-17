@@ -347,50 +347,54 @@ const ChatPage = () => {
         </div>
       </div>
 
-      <div className="bg-[#141414] rounded border border-gray-900 p-3 mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
-        <select
-          value={typeFilter}
-          onChange={(event) => setTypeFilter(event.target.value)}
-          className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
-        >
-          {typeOptions.map((option) => (
-            <option key={option} value={option}>
-              Type: {option}
-            </option>
-          ))}
-        </select>
+      <div className="bg-[#141414] rounded border border-gray-900 p-3 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <select
+            value={typeFilter}
+            onChange={(event) => setTypeFilter(event.target.value)}
+            className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
+          >
+            {typeOptions.map((option) => (
+              <option key={option} value={option}>
+                Type: {option}
+              </option>
+            ))}
+          </select>
 
-        <select
-          value={providerFilter}
-          onChange={(event) => setProviderFilter(event.target.value)}
-          className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
-        >
-          {providerOptions.map((option) => (
-            <option key={option} value={option}>
-              Provider: {option}
-            </option>
-          ))}
-        </select>
+          <select
+            value={providerFilter}
+            onChange={(event) => setProviderFilter(event.target.value)}
+            className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
+          >
+            {providerOptions.map((option) => (
+              <option key={option} value={option}>
+                Provider: {option}
+              </option>
+            ))}
+          </select>
 
-        <select
-          value={modelFilter}
-          onChange={(event) => setModelFilter(event.target.value)}
-          className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
-        >
-          {modelOptions.map((option) => (
-            <option key={option} value={option}>
-              Model: {option}
-            </option>
-          ))}
-        </select>
+          <select
+            value={modelFilter}
+            onChange={(event) => setModelFilter(event.target.value)}
+            className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
+          >
+            {modelOptions.map((option) => (
+              <option key={option} value={option}>
+                Model: {option}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <input
-          type="text"
-          value={searchText}
-          onChange={(event) => setSearchText(event.target.value)}
-          placeholder="Search text in sessions + messages"
-          className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200 placeholder:text-gray-500"
-        />
+        <div className="mt-3">
+          <input
+            type="text"
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+            placeholder="Search text in sessions + messages"
+            className="w-full bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200 placeholder:text-gray-500"
+          />
+        </div>
       </div>
 
       {(searchLoading || searchError || searchText.trim()) && (
@@ -517,6 +521,10 @@ const ChatPage = () => {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="mt-6 py-4 border-t border-gray-900 text-[11px] text-gray-500">
+        Chat History shows transcript-based session archives from OpenClaw, including user, assistant, tool, and thinking blocks for debugging and audit.
       </div>
     </div>
   );
