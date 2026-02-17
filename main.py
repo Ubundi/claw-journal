@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import logging
+import os
 import socket
+import time
 from threading import Thread
+from urllib.error import URLError
+from urllib.request import urlopen
 
 import uvicorn
 
@@ -49,6 +53,50 @@ def _bind_open_port(host: str, requested_port: int, search_limit: int) -> socket
 def _build_local_url(host: str, port: int) -> str:
     display_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
     return f"http://{display_host}:{port}"
+
+
+def _run_startup_health_check(base_url: str, timeout_seconds: float) -> None:
+    endpoints = ["/health", "/api/system/connection"]
+    deadline = time.monotonic() + timeout_seconds
+    last_error = "no response"
+
+    while time.monotonic() < deadline:
+        all_ok = True
+        for endpoint in endpoints:
+            url = f"{base_url}{endpoint}"
+            try:
+                with urlopen(url, timeout=2.0) as response:
+                    status = int(getattr(response, "status", 200))
+                if status >= 400:
+                    all_ok = False
+                    last_error = f"{endpoint} returned status {status}"
+                    break
+            except (URLError, OSError) as exc:
+                all_ok = False
+                last_error = f"{endpoint} unreachable: {exc}"
+                break
+
+        if all_ok:
+            logging.info("Startup health check passed for %s", ", ".join(endpoints))
+            return
+
+        time.sleep(0.5)
+
+    raise RuntimeError(
+        "Startup health check failed after "
+        f"{timeout_seconds:.1f}s at {base_url}: {last_error}"
+    )
+
+
+def _start_startup_health_probe(base_url: str, timeout_seconds: float) -> None:
+    def _probe() -> None:
+        try:
+            _run_startup_health_check(base_url=base_url, timeout_seconds=timeout_seconds)
+        except Exception as exc:
+            logging.error("%s", exc)
+            os._exit(1)
+
+    Thread(target=_probe, daemon=True, name="startup-health-check").start()
 
 
 def build_runtime() -> tuple[
@@ -168,7 +216,15 @@ if __name__ == "__main__":
                 settings.port,
                 resolved_port,
             )
-        logging.info("Dashboard available at %s", _build_local_url(settings.host, resolved_port))
+        local_url = _build_local_url(settings.host, resolved_port)
+        logging.info("Dashboard available at %s", local_url)
+        if settings.startup_healthcheck_enabled:
+            _start_startup_health_probe(
+                base_url=local_url,
+                timeout_seconds=settings.startup_healthcheck_timeout_seconds,
+            )
+        else:
+            logging.info("Startup health check disabled by CJ_STARTUP_HEALTHCHECK_ENABLED=false")
 
         config = uvicorn.Config(app=app, host=settings.host, port=resolved_port)
         server = uvicorn.Server(config)
@@ -177,5 +233,13 @@ if __name__ == "__main__":
         finally:
             server_socket.close()
     else:
-        logging.info("Dashboard available at %s", _build_local_url(settings.host, settings.port))
+        local_url = _build_local_url(settings.host, settings.port)
+        logging.info("Dashboard available at %s", local_url)
+        if settings.startup_healthcheck_enabled:
+            _start_startup_health_probe(
+                base_url=local_url,
+                timeout_seconds=settings.startup_healthcheck_timeout_seconds,
+            )
+        else:
+            logging.info("Startup health check disabled by CJ_STARTUP_HEALTHCHECK_ENABLED=false")
         uvicorn.run(app, host=settings.host, port=settings.port)

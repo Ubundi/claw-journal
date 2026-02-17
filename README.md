@@ -33,7 +33,7 @@ Prerequisites:
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/claw-journal.git
+git clone https://github.com/Ubundi/claw-journal.git
 cd claw-journal
 ```
 
@@ -49,9 +49,9 @@ cd ..
 ```
 
 ### 3. Configure
-Create a `.env` file from the example:
+Create a `.env` file (optional, but recommended for repeatable startup):
 ```bash
-cp .env.example .env
+touch .env
 ```
 Edit `.env` to configure your settings:
 - `CJ_OPENCLAW_LOG_GLOB`: Glob path to OpenClaw logs (default: `/tmp/openclaw/openclaw-*.log`).
@@ -83,23 +83,41 @@ Edit `.env` to configure your settings:
 - `CJ_CLAUDE_MAX_MONTHLY_USD`: Monthly Claude Max subscription amount used for dashboard context (default: `200`).
 - `CJ_AUTO_PORT`: Automatically bind the first available local port starting at `CJ_PORT` (default: `true`).
 - `CJ_PORT_SEARCH_LIMIT`: Number of incremental ports to try after `CJ_PORT` when occupied (default: `50`).
+- `CJ_STARTUP_HEALTHCHECK_ENABLED`: Run an automatic self-check at startup for `/health` + `/api/system/connection` (default: `true`).
+- `CJ_STARTUP_HEALTHCHECK_TIMEOUT_SECONDS`: Max wait for startup self-check before failing fast (default: `20`).
 
 ## 🖥️ Running (API + Graph Dashboard)
 
 Start the local API service (Terminal 1):
 
 ```bash
-uv run python main.py
+source .venv/bin/activate
+CJ_AUTO_PORT=false CJ_PORT=3000 python main.py
 ```
 
 Start the React dashboard (Terminal 2):
 
 ```bash
 cd frontend
-npm run dev
+npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
 Open the dashboard at `http://localhost:5173`.
+
+### Quick health checks
+
+After startup, verify both backend and proxy paths:
+
+```bash
+curl -sS http://127.0.0.1:3000/health
+curl -sS http://127.0.0.1:5173/api/dashboard-data | head -c 200
+```
+
+Expected backend health response:
+
+```json
+{"status":"ok"}
+```
 
 > Use the React UI in `frontend` as the dashboard.
 
@@ -137,8 +155,11 @@ Run the following command locally in Terminal 1. This connects to `rune` to sync
 
 ```bash
 # Replace 'rune' with your host alias if different
+source .venv/bin/activate
 CJ_REMOTE_ENABLED=true \
 CJ_REMOTE_SSH_HOST=rune \
+CJ_AUTO_PORT=false \
+CJ_PORT=3000 \
 uv run python main.py
 ```
 
@@ -196,9 +217,9 @@ If OpenClaw is running on the same computer:
 
 If you need more control than the Quick Start provides, you can configure `.env` persistently:
 
-1. **Copy example config:**
+1. **Create `.env`:**
    ```bash
-   cp .env.example .env
+   touch .env
    ```
 2. **Edit `.env`:**
    ```bash
@@ -263,6 +284,68 @@ Claw Journal continuously monitors your OpenClaw log files (default: `/tmp/openc
 3. Query `http://localhost:<active-port>/api/usage/daily` (or other endpoints) to inspect parsed analytics, including:
    - **Session Costs:** Calculated from token usage even for OAuth providers where API cost data is hidden.
    - **Thinking Logs:** Expanded views of internal chain-of-thought not fully visible in the main chat.
+
+## 🔑 OpenClaw Control UI Access (Token + Port + SSH Tunnel)
+
+Use this flow when you need local access to a remote OpenClaw Control endpoint.
+
+1. **Get your OpenClaw token (local or remote host where OpenClaw runs):**
+   ```bash
+   read -r -s -p "OpenClaw gateway token: " OPENCLAW_GATEWAY_TOKEN && echo
+   ```
+
+2. **Set a unique local gateway port (example uses `18791`):**
+   ```bash
+   PORT=18791
+   sed -i '' "s/\"port\": 18789/\"port\": $PORT/" ~/.openclaw/openclaw.json
+   ```
+
+3. **Point CLI/TUI to the selected gateway port:**
+   ```bash
+   export OPENCLAW_GATEWAY_URL="ws://127.0.0.1:${PORT}"
+   openclaw tui --token "$OPENCLAW_GATEWAY_TOKEN"
+   ```
+
+4. **Create SSH tunnel for remote control port (default remote control UI port shown):**
+   ```bash
+   ssh -L 18790:localhost:18790 user@your-host
+   ```
+
+5. **If tunneling fails with `Address already in use`, free or change local port:**
+   ```bash
+   lsof -nP -iTCP:18790 -sTCP:LISTEN
+   # then either kill that PID or use a different local port:
+   ssh -L 18791:localhost:18790 user@your-host
+   ```
+
+6. **Open in browser:**
+   - OpenClaw Control UI: `http://localhost:18790` (or your mapped local port)
+   - Claw Journal dashboard: `http://localhost:5173`
+
+## 🛟 Troubleshooting Blank Claw Journal UI
+
+If `http://localhost:5173` opens but appears stuck with no console errors, check this sequence:
+
+```bash
+# 1) Ensure only one backend and one frontend process are listening
+lsof -nP -iTCP:3000 -sTCP:LISTEN
+lsof -nP -iTCP:5173 -sTCP:LISTEN
+
+# 2) Verify backend responds quickly
+curl -sS -m 5 http://127.0.0.1:3000/health
+
+# 3) Verify frontend proxy reaches backend
+curl -sS -m 8 http://127.0.0.1:5173/api/dashboard-data | head -c 200
+```
+
+If needed, reset both ports and restart cleanly:
+
+```bash
+lsof -ti tcp:3000 | xargs kill -9
+lsof -ti tcp:5173 | xargs kill -9
+```
+
+The startup health check now fails fast if the API never becomes responsive during startup.
 
 ## 📌 Current Status
 

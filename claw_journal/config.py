@@ -44,6 +44,8 @@ class Settings:
     auth_mode: str
     billing_mode: str
     claude_max_monthly_usd: float
+    startup_healthcheck_enabled: bool
+    startup_healthcheck_timeout_seconds: float
     db_path: Path
 
 
@@ -105,6 +107,8 @@ def load_settings() -> Settings:
     auth_mode = os.getenv("CJ_AUTH_MODE", "auto").strip().lower()
     billing_mode = os.getenv("CJ_BILLING_MODE", "token").strip().lower()
     claude_max_monthly_usd = float(os.getenv("CJ_CLAUDE_MAX_MONTHLY_USD", "200.0"))
+    startup_healthcheck_enabled = _parse_bool(os.getenv("CJ_STARTUP_HEALTHCHECK_ENABLED"), True)
+    startup_healthcheck_timeout_seconds = float(os.getenv("CJ_STARTUP_HEALTHCHECK_TIMEOUT_SECONDS", "20.0"))
     db_path = Path(os.getenv("CJ_DB_PATH", "./data/claw_journal.db")).expanduser()
 
     if remote_ingest_mode not in INGEST_MODES:
@@ -153,6 +157,9 @@ def load_settings() -> Settings:
     if claude_max_monthly_usd < 0:
         raise ValueError("CJ_CLAUDE_MAX_MONTHLY_USD must be >= 0")
 
+    if startup_healthcheck_timeout_seconds <= 0:
+        raise ValueError("CJ_STARTUP_HEALTHCHECK_TIMEOUT_SECONDS must be > 0")
+
     if session_sync_enabled and remote_enabled and not remote_ssh_host:
         raise ValueError("CJ_REMOTE_SSH_HOST is required when remote sync is enabled")
 
@@ -190,5 +197,7 @@ def load_settings() -> Settings:
         auth_mode=auth_mode,
         billing_mode=billing_mode,
         claude_max_monthly_usd=claude_max_monthly_usd,
+        startup_healthcheck_enabled=startup_healthcheck_enabled,
+        startup_healthcheck_timeout_seconds=startup_healthcheck_timeout_seconds,
         db_path=db_path,
     )
