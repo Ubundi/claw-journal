@@ -211,8 +211,6 @@ function App() {
         </div>
       )}
 
-      {isChat ? <ChatPage theme={theme} /> : <Dashboard theme={theme} />}
-
       <footer className={`mt-8 py-8 px-5 border rounded mx-6 mb-6 ${theme === 'light' ? 'bg-gray-100 border-gray-300' : 'bg-[#141414] border-gray-900'}`}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
