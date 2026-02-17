@@ -662,7 +662,10 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 className="text-xs uppercase text-gray-500">OpenRouter Pricing Catalog</h3>
             <div className="flex items-center gap-2">
+              <label htmlFor="pricing-sort-select" className="sr-only">Sort pricing models</label>
               <select
+                id="pricing-sort-select"
+                name="pricing_sort"
                 value={pricingSortBy}
                 onChange={(event) => setPricingSortBy(event.target.value)}
                 className="bg-[#1a1a1a] border border-gray-800 rounded px-2 py-1 text-xs text-gray-200"
@@ -814,8 +817,10 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
           {explorerTab === 'raw-events' && (
             <div>
               <div className="flex flex-wrap items-center gap-3 mb-3">
-                <label className="text-xs text-gray-500">Session</label>
+                <label htmlFor="raw-events-session-select" className="text-xs text-gray-500">Session</label>
                 <select
+                  id="raw-events-session-select"
+                  name="raw_events_session"
                   value={selectedSessionId}
                   onChange={(event) => setSelectedSessionId(event.target.value)}
                   className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-1 text-xs text-gray-200"

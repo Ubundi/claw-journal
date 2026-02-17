@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Compass, Database, Feather, LineChart as LineChartIcon, Moon, Sparkles, Sun } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Compass, Database, Feather, LineChart as LineChartIcon, Moon, RefreshCw, Sparkles, Sun } from 'lucide-react';
 
 import ChatPage from './ChatPage';
 import Dashboard from './Dashboard';
@@ -144,7 +144,10 @@ function App() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <label htmlFor="currency-select" className="sr-only">Display currency</label>
             <select
+              id="currency-select"
+              name="currency"
               value={currency}
               onChange={(event) => setCurrency(event.target.value)}
               className={`px-2 py-1 text-xs rounded border transition ${chromeButtonClass}`}
@@ -155,6 +158,20 @@ function App() {
               <option value="GBP">GBP</option>
               <option value="ZAR">ZAR</option>
             </select>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={triggerRescan}
+                className={`h-7 w-7 rounded border transition flex items-center justify-center ${chromeButtonClass}`}
+                title="Rescan"
+                aria-label="Rescan"
+                type="button"
+              >
+                <RefreshCw size={14} />
+              </button>
+              <span className={`text-[11px] ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>
+                {lastSyncLabel}
+              </span>
+            </div>
             <button
               onClick={() => navigateTo('/')}
               className={`px-3 py-1 text-xs rounded border transition ${isChat ? inactiveTabClass : activeTabClass}`}
@@ -167,18 +184,6 @@ function App() {
             >
               Chat History
             </button>
-            <button
-              onClick={triggerRescan}
-              className={`h-7 w-7 rounded border transition flex items-center justify-center ${chromeButtonClass}`}
-              title="Rescan"
-              aria-label="Rescan"
-              type="button"
-            >
-              <Feather size={14} />
-            </button>
-            <span className={`text-[11px] ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>
-              {lastSyncLabel}
-            </span>
             <button
               onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
               className={`h-7 w-7 rounded border transition flex items-center justify-center ${chromeButtonClass}`}
