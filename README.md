@@ -4,6 +4,56 @@
 
 > ⚠️ **Note:** Standard OpenClaw tools often hide cost metrics when using OAuth. Claw Journal aims to bridge this gap by providing local, detailed tracking for power users.
 
+## ⚡ Copy/Paste: First-Time Remote Setup
+
+Use this as a single starting flow (no SSH config alias required).
+
+### Terminal 1 — Verify SSH and start tunnel
+```bash
+REMOTE_SSH_HOST="user@your-host"
+LOCAL_TUNNEL_PORT=18791   # pick a free local port (18790, 18791, ...)
+
+# 1) Verify SSH works
+ssh -o BatchMode=yes "$REMOTE_SSH_HOST" 'hostname'
+
+# 2) Start tunnel (keep this terminal open)
+ssh -L ${LOCAL_TUNNEL_PORT}:localhost:18790 "$REMOTE_SSH_HOST"
+```
+
+### Terminal 2 — Point OpenClaw at local tunnel and launch TUI
+```bash
+read -r -s -p "OpenClaw gateway token: " OPENCLAW_GATEWAY_TOKEN && echo
+
+# Set your local OpenClaw gateway port to match LOCAL_TUNNEL_PORT
+PORT=18791
+sed -i '' "s/\"port\": 18789/\"port\": $PORT/" ~/.openclaw/openclaw.json
+
+export OPENCLAW_GATEWAY_URL="ws://127.0.0.1:${PORT}"
+openclaw tui --token "$OPENCLAW_GATEWAY_TOKEN"
+```
+
+### Terminal 3 — Start Claw Journal backend
+```bash
+cd claw-journal
+source .venv/bin/activate
+
+CJ_REMOTE_ENABLED=true \
+CJ_REMOTE_SSH_HOST="user@your-host" \
+CJ_AUTO_PORT=false \
+CJ_PORT=3000 \
+python main.py
+```
+
+### Terminal 4 — Start Claw Journal frontend
+```bash
+cd claw-journal/frontend
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+Open:
+- OpenClaw Control UI: `http://localhost:${LOCAL_TUNNEL_PORT}`
+- Claw Journal: `http://localhost:5173`
+
 ## 🚀 Features
 
 Claw Journal runs as a local service alongside your OpenClaw instance to capture and display:
@@ -141,23 +191,24 @@ Available endpoints:
 
 ## 🚀 Quick Start: Connect to Remote OpenClaw
 
-If you have OpenClaw running on a remote server (e.g., a host named `rune`) and want to view the journal locally:
+If you have OpenClaw running on a remote server and want to view the journal locally:
 
 ### 1. Prerequisite: SSH Access
-Ensure you can SSH into your remote host without a password prompt (using keys):
+Ensure you can SSH into your remote host directly (without relying on SSH config aliases):
 ```bash
-ssh -o BatchMode=yes rune 'hostname'
+REMOTE_SSH_HOST="user@your-host"
+ssh -o BatchMode=yes "$REMOTE_SSH_HOST" 'hostname'
 # Should print the hostname without asking for a password
 ```
 
 ### 2. Run Claw Journal API (Remote Mode)
-Run the following command locally in Terminal 1. This connects to `rune` to sync session totals via SSH.
+Run the following command locally in Terminal 1. This connects to your remote host to sync session totals via SSH.
 
 ```bash
-# Replace 'rune' with your host alias if different
+REMOTE_SSH_HOST="user@your-host"
 source .venv/bin/activate
 CJ_REMOTE_ENABLED=true \
-CJ_REMOTE_SSH_HOST=rune \
+CJ_REMOTE_SSH_HOST="$REMOTE_SSH_HOST" \
 CJ_AUTO_PORT=false \
 CJ_PORT=3000 \
 uv run python main.py
@@ -223,8 +274,9 @@ If you need more control than the Quick Start provides, you can configure `.env`
    ```
 2. **Edit `.env`:**
    ```bash
+   # Use explicit user@host, not an SSH alias
    CJ_REMOTE_ENABLED=true
-   CJ_REMOTE_SSH_HOST=rune  # Replace with your host
+   CJ_REMOTE_SSH_HOST=user@your-host
    CJ_SESSION_SYNC_ENABLED=true
    # Optional: Path to OpenClaw binary on remote
    CJ_REMOTE_OPENCLAW_BIN=/opt/homebrew/bin/openclaw
@@ -302,24 +354,25 @@ Use this flow when you need local access to a remote OpenClaw Control endpoint.
 
 3. **Point CLI/TUI to the selected gateway port:**
    ```bash
-   export OPENCLAW_GATEWAY_URL="ws://127.0.0.1:${PORT}"
+   export OPENCLAW_GATEWAY_URL="ws://127.0.0.1:<my_port>"
    openclaw tui --token "$OPENCLAW_GATEWAY_TOKEN"
    ```
 
-4. **Create SSH tunnel for remote control port (default remote control UI port shown):**
+4. **Create SSH tunnel for remote control port (explicit `user@host`, no SSH config needed):**
    ```bash
    ssh -L 18790:localhost:18790 user@your-host
    ```
 
-5. **If tunneling fails with `Address already in use`, free or change local port:**
+5. **If tunneling fails with `Address already in use`, that local port is already taken (possibly by another user/process). Use a different local port:**
    ```bash
    lsof -nP -iTCP:18790 -sTCP:LISTEN
-   # then either kill that PID or use a different local port:
-   ssh -L 18791:localhost:18790 user@your-host
+   # keep remote side at 18790, but choose a new local port (e.g. 18791):
+   LOCAL_TUNNEL_PORT=18791
+   ssh -L ${LOCAL_TUNNEL_PORT}:localhost:18790 user@your-host
    ```
 
 6. **Open in browser:**
-   - OpenClaw Control UI: `http://localhost:18790` (or your mapped local port)
+   - OpenClaw Control UI: `http://localhost:18790` (or `http://localhost:${LOCAL_TUNNEL_PORT}` if remapped)
    - Claw Journal dashboard: `http://localhost:5173`
 
 ## 🛟 Troubleshooting Blank Claw Journal UI
