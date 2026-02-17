@@ -23,6 +23,7 @@ const Dashboard = ({ theme = 'dark' }) => {
   const [logsExplorerData, setLogsExplorerData] = useState(null);
   const [logsExplorerLoading, setLogsExplorerLoading] = useState(false);
   const [logsExplorerError, setLogsExplorerError] = useState('');
+  const [activeKpiTooltip, setActiveKpiTooltip] = useState('');
 
   const money = (value) => {
     const number = Number(value || 0);
@@ -307,30 +308,32 @@ const Dashboard = ({ theme = 'dark' }) => {
 
       <div className="relative z-10">
       <div id="overview" className="bg-[#141414] p-4 rounded border border-gray-900 mb-6 scroll-mt-24">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-white font-semibold">Runtime Mode</p>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-[11px] uppercase border rounded px-2 py-[2px] ${String(profile.auth_mode || 'unknown').toLowerCase() === 'oauth' ? 'bg-blue-900/40 text-blue-300 border-blue-800' : 'bg-orange-900/40 text-orange-300 border-orange-800'}`}>
-              auth: {profile.auth_mode || 'unknown'}
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm text-white font-semibold mr-1 whitespace-nowrap">Runtime Mode</p>
+          <span className={`text-[11px] uppercase border rounded px-2 py-[2px] ${String(profile.auth_mode || 'unknown').toLowerCase() === 'oauth' ? 'bg-blue-900/40 text-blue-300 border-blue-800' : 'bg-orange-900/40 text-orange-300 border-orange-800'}`}>
+            auth: {profile.auth_mode || 'unknown'}
+          </span>
+          <span className={`text-[11px] uppercase border rounded px-2 py-[2px] ${String(profile.billing_mode || 'unknown').toLowerCase() === 'claude_max' ? 'bg-purple-900/40 text-purple-300 border-purple-800' : 'bg-emerald-900/40 text-emerald-300 border-emerald-800'}`}>
+            billing: {profile.billing_mode || 'unknown'}
+          </span>
+          {billingMode === 'claude_max' && (
+            <span className="text-[11px] uppercase border rounded px-2 py-[2px] bg-purple-900/30 text-purple-300 border-purple-800">
+              plan: ${profile.claude_max_monthly_usd || 0}/mo
             </span>
-            <span className={`text-[11px] uppercase border rounded px-2 py-[2px] ${String(profile.billing_mode || 'unknown').toLowerCase() === 'claude_max' ? 'bg-purple-900/40 text-purple-300 border-purple-800' : 'bg-emerald-900/40 text-emerald-300 border-emerald-800'}`}>
-              billing: {profile.billing_mode || 'unknown'}
-            </span>
-            {billingMode === 'claude_max' && (
-              <span className="text-[11px] uppercase border rounded px-2 py-[2px] bg-purple-900/30 text-purple-300 border-purple-800">
-                plan: ${profile.claude_max_monthly_usd || 0}/mo
-              </span>
-            )}
-          </div>
+          )}
+          <span className="text-[11px] border rounded px-2 py-[2px] bg-orange-900/30 text-orange-300 border-orange-800">
+            remote: {connectionInfo?.remote?.ssh_user ? `${connectionInfo.remote.ssh_user}@` : ''}{connectionInfo?.remote?.ssh_host || '-'}
+          </span>
+          <span className="text-[11px] border rounded px-2 py-[2px] bg-sky-900/30 text-sky-300 border-sky-800">
+            ip: {connectionInfo?.remote?.ssh_host_ip || connectionInfo?.local?.ip || 'n/a'}
+          </span>
+          <span className={`text-[11px] border rounded px-2 py-[2px] ${(connectionInfo?.remote?.session_sync_enabled ?? false) ? 'bg-emerald-900/40 text-emerald-300 border-emerald-800' : 'bg-rose-900/40 text-rose-300 border-rose-800'}`}>
+            sync={String(connectionInfo?.remote?.session_sync_enabled ?? false)}
+          </span>
+          <span className="text-[11px] border rounded px-2 py-[2px] bg-zinc-800/60 text-gray-300 border-gray-700">
+            mode={connectionInfo?.remote?.ingest_mode || '-'}
+          </span>
         </div>
-        {notes && <p className="text-xs text-gray-500 mt-1">{notes}</p>}
-        <p className="text-xs text-gray-500 mt-2">
-          Local: {connectionInfo?.local?.user || '-'}@{connectionInfo?.local?.hostname || '-'} ({connectionInfo?.local?.ip || 'n/a'})
-        </p>
-        <p className="text-xs text-gray-500 mt-1">
-          Remote: {connectionInfo?.remote?.ssh_user ? `${connectionInfo.remote.ssh_user}@` : ''}{connectionInfo?.remote?.ssh_host || '-'}
-          {connectionInfo?.remote?.ssh_host_ip ? ` (${connectionInfo.remote.ssh_host_ip})` : ''} · mode={connectionInfo?.remote?.ingest_mode || '-'} · sync={String(connectionInfo?.remote?.session_sync_enabled ?? false)}
-        </p>
       </div>
 
       <div id="usage-summary" className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8 scroll-mt-24">
@@ -391,15 +394,28 @@ const Dashboard = ({ theme = 'dark' }) => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
+      <div className="grid gap-4 mb-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
         {summaryKpis.map(([key, val]) => (
-          <div key={key} className="bg-[#141414] p-3 border border-gray-900 rounded shadow-sm">
+          <div key={key} className="bg-[#141414] p-3 border border-gray-900 rounded shadow-sm relative">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[10px] uppercase text-gray-500 mb-1">{key.replace(/([A-Z])/g, ' $1')}</p>
-              <button type="button" className="text-gray-500 hover:text-orange-400" title={kpiDescription(key)}>
+              <button
+                type="button"
+                className="text-gray-500 hover:text-orange-400"
+                onMouseEnter={() => setActiveKpiTooltip(`summary:${key}`)}
+                onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === `summary:${key}` ? '' : prev))}
+                onFocus={() => setActiveKpiTooltip(`summary:${key}`)}
+                onBlur={() => setActiveKpiTooltip((prev) => (prev === `summary:${key}` ? '' : prev))}
+                aria-label={`How ${key.replace(/([A-Z])/g, ' $1')} is calculated`}
+              >
                 <HelpCircle size={13} />
               </button>
             </div>
+            {activeKpiTooltip === `summary:${key}` && (
+              <div className="absolute right-2 top-7 z-20 max-w-[16rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-2 py-1 text-gray-200 shadow-lg">
+                {kpiDescription(key)}
+              </div>
+            )}
             <p className="text-lg font-bold text-orange-500">{typeof val === 'number' && key.toLowerCase().includes('spend') ? `$${val}` : typeof val === 'number' && key.toLowerCase().includes('avg') ? `$${val}` : val}</p>
           </div>
         ))}

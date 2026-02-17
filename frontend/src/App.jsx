@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Feather, Sparkles } from 'lucide-react';
+import { Feather, Moon, Sparkles, Sun } from 'lucide-react';
 
 import ChatPage from './ChatPage';
 import Dashboard from './Dashboard';
@@ -7,6 +7,7 @@ import Dashboard from './Dashboard';
 function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
   const [theme, setTheme] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_theme')) || 'dark');
+  const [fontSize, setFontSize] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_font_size')) || 'normal');
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
@@ -22,6 +23,21 @@ function App() {
       }
     } catch (_) {}
   }, [theme]);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('cj_font_size', fontSize);
+      }
+    } catch (_) {}
+
+    const html = document.documentElement;
+    html.style.fontSize = fontSize === 'large' ? '18px' : '16px';
+
+    return () => {
+      html.style.fontSize = '';
+    };
+  }, [fontSize]);
 
   const isChat = pathname.startsWith('/chat');
 
@@ -90,6 +106,15 @@ function App() {
             <button onClick={triggerRescan} className={`px-3 py-1 text-xs rounded border transition ${chromeButtonClass}`}>
               Rescan
             </button>
+            <button
+              onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
+              className={`h-7 w-7 rounded border transition flex items-center justify-center ${chromeButtonClass}`}
+              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+              aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+              type="button"
+            >
+              {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+            </button>
             <button onClick={() => setShowSettings(true)} className={`px-3 py-1 text-xs rounded border transition ${chromeButtonClass}`}>
               Settings
             </button>
@@ -103,15 +128,15 @@ function App() {
           <div className="relative z-50 w-full max-w-lg p-4">
             <div className={`rounded shadow-lg p-4 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-[#0b0b0b] text-gray-200'}`}>
               <h3 className="text-lg font-semibold mb-2">Settings</h3>
-              <label className="block text-sm mb-2">Theme</label>
+              <label className="block text-sm mb-2">Font Size</label>
               <div className="flex items-center gap-4">
                 <label className="inline-flex items-center gap-2">
-                  <input type="radio" name="theme" value="dark" checked={theme === 'dark'} onChange={() => setTheme('dark')} />
-                  <span>Dark</span>
+                  <input type="radio" name="font-size" value="normal" checked={fontSize === 'normal'} onChange={() => setFontSize('normal')} />
+                  <span>Normal</span>
                 </label>
                 <label className="inline-flex items-center gap-2">
-                  <input type="radio" name="theme" value="light" checked={theme === 'light'} onChange={() => setTheme('light')} />
-                  <span>Light</span>
+                  <input type="radio" name="font-size" value="large" checked={fontSize === 'large'} onChange={() => setFontSize('large')} />
+                  <span>Large</span>
                 </label>
               </div>
               <div className="mt-4 flex justify-end">
