@@ -129,7 +129,7 @@ If you have OpenClaw running on a remote server (e.g., a host named `rune`) and 
 Ensure you can SSH into your remote host without a password prompt (using keys):
 ```bash
 ssh -o BatchMode=yes rune 'hostname'
-# Should print "rune" or the hostname without asking for a password
+# Should print the hostname without asking for a password
 ```
 
 ### 2. Run Claw Journal API (Remote Mode)
