@@ -101,11 +101,15 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
   }, []);
 
   useEffect(() => {
-    const onRescan = () => {
+    const onRefresh = () => {
       fetchData();
     };
-    window.addEventListener('cj:rescan', onRescan);
-    return () => window.removeEventListener('cj:rescan', onRescan);
+    window.addEventListener('cj:refresh', onRefresh);
+    window.addEventListener('cj:rescan', onRefresh);
+    return () => {
+      window.removeEventListener('cj:refresh', onRefresh);
+      window.removeEventListener('cj:rescan', onRefresh);
+    };
   }, []);
 
   useEffect(() => {
@@ -266,10 +270,11 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
     ? data.costByAgent.map((row) => ({ ...row, cost_display: convertUsd(row.cost || 0) }))
     : [];
 
-  const topActivityData = Array.isArray(data?.topTools)
-    ? data.topTools.map((row) => ({
+  const userPromptsByDayData = Array.isArray(data?.userPromptsByDay)
+    ? data.userPromptsByDay.map((row) => ({
       ...row,
-      name: String(row?.name || '').replace(/^tool:/i, ''),
+      day: String(row?.date || '').slice(5),
+      count: Number(row?.count || 0),
     }))
     : [];
 
@@ -506,14 +511,15 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
         </div>
 
         <div className={`${cardSurfaceClass} p-4 rounded border`}>
-          <h3 className="text-xs uppercase mb-4 text-gray-500">Top Tool & Conversation Activity</h3>
+          <h3 className="text-xs uppercase mb-4 text-gray-500">User Prompts Per Day (Last 7 Days)</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart layout="vertical" data={topActivityData} margin={{top: 0, right: 30, left: 40, bottom: 0}}>
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" stroke="#666" fontSize={11} width={100} tick={{fill: '#888'}} axisLine={false} tickLine={false} />
-                <Tooltip cursor={{fill: 'transparent'}} contentStyle={{backgroundColor: '#111', border: '1px solid #333', color: '#fff'}} />
-                <Bar dataKey="count" fill="#ea580c" radius={[0, 4, 4, 0]} barSize={20} />
+              <BarChart data={userPromptsByDayData} margin={{ top: 0, right: 8, left: 8, bottom: 0 }}>
+                <CartesianGrid stroke="#2a2a2a" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="day" stroke="#666" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis allowDecimals={false} stroke="#666" fontSize={10} tickLine={false} axisLine={false} />
+                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#111', border: '1px solid #333', color: '#fff' }} />
+                <Bar dataKey="count" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={22} />
               </BarChart>
             </ResponsiveContainer>
           </div>

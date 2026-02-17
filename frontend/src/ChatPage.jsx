@@ -339,9 +339,13 @@ const ChatPage = ({ theme = 'dark' }) => {
   }, [selectedSessionId]);
 
   useEffect(() => {
-    const onRescan = () => fetchSessions();
-    window.addEventListener('cj:rescan', onRescan);
-    return () => window.removeEventListener('cj:rescan', onRescan);
+    const onRefresh = () => fetchSessions();
+    window.addEventListener('cj:refresh', onRefresh);
+    window.addEventListener('cj:rescan', onRefresh);
+    return () => {
+      window.removeEventListener('cj:refresh', onRefresh);
+      window.removeEventListener('cj:rescan', onRefresh);
+    };
   }, []);
 
   const rootClass = isLight

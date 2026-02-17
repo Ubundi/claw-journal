@@ -4,7 +4,7 @@ import getpass
 import json
 import socket
 from collections import deque
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from glob import glob
 from pathlib import Path
 
@@ -38,11 +38,13 @@ class UsageService:
         return self._repository.get_reconciled_session_usage(limit=limit)
 
     def get_dashboard_data(self) -> dict:
+        user_prompts = self._repository.get_user_prompts_by_day(days=7)
         return {
             "summary": self._repository.get_dashboard_summary(),
             "costTrend": self._repository.get_cost_trend(days=7),
             "costByAgent": self._repository.get_cost_by_agent(limit=5),
             "topTools": self._repository.get_top_tools(limit=5),
+            "userPromptsByDay": _fill_recent_days(rows=user_prompts, days=7),
             "recentSessions": self._repository.get_recent_sessions(limit=10),
         }
 
@@ -308,6 +310,26 @@ def _resolve_host_ip(host: str) -> str | None:
         return socket.gethostbyname(host)
     except OSError:
         return None
+
+
+def _fill_recent_days(rows: list[dict], days: int) -> list[dict[str, int | str]]:
+    count_by_day = {
+        str(row.get("date") or ""): int(row.get("count") or 0)
+        for row in rows
+        if row.get("date")
+    }
+
+    today = datetime.now(timezone.utc).date()
+    result: list[dict[str, int | str]] = []
+    for offset in range(days - 1, -1, -1):
+        day = (today - timedelta(days=offset)).isoformat()
+        result.append(
+            {
+                "date": day,
+                "count": count_by_day.get(day, 0),
+            }
+        )
+    return result
 
 
 def _find_message_text(value: object) -> str | None:

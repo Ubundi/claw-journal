@@ -110,8 +110,8 @@ function App() {
     setPathname(targetPath);
   };
 
-  const triggerRescan = () => {
-    window.dispatchEvent(new CustomEvent('cj:rescan'));
+  const triggerRefresh = () => {
+    window.dispatchEvent(new CustomEvent('cj:refresh'));
     const timestamp = new Date().toISOString();
     setLastSyncAt(timestamp);
     try {
@@ -144,26 +144,12 @@ function App() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <label htmlFor="currency-select" className="sr-only">Display currency</label>
-            <select
-              id="currency-select"
-              name="currency"
-              value={currency}
-              onChange={(event) => setCurrency(event.target.value)}
-              className={`px-2 py-1 text-xs rounded border transition ${chromeButtonClass}`}
-              title="Display currency"
-            >
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-              <option value="ZAR">ZAR</option>
-            </select>
             <div className="flex items-center gap-2">
               <button
-                onClick={triggerRescan}
+                onClick={triggerRefresh}
                 className={`h-7 w-7 rounded border transition flex items-center justify-center ${chromeButtonClass}`}
-                title="Rescan"
-                aria-label="Rescan"
+                title="Refresh"
+                aria-label="Refresh"
                 type="button"
               >
                 <RefreshCw size={14} />

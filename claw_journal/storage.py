@@ -696,6 +696,32 @@ class UsageRepository:
                 "lastActive": r["last_active"]
             })
         return result
+
+    def get_user_prompts_by_day(self, days: int = 7) -> list[dict[str, int | str]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    DATE(COALESCE(NULLIF(event_ts, ''), message_ts)) AS usage_date,
+                    COUNT(*) AS prompt_count
+                FROM conversation_messages
+                WHERE role = 'user'
+                  AND COALESCE(NULLIF(event_ts, ''), message_ts) >= datetime('now', ?)
+                GROUP BY DATE(COALESCE(NULLIF(event_ts, ''), message_ts))
+                ORDER BY usage_date ASC
+                """,
+                (f"-{int(days)} days",),
+            ).fetchall()
+
+        return [
+            {
+                "date": str(row["usage_date"] or ""),
+                "count": int(row["prompt_count"] or 0),
+            }
+            for row in rows
+            if row["usage_date"]
+        ]
+
     def get_reconciled_session_usage(self, limit: int = 100) -> list[dict]:
         with self._connect() as conn:
             rows = conn.execute(
