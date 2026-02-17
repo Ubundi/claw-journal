@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, Area, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { RefreshCcw } from 'lucide-react';
+import { Compass, Database, LineChart as LineChartIcon, RefreshCcw } from 'lucide-react';
 import axios from 'axios';
 
 const Dashboard = () => {
@@ -216,7 +216,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="bg-[#141414] p-4 rounded border border-gray-900 mb-6">
+      <div id="overview" className="bg-[#141414] p-4 rounded border border-gray-900 mb-6 scroll-mt-24">
         <p className="text-sm text-white font-semibold">Mode: auth={profile.auth_mode || 'unknown'} · billing={profile.billing_mode || 'unknown'}</p>
         <p className="text-xs text-gray-500 mt-2">
           {billingMode === 'claude_max'
@@ -233,7 +233,7 @@ const Dashboard = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div id="usage-summary" className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 scroll-mt-24">
         <div className="bg-[#141414] p-3 border border-gray-900 rounded">
           <p className="text-[10px] uppercase text-gray-500 mb-1">Observed</p>
           <p className="text-lg font-bold text-orange-500">{costSources.observed || 0}</p>
@@ -263,7 +263,7 @@ const Dashboard = () => {
       </div>
 
       {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div id="analytics" className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 scroll-mt-24">
         <div className="md:col-span-2 bg-[#141414] p-4 rounded border border-gray-900">
           <h3 className="text-xs uppercase mb-4 text-gray-500">Cost by Day</h3>
           <div className="h-64">
@@ -341,7 +341,7 @@ const Dashboard = () => {
       </div>
 
       {/* Recent Sessions Table */}
-      <div className="bg-[#141414] rounded border border-gray-900 overflow-hidden">
+      <div id="recent-sessions" className="bg-[#141414] rounded border border-gray-900 overflow-hidden scroll-mt-24">
         <div className="p-4 border-b border-gray-900">
             <h3 className="text-xs uppercase text-gray-500">Recent Sessions</h3>
         </div>
@@ -378,7 +378,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
+      <div id="operations" className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6 scroll-mt-24">
         <div className="bg-[#141414] rounded border border-gray-900 overflow-hidden">
           <div className="p-4 border-b border-gray-900">
             <h3 className="text-xs uppercase text-gray-500">Session Usage (Logs)</h3>
@@ -478,7 +478,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="bg-[#141414] rounded border border-gray-900 p-4 xl:col-span-2">
+        <div id="pricing" className="bg-[#141414] rounded border border-gray-900 p-4 xl:col-span-2 scroll-mt-24">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 className="text-xs uppercase text-gray-500">OpenRouter Pricing Catalog</h3>
             <div className="flex items-center gap-2">
@@ -552,7 +552,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="bg-[#141414] rounded border border-gray-900 p-4 xl:col-span-2">
+        <div id="explorer" className="bg-[#141414] rounded border border-gray-900 p-4 xl:col-span-2 scroll-mt-24">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 className="text-xs uppercase text-gray-500">Remote Logs Explorer</h3>
             <button
@@ -732,6 +732,38 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+
+      <footer className="mt-8 py-8 px-5 bg-[#141414] border border-gray-900 rounded">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <p className="text-sm text-white font-semibold mb-2">Claw Journal</p>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Local observability for OpenClaw sessions. Track token usage, cost trends, model mix, and raw event detail in one place.
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs uppercase text-gray-500 mb-3">Product Focus</p>
+            <div className="space-y-2 text-xs text-gray-400">
+              <p className="flex items-center gap-2"><LineChartIcon size={14} className="text-orange-400" /> Analytics-first usage tracking</p>
+              <p className="flex items-center gap-2"><Database size={14} className="text-orange-400" /> Raw logs + snapshots + reconciled totals</p>
+              <p className="flex items-center gap-2"><Compass size={14} className="text-orange-400" /> Fast diagnostics for local + remote runs</p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs uppercase text-gray-500 mb-3">Navigate Sections</p>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <a href="#overview" className="text-gray-400 hover:text-orange-400 transition">Overview</a>
+              <a href="#usage-summary" className="text-gray-400 hover:text-orange-400 transition">Summary</a>
+              <a href="#analytics" className="text-gray-400 hover:text-orange-400 transition">Analytics</a>
+              <a href="#recent-sessions" className="text-gray-400 hover:text-orange-400 transition">Sessions</a>
+              <a href="#pricing" className="text-gray-400 hover:text-orange-400 transition">Pricing</a>
+              <a href="#explorer" className="text-gray-400 hover:text-orange-400 transition">Explorer</a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
