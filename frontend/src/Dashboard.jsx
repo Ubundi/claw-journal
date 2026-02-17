@@ -246,10 +246,6 @@ const Dashboard = ({ theme = 'dark' }) => {
       </div>
 
       <div className="relative z-10">
-      <div className="mb-6">
-        <h1 className={`text-xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Dashboard</h1>
-      </div>
-
       <div id="overview" className="bg-[#141414] p-4 rounded border border-gray-900 mb-6 scroll-mt-24">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-white font-semibold">Runtime Mode</p>
@@ -466,14 +462,14 @@ const Dashboard = ({ theme = 'dark' }) => {
       </div>
 
       <div id="operations" className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6 scroll-mt-24">
-        <div className="bg-[#141414] rounded border border-gray-900 overflow-hidden">
+        <div className="bg-[#141414] rounded border border-gray-900 overflow-hidden flex flex-col h-[24rem]">
           <div className="p-4 border-b border-gray-900">
             <h3 className="text-xs uppercase text-gray-500">Session Usage (Logs)</h3>
             {!legacyData?.sessions?.length && (
               <p className="text-xs text-gray-600 mt-2">No usage data detected yet.</p>
             )}
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-auto flex-1">
             <table className="w-full text-left text-xs text-gray-400">
               <thead className="bg-[#1a1a1a] text-gray-500 uppercase font-medium">
                 <tr>
@@ -503,11 +499,11 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
         </div>
 
-        <div className="bg-[#141414] rounded border border-gray-900 overflow-hidden">
+        <div className="bg-[#141414] rounded border border-gray-900 overflow-hidden flex flex-col h-[24rem]">
           <div className="p-4 border-b border-gray-900">
             <h3 className="text-xs uppercase text-gray-500">Reconciled Sessions</h3>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-auto flex-1">
             <table className="w-full text-left text-xs text-gray-400">
               <thead className="bg-[#1a1a1a] text-gray-500 uppercase font-medium">
                 <tr>

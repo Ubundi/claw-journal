@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Feather, Sparkles } from 'lucide-react';
 
 import ChatPage from './ChatPage';
 import Dashboard from './Dashboard';
@@ -59,8 +60,21 @@ function App() {
   return (
     <div className={shellClass}>
       <div className="px-6 pt-6 pb-4 border-b border-gray-800/60">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className={`flex flex-col md:flex-row md:justify-between md:items-center gap-4 border rounded-lg px-4 py-3 ${theme === 'light' ? 'border-gray-300 bg-gray-50' : 'border-gray-900 bg-[#121212]/90'}`}>
+          <div className="flex items-start gap-3">
+            <div className={`h-9 w-9 rounded border flex items-center justify-center ${theme === 'light' ? 'border-orange-300 bg-orange-100' : 'border-orange-800/60 bg-orange-950/40'}`}>
+              <Feather size={16} className={theme === 'light' ? 'text-orange-700' : 'text-orange-300'} />
+            </div>
+            <div>
+              <h1 className={`text-xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Claw Journal</h1>
+              <p className={`text-[11px] mt-0.5 flex items-center gap-1.5 ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>
+                <Sparkles size={12} className={theme === 'light' ? 'text-orange-600' : 'text-orange-400'} />
+                OpenClaw observability dashboard
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => navigateTo('/')}
               className={`px-3 py-1 text-xs rounded border transition ${isChat ? inactiveTabClass : activeTabClass}`}
@@ -73,8 +87,6 @@ function App() {
             >
               Chat History
             </button>
-          </div>
-          <div className="flex items-center gap-2">
             <button onClick={triggerRescan} className={`px-3 py-1 text-xs rounded border transition ${chromeButtonClass}`}>
               Rescan
             </button>

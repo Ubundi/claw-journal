@@ -346,10 +346,6 @@ const ChatPage = ({ theme = 'dark' }) => {
 
   return (
     <div className={`p-6 ${isLight ? 'text-gray-900' : 'text-gray-300'}`}>
-      <div className="mb-4">
-        <h1 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Chat History</h1>
-      </div>
-
       <div className={`${panelBg} p-3 mb-6`}> 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className={`${inputBg} rounded px-3 py-2 text-xs`}>
