@@ -145,6 +145,9 @@ function App() {
 
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-2">
+              <span className={`text-[11px] ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>
+                {lastSyncLabel}
+              </span>
               <button
                 onClick={triggerRefresh}
                 className={`h-7 w-7 rounded border transition flex items-center justify-center ${chromeButtonClass}`}
@@ -154,9 +157,6 @@ function App() {
               >
                 <RefreshCw size={14} />
               </button>
-              <span className={`text-[11px] ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>
-                {lastSyncLabel}
-              </span>
             </div>
             <button
               onClick={() => navigateTo('/')}

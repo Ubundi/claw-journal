@@ -172,7 +172,6 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
   if (!data) return null;
 
   const profile = legacyData?.profile || {};
-  const costSources = legacyData?.costSources || {};
   const billingMode = profile.billing_mode || 'token';
   const showCostColumns = billingMode !== 'claude_max';
   const cardSurfaceClass = theme === 'light' ? 'bg-gray-100 border-gray-300' : 'bg-[#141414] border-gray-900';
@@ -362,43 +361,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
         </div>
       </div>
 
-      <div id="usage-summary" className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8 scroll-mt-24">
-        <div className={`${cardSurfaceClass} p-3 border rounded`}>
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] uppercase text-gray-500 mb-1">Observed</p>
-            <button type="button" className="text-gray-500 hover:text-orange-400" title="Count of sessions with directly observed provider cost from logs.">
-              <HelpCircle size={13} />
-            </button>
-          </div>
-          <p className="text-lg font-bold text-orange-500">{costSources.observed || 0}</p>
-        </div>
-        <div className={`${cardSurfaceClass} p-3 border rounded`}>
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] uppercase text-gray-500 mb-1">Estimated</p>
-            <button type="button" className="text-gray-500 hover:text-orange-400" title="Count of sessions where cost was estimated from token totals and pricing table.">
-              <HelpCircle size={13} />
-            </button>
-          </div>
-          <p className="text-lg font-bold text-orange-500">{costSources.estimated || 0}</p>
-        </div>
-        <div className={`${cardSurfaceClass} p-3 border rounded`}>
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] uppercase text-gray-500 mb-1">Missing</p>
-            <button type="button" className="text-gray-500 hover:text-orange-400" title="Count of sessions with no observed or estimable cost.">
-              <HelpCircle size={13} />
-            </button>
-          </div>
-          <p className="text-lg font-bold text-orange-500">{costSources.missing || 0}</p>
-        </div>
-        <div className={`${cardSurfaceClass} p-3 border rounded`}>
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] uppercase text-gray-500 mb-1">Subscription</p>
-            <button type="button" className="text-gray-500 hover:text-orange-400" title="Count of sessions attributed to subscription-inclusive billing mode.">
-              <HelpCircle size={13} />
-            </button>
-          </div>
-          <p className="text-lg font-bold text-orange-500">{costSources.subscription || 0}</p>
-        </div>
+      <div id="usage-summary" className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 scroll-mt-24">
         <div className={`${cardSurfaceClass} p-3 border rounded`}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] uppercase text-gray-500 mb-1">Tokens Today</p>
@@ -420,7 +383,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 mb-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+      <div className="grid gap-4 mb-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
         {summaryKpis.map(([key, val]) => (
           <div key={key} className={`${cardSurfaceClass} p-3 border rounded shadow-sm relative`}>
             <div className="flex items-center justify-between gap-2">

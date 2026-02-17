@@ -705,8 +705,12 @@ class UsageRepository:
                     DATE(COALESCE(NULLIF(event_ts, ''), message_ts)) AS usage_date,
                     COUNT(*) AS prompt_count
                 FROM conversation_messages
-                WHERE role = 'user'
-                  AND COALESCE(NULLIF(event_ts, ''), message_ts) >= datetime('now', ?)
+                WHERE (
+                    LOWER(TRIM(COALESCE(role, ''))) = 'user'
+                    OR LOWER(COALESCE(raw_json, '')) LIKE '%"role":"user"%'
+                    OR LOWER(COALESCE(raw_json, '')) LIKE '%"role": "user"%'
+                )
+                  AND DATE(COALESCE(NULLIF(event_ts, ''), message_ts)) >= DATE('now', ?)
                 GROUP BY DATE(COALESCE(NULLIF(event_ts, ''), message_ts))
                 ORDER BY usage_date ASC
                 """,
