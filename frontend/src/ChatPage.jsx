@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { Activity, Clock3, HelpCircle, MessageCircle, MessageSquare } from 'lucide-react';
+import { Activity, Bot, Brain, Clock3, HelpCircle, MessageCircle, MessageSquare, User, Wrench } from 'lucide-react';
 
 const ChatPage = () => {
   const [sessions, setSessions] = useState([]);
@@ -43,6 +43,14 @@ const ChatPage = () => {
     if (key === 'tool' || key === 'toolresult') return 'text-emerald-300';
     if (key === 'system') return 'text-purple-300';
     return 'text-gray-300';
+  };
+
+  const roleIcon = (role) => {
+    const key = String(role || '').toLowerCase();
+    if (key === 'user') return User;
+    if (key === 'assistant') return Bot;
+    if (key === 'tool' || key === 'toolresult') return Wrench;
+    return HelpCircle;
   };
 
   const safeParseJson = (rawJson) => {
@@ -94,7 +102,10 @@ const ChatPage = () => {
           if (itemType === 'thinking') {
             return (
               <div key={index} className="bg-[#191919] border border-gray-800 rounded p-2">
-                <p className="text-[11px] text-blue-300 mb-1">thinking</p>
+                <p className="text-[11px] text-blue-300 mb-1 flex items-center gap-1.5">
+                  <Brain size={12} />
+                  thinking
+                </p>
                 <pre className="text-[12px] text-gray-200 whitespace-pre-wrap break-words">{item.thinking || ''}</pre>
               </div>
             );
@@ -103,7 +114,10 @@ const ChatPage = () => {
           if (itemType === 'toolcall') {
             return (
               <div key={index} className="bg-[#191919] border border-gray-800 rounded p-2">
-                <p className="text-[11px] text-emerald-300 mb-1">toolCall · {item.name || 'unknown'}</p>
+                <p className="text-[11px] text-emerald-300 mb-1 flex items-center gap-1.5">
+                  <Wrench size={12} />
+                  toolCall · {item.name || 'unknown'}
+                </p>
                 <pre className="text-[12px] text-gray-200 whitespace-pre-wrap break-words">{JSON.stringify(item.arguments || {}, null, 2)}</pre>
               </div>
             );
@@ -419,7 +433,15 @@ const ChatPage = () => {
                 {filteredMessages.map((message) => (
                   <div key={message.id} className="bg-[#111111] border border-gray-900 rounded p-3">
                     <p className="text-[11px] text-gray-500 mb-2 flex items-center gap-2 flex-wrap">
-                      <span className={roleClass(message.role)}>{message.role || 'unknown'}</span>
+                      {(() => {
+                        const RoleIcon = roleIcon(message.role);
+                        return (
+                          <span className={`${roleClass(message.role)} inline-flex items-center gap-1`}>
+                            <RoleIcon size={12} />
+                            {message.role || 'unknown'}
+                          </span>
+                        );
+                      })()}
                       <span>· {formatIso(message.event_ts)}</span>
                       <span>· {message.message_type || '-'}</span>
                       <span>· {message.model || 'unknown model'}</span>
