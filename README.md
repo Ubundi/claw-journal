@@ -99,10 +99,28 @@ cd ..
 ```
 
 ### 3. Configure
-Create a `.env` file (optional, but recommended for repeatable startup):
+You can run Claw Journal without any `.env` file.
+
+- **Local OpenClaw on same machine:** `.env` is not required for first run.
+- **Remote OpenClaw over SSH:** `.env` is still optional; you can pass env vars inline on startup.
+- **Repeatable setup:** use `.env` when you want persistent config.
+
+Create a `.env` file only if you want saved defaults:
 ```bash
 touch .env
 ```
+Minimal local `.env` (optional):
+```bash
+CJ_AUTO_PORT=false
+CJ_PORT=3000
+```
+
+Minimal remote `.env` (optional):
+```bash
+CJ_REMOTE_ENABLED=true
+CJ_REMOTE_SSH_HOST=user@host
+```
+
 Edit `.env` to configure your settings:
 - `CJ_OPENCLAW_LOG_GLOB`: Glob path to OpenClaw logs (default: `/tmp/openclaw/openclaw-*.log`).
 - `CJ_DB_PATH`: SQLite database path (default: `./data/claw_journal.db`).
