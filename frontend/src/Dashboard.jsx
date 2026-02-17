@@ -362,22 +362,50 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
       </div>
 
       <div id="usage-summary" className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 scroll-mt-24">
-        <div className={`${cardSurfaceClass} p-3 border rounded`}>
+        <div className={`${cardSurfaceClass} p-3 border rounded relative`}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] uppercase text-gray-500 mb-1">Tokens Today</p>
-            <button type="button" className="text-gray-500 hover:text-orange-400" title="Total input + output tokens for the latest usage date in daily aggregates.">
+            <button
+              type="button"
+              className="text-gray-500 hover:text-orange-400"
+              title="Total input + output tokens for the latest usage date in daily aggregates."
+              aria-label="How Tokens Today is calculated"
+              onMouseEnter={() => setActiveKpiTooltip('summary:tokens-today')}
+              onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'summary:tokens-today' ? '' : prev))}
+              onFocus={() => setActiveKpiTooltip('summary:tokens-today')}
+              onBlur={() => setActiveKpiTooltip((prev) => (prev === 'summary:tokens-today' ? '' : prev))}
+            >
               <HelpCircle size={13} />
             </button>
           </div>
+          {activeKpiTooltip === 'summary:tokens-today' && (
+            <div className="absolute right-2 top-7 z-20 max-w-[16rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-2 py-1 text-gray-200 shadow-lg">
+              Total input + output tokens for the latest usage date in daily aggregates.
+            </div>
+          )}
           <p className="text-lg font-bold text-orange-500">{totalTokensForDay(latestDay).toLocaleString()}</p>
         </div>
-        <div className={`${cardSurfaceClass} p-3 border rounded`}>
+        <div className={`${cardSurfaceClass} p-3 border rounded relative`}>
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] uppercase text-gray-500 mb-1">Tokens Prev Day</p>
-            <button type="button" className="text-gray-500 hover:text-orange-400" title="Total input + output tokens for the day prior to the latest usage date.">
+            <p className="text-[10px] uppercase text-gray-500 mb-1">Tokens Previous Day</p>
+            <button
+              type="button"
+              className="text-gray-500 hover:text-orange-400"
+              title="Total input + output tokens for the previous day before the latest usage date."
+              aria-label="How Tokens Previous Day is calculated"
+              onMouseEnter={() => setActiveKpiTooltip('summary:tokens-previous-day')}
+              onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'summary:tokens-previous-day' ? '' : prev))}
+              onFocus={() => setActiveKpiTooltip('summary:tokens-previous-day')}
+              onBlur={() => setActiveKpiTooltip((prev) => (prev === 'summary:tokens-previous-day' ? '' : prev))}
+            >
               <HelpCircle size={13} />
             </button>
           </div>
+          {activeKpiTooltip === 'summary:tokens-previous-day' && (
+            <div className="absolute right-2 top-7 z-20 max-w-[16rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-2 py-1 text-gray-200 shadow-lg">
+              Total input + output tokens for the previous day before the latest usage date.
+            </div>
+          )}
           <p className="text-lg font-bold text-orange-500">{totalTokensForDay(previousDay).toLocaleString()}</p>
         </div>
       </div>

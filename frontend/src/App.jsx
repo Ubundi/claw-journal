@@ -110,13 +110,54 @@ function App() {
     setPathname(targetPath);
   };
 
-  const triggerRefresh = () => {
-    window.dispatchEvent(new CustomEvent('cj:refresh'));
-    const timestamp = new Date().toISOString();
+  const persistLastSyncAt = (timestamp) => {
+    if (!timestamp) return;
     setLastSyncAt(timestamp);
     try {
       window.localStorage.setItem('cj_last_sync_at', timestamp);
     } catch (_) {}
+  };
+
+  const refreshLastSyncFromBackend = async () => {
+    try {
+      const response = await fetch('/api/usage/reconciled?limit=1');
+      if (!response.ok) return;
+      const payload = await response.json();
+      const firstRow = Array.isArray(payload?.rows) ? payload.rows[0] : null;
+      const updatedAt = Number(firstRow?.updated_at || 0);
+      if (updatedAt <= 0) return;
+      const date = new Date(updatedAt);
+      if (Number.isNaN(date.getTime())) return;
+
+      const nextIso = date.toISOString();
+      setLastSyncAt((prev) => {
+        const previousTime = new Date(prev).getTime();
+        const nextTime = date.getTime();
+        if (!Number.isNaN(previousTime) && nextTime < previousTime) {
+          return prev;
+        }
+        try {
+          window.localStorage.setItem('cj_last_sync_at', nextIso);
+        } catch (_) {}
+        return nextIso;
+      });
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    refreshLastSyncFromBackend();
+    const intervalId = window.setInterval(() => {
+      refreshLastSyncFromBackend();
+    }, 5000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const triggerRefresh = () => {
+    window.dispatchEvent(new CustomEvent('cj:refresh'));
+    persistLastSyncAt(new Date().toISOString());
+    window.setTimeout(() => {
+      refreshLastSyncFromBackend();
+    }, 1200);
   };
 
   const lastSyncLabel = useMemo(() => {
@@ -213,7 +254,7 @@ function App() {
 
       {isChat ? <ChatPage theme={theme} /> : <Dashboard theme={theme} currency={currency} conversionRate={conversionRate} />}
 
-      <footer className={`mt-8 py-8 px-5 border rounded mx-6 mb-6 ${theme === 'light' ? 'bg-gray-100 border-gray-300' : 'bg-[#141414] border-gray-900'}`}>
+      <footer className={`mt-8 py-8 px-5 border rounded mx-6 ${theme === 'light' ? 'bg-gray-100 border-gray-300' : 'bg-[#141414] border-gray-900'}`}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <p className={`text-sm font-semibold mb-2 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Claw Journal</p>
