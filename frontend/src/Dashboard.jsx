@@ -193,6 +193,15 @@ const Dashboard = () => {
     }))
     .sort((left, right) => left.provider.localeCompare(right.provider));
 
+  const costTrendData = Array.isArray(data.costTrend)
+    ? data.costTrend.map((row) => ({
+      ...row,
+      cost: Number(row?.cost || 0),
+    }))
+    : [];
+
+  const costTrendCeiling = Math.max(...costTrendData.map((row) => Number(row.cost || 0)), 0);
+
   return (
     <div className="bg-[#0a0a0a] min-h-screen text-gray-300 p-6 font-mono">
       {/* Header */}
@@ -259,18 +268,25 @@ const Dashboard = () => {
           <h3 className="text-xs uppercase mb-4 text-gray-500">Cost by Day</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data.costTrend}>
+              <LineChart data={costTrendData}>
                 <defs>
                   <linearGradient id="costGradientFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f97316" stopOpacity={0.65} />
-                    <stop offset="65%" stopColor="#f97316" stopOpacity={0.22} />
-                    <stop offset="100%" stopColor="#f97316" stopOpacity={0.08} />
+                    <stop offset="0%" stopColor="#f97316" stopOpacity={0.9} />
+                    <stop offset="60%" stopColor="#f97316" stopOpacity={0.45} />
+                    <stop offset="100%" stopColor="#f97316" stopOpacity={0.2} />
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="date" stroke="#444" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#444" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val}`} />
+                <YAxis
+                  stroke="#444"
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={false}
+                  domain={[0, Math.max(costTrendCeiling * 1.2, 0.01)]}
+                  tickFormatter={(val) => `$${val}`}
+                />
                 <Tooltip contentStyle={{backgroundColor: '#111', border: '1px solid #333', color: '#fff'}} itemStyle={{color: '#f97316'}} />
-                <Area type="monotone" dataKey="cost" stroke="none" fill="url(#costGradientFill)" fillOpacity={1} />
+                <Area type="monotone" dataKey="cost" baseValue={0} stroke="none" fill="url(#costGradientFill)" fillOpacity={1} />
                 <Line type="monotone" dataKey="cost" stroke="#f97316" strokeWidth={2} dot={false} activeDot={{r: 4, strokeWidth: 0}} />
               </LineChart>
             </ResponsiveContainer>
@@ -282,7 +298,7 @@ const Dashboard = () => {
           <div className="space-y-6">
              <div>
                 <p className="text-xs text-gray-500 mb-1">TODAY</p>
-                <p className="text-3xl text-white font-bold">${data.costTrend && data.costTrend.length > 0 ? data.costTrend[data.costTrend.length - 1].cost : '0.00'}</p>
+                 <p className="text-3xl text-white font-bold">${costTrendData.length > 0 ? costTrendData[costTrendData.length - 1].cost : '0.00'}</p>
              </div>
              <div className="h-[2px] bg-gradient-to-r from-orange-500 to-transparent w-full opacity-50"></div>
              <div>
