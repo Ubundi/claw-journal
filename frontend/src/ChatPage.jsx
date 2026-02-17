@@ -427,7 +427,7 @@ const ChatPage = () => {
                   }`}
                 >
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-xs text-white truncate">{session.session_id}</p>
+                    <p className="text-xs text-white truncate">{session.display_title || session.session_id}</p>
                     {(() => {
                       const SessionTypeIcon = sessionTypeIcon(session.session_type);
                       return (
@@ -438,6 +438,7 @@ const ChatPage = () => {
                       );
                     })()}
                   </div>
+                  <p className="text-[11px] text-gray-600 mt-1 truncate">id={session.session_id}</p>
                   <p className="text-[11px] text-gray-500 mt-1">
                     {session.model || 'unknown model'} · {session.provider || 'unknown provider'}
                   </p>
@@ -461,7 +462,7 @@ const ChatPage = () => {
             <h2 className="text-xs uppercase text-gray-500">Conversation</h2>
             {currentSession && (
               <p className="text-[11px] text-gray-500 flex items-center gap-1.5 flex-wrap">
-                {currentSession.model || 'unknown model'} · {currentSession.provider || 'unknown provider'} · type={currentSession.session_type || 'general'} · messages={currentSession.message_count || 0}
+                {currentSession.display_title || currentSession.session_id} · {currentSession.model || 'unknown model'} · {currentSession.provider || 'unknown provider'} · type={currentSession.session_type || 'general'} · messages={currentSession.message_count || 0}
                 {(() => {
                   const SessionTypeIcon = sessionTypeIcon(currentSession.session_type);
                   return <SessionTypeIcon size={12} className="inline-block" />;

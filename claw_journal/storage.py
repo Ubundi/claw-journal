@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import hashlib
 import sqlite3
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterable
@@ -544,20 +546,65 @@ class UsageRepository:
         return data
 
     def get_top_tools(self, limit: int = 5) -> list[dict]:
-        # Attempt to retrieve tools if logged in event_type or raw_json
-        # Current schema has event_type. Let's assume tool usage is an event type or we return empty
+        counter: Counter[str] = Counter()
+
         with self._connect() as conn:
-             rows = conn.execute(
+            usage_rows = conn.execute(
                 """
                 SELECT event_type as name, COUNT(*) as count
                 FROM usage_events
+                WHERE event_type LIKE 'tool.%' OR event_type LIKE 'tool:%' OR event_type LIKE 'tool_%'
                 GROUP BY event_type
                 ORDER BY count DESC
-                LIMIT ?
+                LIMIT 100
                 """,
-                (limit,)
-             ).fetchall()
-        return [{"name": r["name"], "count": r["count"]} for r in rows]
+            ).fetchall()
+
+            transcript_rows = conn.execute(
+                """
+                SELECT raw_json
+                FROM conversation_messages
+                WHERE raw_json IS NOT NULL AND raw_json != ''
+                ORDER BY id DESC
+                LIMIT 6000
+                """
+            ).fetchall()
+
+        for row in usage_rows:
+            raw_name = str(row["name"] or "").strip()
+            if not raw_name:
+                continue
+            normalized = raw_name
+            if raw_name.startswith("tool."):
+                normalized = raw_name.split("tool.", 1)[1]
+            elif raw_name.startswith("tool:"):
+                normalized = raw_name.split("tool:", 1)[1]
+            elif raw_name.startswith("tool_"):
+                normalized = raw_name.split("tool_", 1)[1]
+            if normalized:
+                counter[normalized] += int(row["count"] or 0)
+
+        for row in transcript_rows:
+            for tool_name in _extract_tool_names_from_raw_json(row["raw_json"]):
+                counter[tool_name] += 1
+
+        if not counter:
+            with self._connect() as conn:
+                fallback_rows = conn.execute(
+                    """
+                    SELECT event_type as name, COUNT(*) as count
+                    FROM usage_events
+                    GROUP BY event_type
+                    ORDER BY count DESC
+                    LIMIT ?
+                    """,
+                    (int(limit),),
+                ).fetchall()
+            return [{"name": str(row["name"] or "unknown"), "count": int(row["count"] or 0)} for row in fallback_rows]
+
+        top = counter.most_common(max(1, int(limit)))
+        return [{"name": name, "count": count} for name, count in top]
+
     def get_recent_sessions(self, limit: int = 10) -> list[dict]:
         with self._connect() as conn:
             rows = conn.execute(
@@ -1150,6 +1197,18 @@ class UsageRepository:
                 """
             ).fetchall()
 
+            first_user_rows = conn.execute(
+                """
+                SELECT
+                    COALESCE(NULLIF(source_path, ''), session_id) AS session_group,
+                    COALESCE(NULLIF(content_text, ''), text_content, '') AS content_text
+                FROM conversation_messages
+                WHERE role = 'user'
+                    AND COALESCE(NULLIF(content_text, ''), text_content, '') != ''
+                ORDER BY id ASC
+                """
+            ).fetchall()
+
         snapshot_by_session = {
             str(row["session_id"]): {
                 "session_key": row["session_key"],
@@ -1170,6 +1229,15 @@ class UsageRepository:
                 "provider": row["provider"],
                 "model": row["model"],
             }
+
+        first_user_text_by_group: dict[str, str] = {}
+        for row in first_user_rows:
+            session_group = str(row["session_group"] or "")
+            if not session_group or session_group in first_user_text_by_group:
+                continue
+            text_value = str(row["content_text"] or "").strip()
+            if text_value:
+                first_user_text_by_group[session_group] = text_value
 
         result: list[dict] = []
         for row in rows:
@@ -1199,6 +1267,10 @@ class UsageRepository:
             result.append(
                 {
                     "session_id": canonical_session_id,
+                    "display_title": _session_display_title(
+                        first_user_text_by_group.get(session_group),
+                        canonical_session_id,
+                    ),
                     "session_key": snapshot.get("session_key"),
                     "provider": message_meta.get("provider") or snapshot.get("provider"),
                     "model": message_meta.get("model") or snapshot.get("model"),
@@ -1370,6 +1442,48 @@ def _canonical_session_id(session_id: str, source_path: object) -> str:
         if stem:
             return stem
     return session_id or "unknown"
+
+
+def _session_display_title(first_user_text: str | None, fallback: str) -> str:
+    text = " ".join(str(first_user_text or "").split()).strip()
+    if not text:
+        return fallback
+    if len(text) <= 72:
+        return text
+    return f"{text[:69].rstrip()}..."
+
+
+def _extract_tool_names_from_raw_json(raw_json: object) -> list[str]:
+    if not isinstance(raw_json, str) or not raw_json.strip():
+        return []
+
+    try:
+        payload = json.loads(raw_json)
+    except json.JSONDecodeError:
+        return []
+
+    message = payload.get("message") if isinstance(payload, dict) else None
+    if not isinstance(message, dict):
+        return []
+
+    content = message.get("content")
+    if not isinstance(content, list):
+        return []
+
+    names: list[str] = []
+    for item in content:
+        if not isinstance(item, dict):
+            continue
+        item_type = str(item.get("type") or "").lower()
+        if item_type == "toolcall":
+            name = str(item.get("name") or "").strip()
+            if name:
+                names.append(name)
+        elif item_type == "toolresult":
+            name = str(item.get("toolName") or item.get("name") or "").strip()
+            if name:
+                names.append(name)
+    return names
 
     def get_checkpoints(self, limit: int = 500) -> list[dict]:
         with self._connect() as conn:

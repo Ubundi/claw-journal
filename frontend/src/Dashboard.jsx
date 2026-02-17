@@ -217,7 +217,7 @@ const Dashboard = () => {
             <Feather size={16} className="text-orange-300" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Calw Journal</h1>
+            <h1 className="text-xl font-bold text-white">Claw Journal</h1>
             <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1.5">
               <Sparkles size={12} className="text-orange-400" />
               OpenClaw observability dashboard
@@ -235,12 +235,22 @@ const Dashboard = () => {
       </div>
 
       <div id="overview" className="bg-[#141414] p-4 rounded border border-gray-900 mb-6 scroll-mt-24">
-        <p className="text-sm text-white font-semibold">Mode: auth={profile.auth_mode || 'unknown'} · billing={profile.billing_mode || 'unknown'}</p>
-        <p className="text-xs text-gray-500 mt-2">
-          {billingMode === 'claude_max'
-            ? `Claude Max monthly plan: $${profile.claude_max_monthly_usd || 0} (token costs shown as subscription-included).`
-            : 'Token billing mode: costs shown from observed or estimated per-token rates.'}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-white font-semibold">Runtime Mode</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-[11px] uppercase border rounded px-2 py-[2px] ${String(profile.auth_mode || 'unknown').toLowerCase() === 'oauth' ? 'bg-blue-900/40 text-blue-300 border-blue-800' : 'bg-orange-900/40 text-orange-300 border-orange-800'}`}>
+              auth: {profile.auth_mode || 'unknown'}
+            </span>
+            <span className={`text-[11px] uppercase border rounded px-2 py-[2px] ${String(profile.billing_mode || 'unknown').toLowerCase() === 'claude_max' ? 'bg-purple-900/40 text-purple-300 border-purple-800' : 'bg-emerald-900/40 text-emerald-300 border-emerald-800'}`}>
+              billing: {profile.billing_mode || 'unknown'}
+            </span>
+            {billingMode === 'claude_max' && (
+              <span className="text-[11px] uppercase border rounded px-2 py-[2px] bg-purple-900/30 text-purple-300 border-purple-800">
+                plan: ${profile.claude_max_monthly_usd || 0}/mo
+              </span>
+            )}
+          </div>
+        </div>
         {notes && <p className="text-xs text-gray-500 mt-1">{notes}</p>}
         <p className="text-xs text-gray-500 mt-2">
           Local: {connectionInfo?.local?.user || '-'}@{connectionInfo?.local?.hostname || '-'} ({connectionInfo?.local?.ip || 'n/a'})
