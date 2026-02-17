@@ -332,7 +332,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
       </div>
 
       <div className="relative z-10">
-      <div id="overview" className={`${cardSurfaceClass} p-4 rounded border mb-6 scroll-mt-24`}>
+      <div id="overview" className={`${cardSurfaceClass} p-4 rounded border mb-6 scroll-mt-24 relative`}>
         <div className="flex flex-wrap items-center gap-2">
           <p className={`text-sm font-semibold mr-1 whitespace-nowrap ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Runtime Mode</p>
           <span className={`text-[11px] uppercase border rounded px-2 py-[2px] ${String(profile.auth_mode || 'unknown').toLowerCase() === 'oauth' ? 'bg-blue-900/40 text-blue-300 border-blue-800' : 'bg-orange-900/40 text-orange-300 border-orange-800'}`}>
@@ -359,6 +359,38 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             mode={connectionInfo?.remote?.ingest_mode || '-'}
           </span>
         </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="text-[11px] border rounded px-2 py-[2px] bg-indigo-900/30 text-indigo-300 border-indigo-800 hover:bg-indigo-900/40"
+            onMouseEnter={() => setActiveKpiTooltip('runtime:token-counting')}
+            onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:token-counting' ? '' : prev))}
+            onFocus={() => setActiveKpiTooltip('runtime:token-counting')}
+            onBlur={() => setActiveKpiTooltip((prev) => (prev === 'runtime:token-counting' ? '' : prev))}
+          >
+            token counting
+          </button>
+          <button
+            type="button"
+            className="text-[11px] border rounded px-2 py-[2px] bg-teal-900/30 text-teal-300 border-teal-800 hover:bg-teal-900/40"
+            onMouseEnter={() => setActiveKpiTooltip('runtime:glossary')}
+            onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:glossary' ? '' : prev))}
+            onFocus={() => setActiveKpiTooltip('runtime:glossary')}
+            onBlur={() => setActiveKpiTooltip((prev) => (prev === 'runtime:glossary' ? '' : prev))}
+          >
+            glossary
+          </button>
+        </div>
+        {activeKpiTooltip === 'runtime:token-counting' && (
+          <div className="absolute left-4 top-[4.9rem] z-20 max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">
+            Tokens are counted from usage fields emitted by OpenClaw/provider events (input + output, plus context/cache fields when present). Counts are not re-tokenized in Claw Journal. Different models/providers can use different tokenizers, so cross-model token totals are best interpreted as provider-reported usage, not a universal tokenizer output.
+          </div>
+        )}
+        {activeKpiTooltip === 'runtime:glossary' && (
+          <div className="absolute left-4 top-[4.9rem] z-20 max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">
+            Agent = runtime identity (for example, main/subagent) inferred from session key. Conversation = channel/thread stream within an agent (for example whatsapp:dm:+number or cron:job-id). Session = a unique session_id timeline. Message = one transcript event row (user/assistant/tool/system). Token = provider-reported model usage unit, typically split into input and output.
+          </div>
+        )}
       </div>
 
       <div id="usage-summary" className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 scroll-mt-24">
@@ -488,12 +520,13 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <div className={`${cardSurfaceClass} p-4 rounded border`}>
-          <h3 className="text-xs uppercase mb-4 text-gray-500">Cost By Agent</h3>
+          <h3 className="text-xs uppercase mb-1 text-gray-500">Cost by Conversation Stream</h3>
+          <p className="text-[10px] text-gray-500 mb-3">Label format: agent · conversation · latest date</p>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart layout="vertical" data={costByAgentData} margin={{top: 0, right: 30, left: 40, bottom: 0}}>
                 <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" stroke="#666" fontSize={11} width={80} tick={{fill: '#888'}} axisLine={false} tickLine={false} />
+                <YAxis dataKey="name" type="category" stroke="#666" fontSize={10} width={220} tick={{fill: '#888'}} axisLine={false} tickLine={false} />
                 <Tooltip cursor={{fill: 'transparent'}} contentStyle={{backgroundColor: '#111', border: '1px solid #333', color: '#fff'}} />
                 <Bar dataKey="cost_display" fill="#f97316" radius={[0, 4, 4, 0]} barSize={20} />
               </BarChart>

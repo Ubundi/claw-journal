@@ -510,8 +510,9 @@ class UsageRepository:
             rows = conn.execute(
                 """
                 SELECT
-                    session_key as name,
-                    SUM(COALESCE(cost_usd, 0.0)) as cost
+                    session_key,
+                    SUM(COALESCE(cost_usd, 0.0)) as cost,
+                    MAX(event_ts) as last_event_ts
                 FROM usage_events
                 WHERE session_key IS NOT NULL
                 GROUP BY session_key
@@ -525,8 +526,9 @@ class UsageRepository:
                 rows = conn.execute(
                     """
                     SELECT
-                        session_key as name,
-                        0.0 as cost
+                        session_key,
+                        0.0 as cost,
+                        datetime(updated_at / 1000, 'unixepoch') as last_event_ts
                     FROM session_snapshots
                     WHERE session_key IS NOT NULL
                     ORDER BY updated_at DESC
@@ -535,15 +537,30 @@ class UsageRepository:
                     (limit,)
                 ).fetchall()
 
-        # Clean up session key for display (e.g. "agent:steward:main" -> "Steward")
+        # Build display labels that preserve agent + conversation stream + date
         data = []
         for r in rows:
-            name = r["name"]
-            if name.startswith("agent:"):
-                parts = name.split(":")
+            session_key = str(r["session_key"] or "unknown")
+
+            agent_name = session_key
+            conversation_name = "default"
+            if session_key.startswith("agent:"):
+                parts = session_key.split(":")
                 if len(parts) > 1:
-                    name = parts[1].replace("_", " ").title()
-            data.append({"name": name, "cost": r["cost"] or 0.0})
+                    agent_name = parts[1].replace("_", " ").title()
+                if len(parts) > 2:
+                    conversation_name = ":".join(parts[2:]).replace("_", " ")
+
+            event_ts_raw = str(r["last_event_ts"] or "")
+            event_date = "-"
+            try:
+                event_date = datetime.fromisoformat(event_ts_raw.replace("Z", "+00:00")).strftime("%Y-%m-%d")
+            except ValueError:
+                if len(event_ts_raw) >= 10:
+                    event_date = event_ts_raw[:10]
+
+            label = f"{agent_name} · {conversation_name} · {event_date}"
+            data.append({"name": label, "cost": r["cost"] or 0.0})
         return data
 
     def get_top_tools(self, limit: int = 5) -> list[dict]:
