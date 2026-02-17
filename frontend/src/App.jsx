@@ -7,6 +7,8 @@ import Dashboard from './Dashboard';
 function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
   const [theme, setTheme] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_theme')) || 'dark');
+  const [currency, setCurrency] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_currency')) || 'USD');
+  const [conversionRate, setConversionRate] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
@@ -22,6 +24,44 @@ function App() {
       }
     } catch (_) {}
   }, [theme]);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('cj_currency', currency);
+      }
+    } catch (_) {}
+  }, [currency]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadRate = async () => {
+      if (currency === 'USD') {
+        setConversionRate(1);
+        return;
+      }
+
+      try {
+        const response = await fetch(`https://api.frankfurter.dev/v1/latest?base=USD&symbols=${encodeURIComponent(currency)}`);
+        const payload = await response.json();
+        const nextRate = Number(payload?.rates?.[currency] || 0);
+        if (!cancelled && nextRate > 0) {
+          setConversionRate(nextRate);
+        }
+      } catch (_) {
+        if (!cancelled) {
+          setConversionRate(1);
+        }
+      }
+    };
+
+    loadRate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currency]);
 
   const isChat = pathname.startsWith('/chat');
 
@@ -75,6 +115,17 @@ function App() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={currency}
+              onChange={(event) => setCurrency(event.target.value)}
+              className={`px-2 py-1 text-xs rounded border transition ${chromeButtonClass}`}
+              title="Display currency"
+            >
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+              <option value="ZAR">ZAR</option>
+            </select>
             <button
               onClick={() => navigateTo('/')}
               className={`px-3 py-1 text-xs rounded border transition ${isChat ? inactiveTabClass : activeTabClass}`}
@@ -122,7 +173,7 @@ function App() {
         </div>
       )}
 
-      {isChat ? <ChatPage theme={theme} /> : <Dashboard theme={theme} />}
+      {isChat ? <ChatPage theme={theme} /> : <Dashboard theme={theme} currency={currency} conversionRate={conversionRate} />}
     </div>
   );
 }
