@@ -29,6 +29,9 @@ node_modules/
 dist/
 build/
 
+# Vite cache / optimized deps
+.vite/
+
 ### IDE/editor
 .vscode/
 .idea/
