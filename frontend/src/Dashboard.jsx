@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, Area, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { Compass, Database, Feather, LineChart as LineChartIcon, RefreshCcw, Sparkles } from 'lucide-react';
+import { Compass, Database, HelpCircle, LineChart as LineChartIcon } from 'lucide-react';
 import axios from 'axios';
 
-const Dashboard = () => {
+const Dashboard = ({ theme = 'dark' }) => {
   const [data, setData] = useState(null);
   const [legacyData, setLegacyData] = useState(null);
   const [modelCatalog, setModelCatalog] = useState({ available_models: [], used_models: [] });
@@ -88,6 +88,14 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    const onRescan = () => {
+      fetchData();
+    };
+    window.addEventListener('cj:rescan', onRescan);
+    return () => window.removeEventListener('cj:rescan', onRescan);
   }, []);
 
   useEffect(() => {
@@ -202,36 +210,44 @@ const Dashboard = () => {
 
   const costTrendCeiling = Math.max(...costTrendData.map((row) => Number(row.cost || 0)), 0);
 
+  const kpiDescription = (key) => {
+    const normalized = String(key || '').toLowerCase();
+    if (normalized.includes('spend')) return 'Sum of session costs in USD for the selected window.';
+    if (normalized.includes('token')) return 'Sum of input and output tokens parsed from usage logs.';
+    if (normalized.includes('session')) return 'Count of unique session IDs observed in ingested logs.';
+    if (normalized.includes('message')) return 'Count of message events captured from transcripts/logs.';
+    if (normalized.includes('avg')) return 'Arithmetic mean across the corresponding KPI in the current window.';
+    if (normalized.includes('cost')) return 'Cost value aggregated from observed and estimated usage entries.';
+    return 'Calculated from ingested OpenClaw usage events for the current dashboard window.';
+  };
+
+  const summaryKpis = data.summary
+    ? Object.entries(data.summary).filter(([key]) => !String(key).toLowerCase().includes('cache'))
+    : [];
+
+  const dailyRows = Array.isArray(legacyData?.daily)
+    ? [...legacyData.daily].sort((left, right) => String(left.usage_date || '').localeCompare(String(right.usage_date || '')))
+    : [];
+  const latestDay = dailyRows.length > 0 ? dailyRows[dailyRows.length - 1] : null;
+  const previousDay = dailyRows.length > 1 ? dailyRows[dailyRows.length - 2] : null;
+
+  const totalTokensForDay = (row) => {
+    if (!row) return 0;
+    const total = Number(row.total_tokens || 0);
+    if (total > 0) return total;
+    return Number(row.input_tokens || 0) + Number(row.output_tokens || 0);
+  };
+
   return (
-    <div className="relative bg-[#0a0a0a] min-h-screen text-gray-300 p-6 font-mono overflow-hidden">
+    <div className={`relative min-h-screen p-6 font-mono overflow-hidden ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-[#0a0a0a] text-gray-300'}`}>
       <div className="pointer-events-none absolute inset-0">
         <div className="dashboard-glow dashboard-glow-primary" />
         <div className="dashboard-glow dashboard-glow-secondary" />
       </div>
 
       <div className="relative z-10">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8 border border-gray-900 bg-[#121212]/90 rounded-lg px-4 py-3 backdrop-blur-sm">
-        <div className="flex items-start gap-3">
-          <div className="h-9 w-9 rounded border border-orange-800/60 bg-orange-950/40 flex items-center justify-center">
-            <Feather size={16} className="text-orange-300" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-white">Claw Journal</h1>
-            <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1.5">
-              <Sparkles size={12} className="text-orange-400" />
-              OpenClaw observability dashboard
-            </p>
-          </div>
-        </div>
-
-        <div className="flex gap-4 items-center flex-wrap">
-          <a href="/chat" className="bg-[#1a1a1a] border border-gray-800 px-4 py-1 rounded hover:bg-gray-800 transition text-xs text-white">Chat History</a>
-            <span className="text-xs text-gray-500">Last scan: just now</span>
-            <button onClick={fetchData} className="bg-[#1a1a1a] border border-gray-800 px-4 py-1 rounded flex items-center gap-2 hover:bg-gray-800 transition text-xs text-white">
-            <RefreshCcw size={14} /> Rescan
-            </button>
-        </div>
+      <div className="mb-6">
+        <h1 className={`text-xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Dashboard</h1>
       </div>
 
       <div id="overview" className="bg-[#141414] p-4 rounded border border-gray-900 mb-6 scroll-mt-24">
@@ -261,30 +277,73 @@ const Dashboard = () => {
         </p>
       </div>
 
-      <div id="usage-summary" className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 scroll-mt-24">
+      <div id="usage-summary" className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8 scroll-mt-24">
         <div className="bg-[#141414] p-3 border border-gray-900 rounded">
-          <p className="text-[10px] uppercase text-gray-500 mb-1">Observed</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] uppercase text-gray-500 mb-1">Observed</p>
+            <button type="button" className="text-gray-500 hover:text-orange-400" title="Count of sessions with directly observed provider cost from logs.">
+              <HelpCircle size={13} />
+            </button>
+          </div>
           <p className="text-lg font-bold text-orange-500">{costSources.observed || 0}</p>
         </div>
         <div className="bg-[#141414] p-3 border border-gray-900 rounded">
-          <p className="text-[10px] uppercase text-gray-500 mb-1">Estimated</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] uppercase text-gray-500 mb-1">Estimated</p>
+            <button type="button" className="text-gray-500 hover:text-orange-400" title="Count of sessions where cost was estimated from token totals and pricing table.">
+              <HelpCircle size={13} />
+            </button>
+          </div>
           <p className="text-lg font-bold text-orange-500">{costSources.estimated || 0}</p>
         </div>
         <div className="bg-[#141414] p-3 border border-gray-900 rounded">
-          <p className="text-[10px] uppercase text-gray-500 mb-1">Missing</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] uppercase text-gray-500 mb-1">Missing</p>
+            <button type="button" className="text-gray-500 hover:text-orange-400" title="Count of sessions with no observed or estimable cost.">
+              <HelpCircle size={13} />
+            </button>
+          </div>
           <p className="text-lg font-bold text-orange-500">{costSources.missing || 0}</p>
         </div>
         <div className="bg-[#141414] p-3 border border-gray-900 rounded">
-          <p className="text-[10px] uppercase text-gray-500 mb-1">Subscription</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] uppercase text-gray-500 mb-1">Subscription</p>
+            <button type="button" className="text-gray-500 hover:text-orange-400" title="Count of sessions attributed to subscription-inclusive billing mode.">
+              <HelpCircle size={13} />
+            </button>
+          </div>
           <p className="text-lg font-bold text-orange-500">{costSources.subscription || 0}</p>
+        </div>
+        <div className="bg-[#141414] p-3 border border-gray-900 rounded">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] uppercase text-gray-500 mb-1">Tokens Today</p>
+            <button type="button" className="text-gray-500 hover:text-orange-400" title="Total input + output tokens for the latest usage date in daily aggregates.">
+              <HelpCircle size={13} />
+            </button>
+          </div>
+          <p className="text-lg font-bold text-orange-500">{totalTokensForDay(latestDay).toLocaleString()}</p>
+        </div>
+        <div className="bg-[#141414] p-3 border border-gray-900 rounded">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] uppercase text-gray-500 mb-1">Tokens Prev Day</p>
+            <button type="button" className="text-gray-500 hover:text-orange-400" title="Total input + output tokens for the day prior to the latest usage date.">
+              <HelpCircle size={13} />
+            </button>
+          </div>
+          <p className="text-lg font-bold text-orange-500">{totalTokensForDay(previousDay).toLocaleString()}</p>
         </div>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
-        {data.summary && Object.entries(data.summary).map(([key, val]) => (
+        {summaryKpis.map(([key, val]) => (
           <div key={key} className="bg-[#141414] p-3 border border-gray-900 rounded shadow-sm">
-            <p className="text-[10px] uppercase text-gray-500 mb-1">{key.replace(/([A-Z])/g, ' $1')}</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] uppercase text-gray-500 mb-1">{key.replace(/([A-Z])/g, ' $1')}</p>
+              <button type="button" className="text-gray-500 hover:text-orange-400" title={kpiDescription(key)}>
+                <HelpCircle size={13} />
+              </button>
+            </div>
             <p className="text-lg font-bold text-orange-500">{typeof val === 'number' && key.toLowerCase().includes('spend') ? `$${val}` : typeof val === 'number' && key.toLowerCase().includes('avg') ? `$${val}` : val}</p>
           </div>
         ))}
