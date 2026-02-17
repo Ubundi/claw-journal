@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { Activity, Clock3, HelpCircle, MessageCircle, MessageSquare } from 'lucide-react';
 
 const ChatPage = () => {
   const [sessions, setSessions] = useState([]);
@@ -27,6 +28,15 @@ const ChatPage = () => {
     if (key === 'cron') return 'bg-purple-900/40 text-purple-300 border-purple-800';
     if (key === 'conversation') return 'bg-orange-900/40 text-orange-300 border-orange-800';
     return 'bg-gray-800 text-gray-300 border-gray-700';
+  };
+
+  const sessionTypeIcon = (sessionType) => {
+    const key = String(sessionType || '').toLowerCase();
+    if (key === 'heartbeat') return Activity;
+    if (key === 'whatsapp') return MessageCircle;
+    if (key === 'cron') return Clock3;
+    if (key === 'conversation') return MessageSquare;
+    return HelpCircle;
   };
 
   const roleClass = (role) => {
@@ -400,9 +410,15 @@ const ChatPage = () => {
                 >
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-xs text-white truncate">{session.session_id}</p>
+                    {(() => {
+                      const SessionTypeIcon = sessionTypeIcon(session.session_type);
+                      return (
                     <span className={`text-[10px] uppercase border rounded px-2 py-[1px] ${sessionTypeClass(session.session_type)}`}>
+                      <SessionTypeIcon size={11} className="inline-block mr-1 -mt-[1px]" />
                       {session.session_type || 'general'}
                     </span>
+                      );
+                    })()}
                   </div>
                   <p className="text-[11px] text-gray-500 mt-1">
                     {session.model || 'unknown model'} · {session.provider || 'unknown provider'}
@@ -426,8 +442,12 @@ const ChatPage = () => {
           <div className="p-4 border-b border-gray-900 flex items-center justify-between gap-3">
             <h2 className="text-xs uppercase text-gray-500">Conversation</h2>
             {currentSession && (
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[11px] text-gray-500 flex items-center gap-1.5 flex-wrap">
                 {currentSession.model || 'unknown model'} · {currentSession.provider || 'unknown provider'} · type={currentSession.session_type || 'general'} · messages={currentSession.message_count || 0}
+                {(() => {
+                  const SessionTypeIcon = sessionTypeIcon(currentSession.session_type);
+                  return <SessionTypeIcon size={12} className="inline-block" />;
+                })()}
               </p>
             )}
           </div>
