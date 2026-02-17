@@ -45,6 +45,21 @@ const ChatPage = () => {
     return 'text-gray-300';
   };
 
+  const roleLabel = (role) => {
+    const key = String(role || '').toLowerCase();
+    if (key === 'user') return 'user';
+    if (key === 'assistant') return 'assistant';
+    if (key === 'tool') return 'tool';
+    if (key === 'toolresult') return 'tool result';
+    if (key === 'system') return 'system';
+    return 'event';
+  };
+
+  const isUnknownRole = (role) => {
+    const key = String(role || '').toLowerCase();
+    return !['user', 'assistant', 'tool', 'toolresult', 'system'].includes(key);
+  };
+
   const roleIcon = (role) => {
     const key = String(role || '').toLowerCase();
     if (key === 'user') return User;
@@ -102,11 +117,15 @@ const ChatPage = () => {
           if (itemType === 'thinking') {
             return (
               <div key={index} className="bg-[#191919] border border-gray-800 rounded p-2">
-                <p className="text-[11px] text-blue-300 mb-1 flex items-center gap-1.5">
-                  <Brain size={12} />
-                  thinking
-                </p>
-                <pre className="text-[12px] text-gray-200 whitespace-pre-wrap break-words">{item.thinking || ''}</pre>
+                <div className="flex items-start gap-2">
+                  <div className="w-6 shrink-0 pt-0.5 flex justify-center">
+                    <Brain size={16} className="text-blue-300" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] text-blue-300 mb-1">thinking</p>
+                    <pre className="text-[12px] text-gray-200 whitespace-pre-wrap break-words">{item.thinking || ''}</pre>
+                  </div>
+                </div>
               </div>
             );
           }
@@ -114,11 +133,15 @@ const ChatPage = () => {
           if (itemType === 'toolcall') {
             return (
               <div key={index} className="bg-[#191919] border border-gray-800 rounded p-2">
-                <p className="text-[11px] text-emerald-300 mb-1 flex items-center gap-1.5">
-                  <Wrench size={12} />
-                  toolCall · {item.name || 'unknown'}
-                </p>
-                <pre className="text-[12px] text-gray-200 whitespace-pre-wrap break-words">{JSON.stringify(item.arguments || {}, null, 2)}</pre>
+                <div className="flex items-start gap-2">
+                  <div className="w-6 shrink-0 pt-0.5 flex justify-center">
+                    <Wrench size={16} className="text-emerald-300" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] text-emerald-300 mb-1">toolCall · {item.name || 'unknown'}</p>
+                    <pre className="text-[12px] text-gray-200 whitespace-pre-wrap break-words">{JSON.stringify(item.arguments || {}, null, 2)}</pre>
+                  </div>
+                </div>
               </div>
             );
           }
@@ -432,25 +455,46 @@ const ChatPage = () => {
 
                 {filteredMessages.map((message) => (
                   <div key={message.id} className="bg-[#111111] border border-gray-900 rounded p-3">
-                    <p className="text-[11px] text-gray-500 mb-2 flex items-center gap-2 flex-wrap">
-                      {(() => {
-                        const RoleIcon = roleIcon(message.role);
-                        return (
-                          <span className={`${roleClass(message.role)} inline-flex items-center gap-1`}>
-                            <RoleIcon size={12} />
-                            {message.role || 'unknown'}
-                          </span>
-                        );
-                      })()}
-                      <span>· {formatIso(message.event_ts)}</span>
-                      <span>· {message.message_type || '-'}</span>
-                      <span>· {message.model || 'unknown model'}</span>
-                    </p>
-                    {renderMessageBlocks(message)}
-                    <details className="mt-2">
-                      <summary className="cursor-pointer text-[11px] text-gray-400 hover:text-gray-200">View raw JSON</summary>
-                      <pre className="mt-2 text-[11px] text-gray-300 whitespace-pre-wrap break-words bg-[#0f0f0f] border border-gray-900 rounded p-2">{prettyJson(message.raw_json)}</pre>
-                    </details>
+                    {(() => {
+                      const RoleIcon = roleIcon(message.role);
+                      const unknownRole = isUnknownRole(message.role);
+                      return (
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 shrink-0 pt-0.5 flex justify-center">
+                            <RoleIcon size={20} className={roleClass(message.role)} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] text-gray-500 mb-2 flex items-center gap-2 flex-wrap">
+                              <span className={roleClass(message.role)}>{roleLabel(message.role)}</span>
+                              <span>· {formatIso(message.event_ts)}</span>
+                              <span>· {message.message_type || '-'}</span>
+                              <span>· {message.model || 'model n/a'}</span>
+                            </p>
+
+                            {unknownRole ? (
+                              <details>
+                                <summary className="cursor-pointer text-[11px] text-gray-400 hover:text-gray-200">Expand event details</summary>
+                                <div className="mt-2">
+                                  {renderMessageBlocks(message)}
+                                  <details className="mt-2">
+                                    <summary className="cursor-pointer text-[11px] text-gray-400 hover:text-gray-200">View raw JSON</summary>
+                                    <pre className="mt-2 text-[11px] text-gray-300 whitespace-pre-wrap break-words bg-[#0f0f0f] border border-gray-900 rounded p-2">{prettyJson(message.raw_json)}</pre>
+                                  </details>
+                                </div>
+                              </details>
+                            ) : (
+                              <>
+                                {renderMessageBlocks(message)}
+                                <details className="mt-2">
+                                  <summary className="cursor-pointer text-[11px] text-gray-400 hover:text-gray-200">View raw JSON</summary>
+                                  <pre className="mt-2 text-[11px] text-gray-300 whitespace-pre-wrap break-words bg-[#0f0f0f] border border-gray-900 rounded p-2">{prettyJson(message.raw_json)}</pre>
+                                </details>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))}
 
