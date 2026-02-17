@@ -605,7 +605,7 @@ const Dashboard = () => {
                         <XAxis type="number" dataKey="x" name="Input" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => `$${Number(value).toFixed(2)}`} />
                         <YAxis type="number" dataKey="y" name="Output" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => `$${Number(value).toFixed(2)}`} />
                         <Tooltip content={pricingTooltip} cursor={{ stroke: '#555' }} />
-                        <Scatter data={inputOutputPlotData} fill="rgba(249, 115, 22, 0.3)" fillOpacity={0.3} />
+                        <Scatter data={inputOutputPlotData} fill="rgba(249, 115, 22, 0.3)" fillOpacity={0.5} />
                       </ScatterChart>
                     </ResponsiveContainer>
                   </div>
@@ -621,7 +621,7 @@ const Dashboard = () => {
                         <XAxis type="number" dataKey="x" name="Cache Window Tokens" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => Number(value).toLocaleString()} />
                         <YAxis type="number" dataKey="y" name="Blended" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => `$${Number(value).toFixed(2)}`} />
                         <Tooltip content={pricingTooltip} cursor={{ stroke: '#555' }} />
-                        <Scatter data={cacheBlendedPlotData} fill="rgba(251, 146, 60, 0.3)" fillOpacity={0.3} />
+                        <Scatter data={cacheBlendedPlotData} fill="rgba(251, 146, 60, 0.3)" fillOpacity={0.5} />
                       </ScatterChart>
                     </ResponsiveContainer>
                   </div>
