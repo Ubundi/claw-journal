@@ -9,7 +9,7 @@ function App() {
   const [theme, setTheme] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_theme')) || 'dark');
   const [fontSize, setFontSize] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_font_size')) || 'normal');
   const [lastSyncAt, setLastSyncAt] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_last_sync_at')) || '');
-  const [currency, setCurrency] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_currency')) || 'USD');
+  const [currency, setCurrency] = useState('USD');
   const [conversionRate, setConversionRate] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -211,6 +211,8 @@ function App() {
         </div>
       )}
 
+      {isChat ? <ChatPage theme={theme} /> : <Dashboard theme={theme} currency={currency} conversionRate={conversionRate} />}
+
       <footer className={`mt-8 py-8 px-5 border rounded mx-6 mb-6 ${theme === 'light' ? 'bg-gray-100 border-gray-300' : 'bg-[#141414] border-gray-900'}`}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
@@ -238,7 +240,6 @@ function App() {
           </div>
         </div>
       </footer>
-      {isChat ? <ChatPage theme={theme} /> : <Dashboard theme={theme} currency={currency} conversionRate={conversionRate} />}
     </div>
   );
 }
