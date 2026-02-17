@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LineChart, Line, Area, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { LineChart, Line, Area, BarChart, Bar, ScatterChart, Scatter, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Compass, Database, Feather, LineChart as LineChartIcon, RefreshCcw, Sparkles } from 'lucide-react';
 import axios from 'axios';
 
@@ -192,6 +192,66 @@ const Dashboard = () => {
       usedCount: rows.filter((row) => row.used_by_openclaw).length,
     }))
     .sort((left, right) => left.provider.localeCompare(right.provider));
+
+  const pricingScatterData = sortedModels
+    .filter((row) => {
+      const modelId = String(row.id || row.model || '').toLowerCase();
+      return !modelId.includes('o1-pro');
+    })
+    .map((row) => {
+      const input = Number(row.input_per_million || 0);
+      const output = Number(row.output_per_million || 0);
+      const cacheRaw = Number(row.cache_per_million || 0);
+      const cacheWindowRaw = Number(row.cache_window_tokens || 0);
+      const blended = (0.75 * input) + (0.25 * output);
+      const cache = cacheRaw > 0 ? cacheRaw : input;
+      const cacheWindowTokens = cacheWindowRaw > 0 ? cacheWindowRaw : Number(row.context_length || 0);
+      return {
+        id: row.id || `${row.provider || 'unknown'}/${row.model || 'unknown'}`,
+        model: row.model || row.id || 'unknown',
+        provider: row.provider || 'unknown',
+        input,
+        output,
+        cache,
+        cacheWindowTokens,
+        blended,
+        hasCache: cacheRaw > 0,
+        hasCacheWindow: cacheWindowRaw > 0,
+        used: Boolean(row.used_by_openclaw),
+      };
+    })
+    .filter((row) => (row.input > 0 || row.output > 0) && row.cacheWindowTokens > 0);
+
+  const inputOutputPlotData = pricingScatterData.map((row) => ({
+    ...row,
+    x: row.input,
+    y: row.output,
+  }));
+
+  const cacheBlendedPlotData = pricingScatterData.map((row) => ({
+    ...row,
+    x: row.cacheWindowTokens,
+    y: row.blended,
+  }));
+
+  const pricingTooltip = ({ active, payload }) => {
+    if (!active || !payload || payload.length === 0) return null;
+    const point = payload[0]?.payload;
+    if (!point) return null;
+
+    return (
+      <div className="bg-[#101010] border border-gray-700 rounded px-3 py-2 text-[11px] text-gray-200 shadow-lg">
+        <p className="text-white font-semibold">{point.model}</p>
+        <p className="text-gray-400">provider: {point.provider}</p>
+        <p>input: ${point.input.toFixed(4)} / 1M</p>
+        <p>output: ${point.output.toFixed(4)} / 1M</p>
+        <p>cache: ${point.cache.toFixed(4)} / 1M {point.hasCache ? '' : '(fallback=input)'}</p>
+        <p>cache window: {Number(point.cacheWindowTokens || 0).toLocaleString()} tokens {point.hasCacheWindow ? '' : '(fallback=context)'}</p>
+        <p>blended (75/25): ${point.blended.toFixed(4)} / 1M</p>
+        {point.used && <p className="text-orange-400">Used on instance</p>}
+      </div>
+    );
+  };
 
   const costTrendData = Array.isArray(data.costTrend)
     ? data.costTrend.map((row) => ({
@@ -532,6 +592,43 @@ const Dashboard = () => {
           <p className="text-xs text-gray-500 mb-3">
             Models from OpenRouter: {availableModels.length} · used on this instance: {availableModels.filter((row) => row.used_by_openclaw).length}
           </p>
+
+          {pricingScatterData.length > 0 && (
+            <>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
+                <div className="bg-[#111111] border border-gray-900 rounded p-3">
+                  <p className="text-[11px] text-gray-500 mb-2 uppercase">Input vs Output Price</p>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                        <CartesianGrid stroke="#2a2a2a" strokeDasharray="3 3" />
+                        <XAxis type="number" dataKey="x" name="Input" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => `$${Number(value).toFixed(2)}`} />
+                        <YAxis type="number" dataKey="y" name="Output" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => `$${Number(value).toFixed(2)}`} />
+                        <Tooltip content={pricingTooltip} cursor={{ stroke: '#555' }} />
+                        <Scatter data={inputOutputPlotData} fill="rgba(249, 115, 22, 0.3)" fillOpacity={0.3} />
+                      </ScatterChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="bg-[#111111] border border-gray-900 rounded p-3">
+                  <p className="text-[11px] text-gray-500 mb-1 uppercase">Cache vs Blended Rate</p>
+                  <p className="text-[10px] text-gray-600 mb-2">Blended Rate = (0.75 × Input Price) + (0.25 × Output Price)</p>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                        <CartesianGrid stroke="#2a2a2a" strokeDasharray="3 3" />
+                        <XAxis type="number" dataKey="x" name="Cache Window Tokens" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => Number(value).toLocaleString()} />
+                        <YAxis type="number" dataKey="y" name="Blended" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => `$${Number(value).toFixed(2)}`} />
+                        <Tooltip content={pricingTooltip} cursor={{ stroke: '#555' }} />
+                        <Scatter data={cacheBlendedPlotData} fill="rgba(251, 146, 60, 0.3)" fillOpacity={0.3} />
+                      </ScatterChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
           {providerGroups.length === 0 && (
             <p className="text-xs text-gray-600">No OpenRouter catalog loaded yet. Enable startup sync or refresh pricing import.</p>

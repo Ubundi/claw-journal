@@ -85,9 +85,12 @@ class PricingEngine:
 
             model_name = str(item.get("name") or model_id)
             pricing = item.get("pricing") if isinstance(item.get("pricing"), dict) else {}
+            top_provider = item.get("top_provider") if isinstance(item.get("top_provider"), dict) else {}
 
             prompt_rate = _parse_openrouter_price(pricing.get("prompt"))
             completion_rate = _parse_openrouter_price(pricing.get("completion"))
+            cache_rate = _parse_openrouter_cache_price(pricing)
+            cache_window_tokens = _extract_cache_window_tokens(item=item, top_provider=top_provider)
             if prompt_rate is not None or completion_rate is not None:
                 self._table[model_id] = {
                     "input_per_million": float(prompt_rate or 0.0),
@@ -112,6 +115,8 @@ class PricingEngine:
                     "model": model,
                     "input_per_million": float(prompt_rate or 0.0),
                     "output_per_million": float(completion_rate or 0.0),
+                    "cache_per_million": float(cache_rate or 0.0),
+                    "cache_window_tokens": int(cache_window_tokens or 0),
                     "context_length": int(item.get("context_length") or 0),
                 }
             )
@@ -221,3 +226,43 @@ def _split_model_id(model_id: str) -> tuple[str | None, str | None]:
     if len(parts) != 2:
         return None, model_id
     return parts[0].strip().lower() or None, parts[1].strip().lower() or None
+
+
+def _parse_openrouter_cache_price(pricing: dict[str, object]) -> float | None:
+    for key in [
+        "prompt_cache",
+        "cached_prompt",
+        "cache_read",
+        "cache",
+        "input_cache",
+    ]:
+        value = _parse_openrouter_price(pricing.get(key))
+        if value is not None:
+            return value
+    return None
+
+
+def _extract_cache_window_tokens(item: dict[str, object], top_provider: dict[str, object]) -> int:
+    for source in (item, top_provider):
+        for key in [
+            "cache_window_tokens",
+            "cache_window",
+            "cache_context_length",
+            "prompt_cache_window",
+            "prompt_cache_limit",
+            "cached_context_length",
+        ]:
+            value = _to_int_or_none(source.get(key))
+            if value and value > 0:
+                return value
+    return 0
+
+
+def _to_int_or_none(value: object) -> int | None:
+    if value is None:
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed
