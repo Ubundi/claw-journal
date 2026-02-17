@@ -344,25 +344,26 @@ const ChatPage = ({ theme = 'dark' }) => {
     return () => window.removeEventListener('cj:rescan', onRescan);
   }, []);
 
+  const rootClass = isLight
+    ? 'bg-white min-h-screen text-gray-900 p-6 font-mono'
+    : 'bg-[#0a0a0a] min-h-screen text-gray-300 p-6 font-mono';
+
   return (
     <div className={rootClass}>
-      {/* Header (copied from dashboard) */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold text-white">ClawDash <span className="text-gray-500">Local</span></h1>
+        <h1 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Claw Journal <span className="text-gray-500">Local</span></h1>
         <div className="flex gap-4 items-center">
           <a href="/" className={`${inputBg} px-4 py-1 rounded hover:bg-gray-100 transition text-xs`}>Back</a>
           <button onClick={fetchSessions} className={`${inputBg} px-4 py-1 rounded flex items-center gap-2 hover:bg-gray-100 transition text-xs`}>Refresh</button>
-          <button onClick={() => setShowSettings(true)} className={`${inputBg} px-3 py-1 rounded text-xs`}>Settings</button>
         </div>
       </div>
 
-<<<<<<< HEAD
-      <div className="bg-[#141414] rounded border border-gray-900 p-3 mb-6">
+      <div className={`${panelBg} p-3 mb-6`}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <select
             value={typeFilter}
             onChange={(event) => setTypeFilter(event.target.value)}
-            className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
+            className={`${inputBg} rounded px-3 py-2 text-xs`}
           >
             {typeOptions.map((option) => (
               <option key={option} value={option}>
@@ -374,7 +375,7 @@ const ChatPage = ({ theme = 'dark' }) => {
           <select
             value={providerFilter}
             onChange={(event) => setProviderFilter(event.target.value)}
-            className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
+            className={`${inputBg} rounded px-3 py-2 text-xs`}
           >
             {providerOptions.map((option) => (
               <option key={option} value={option}>
@@ -386,7 +387,7 @@ const ChatPage = ({ theme = 'dark' }) => {
           <select
             value={modelFilter}
             onChange={(event) => setModelFilter(event.target.value)}
-            className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
+            className={`${inputBg} rounded px-3 py-2 text-xs`}
           >
             {modelOptions.map((option) => (
               <option key={option} value={option}>
@@ -402,84 +403,9 @@ const ChatPage = ({ theme = 'dark' }) => {
             value={searchText}
             onChange={(event) => setSearchText(event.target.value)}
             placeholder="Search text in sessions + messages"
-            className="w-full bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200 placeholder:text-gray-500"
+            className={`${inputBg} w-full rounded px-3 py-2 text-xs placeholder:text-gray-500`}
           />
         </div>
-=======
-      {showSettings && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowSettings(false)} />
-          <div className="relative z-50 w-full max-w-lg p-4">
-            <div className={`rounded shadow-lg p-4 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-[#0b0b0b] text-gray-200'}`}>
-              <h3 className="text-lg font-semibold mb-2">Settings</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm mb-1">Theme</label>
-                  <div className="flex items-center gap-4">
-                    <label className="inline-flex items-center gap-2">
-                      <input type="radio" name="theme" value="dark" checked={theme === 'dark'} onChange={() => setTheme('dark')} />
-                      <span>Dark</span>
-                    </label>
-                    <label className="inline-flex items-center gap-2">
-                      <input type="radio" name="theme" value="light" checked={theme === 'light'} onChange={() => setTheme('light')} />
-                      <span>Light</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 flex justify-end gap-2">
-                <button onClick={() => setShowSettings(false)} className="px-3 py-1 rounded bg-gray-600 text-white">Close</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className={`${panelBg} p-3 mb-6 grid grid-cols-1 md:grid-cols-4 gap-3`}>
-        <select
-          value={typeFilter}
-          onChange={(event) => setTypeFilter(event.target.value)}
-          className={`${inputBg} rounded px-3 py-2 text-xs`}
-        >
-          {typeOptions.map((option) => (
-            <option key={option} value={option}>
-              Type: {option}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={providerFilter}
-          onChange={(event) => setProviderFilter(event.target.value)}
-          className={`${inputBg} rounded px-3 py-2 text-xs`}
-        >
-          {providerOptions.map((option) => (
-            <option key={option} value={option}>
-              Provider: {option}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={modelFilter}
-          onChange={(event) => setModelFilter(event.target.value)}
-          className={`${inputBg} rounded px-3 py-2 text-xs`}
-        >
-          {modelOptions.map((option) => (
-            <option key={option} value={option}>
-              Model: {option}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="text"
-          value={searchText}
-          onChange={(event) => setSearchText(event.target.value)}
-          placeholder="Search text in sessions + messages"
-          className={`${inputBg} rounded px-3 py-2 text-xs placeholder:text-gray-500`}
-        />
->>>>>>> dashboard
       </div>
 
       {(searchLoading || searchError || searchText.trim()) && (
@@ -615,9 +541,8 @@ const ChatPage = ({ theme = 'dark' }) => {
           </div>
         </div>
       </div>
-<<<<<<< HEAD
 
-      <div className="mt-6 py-4 border-t border-gray-900 text-[11px] text-gray-500">
+      <div className={`mt-6 py-4 border-t text-[11px] ${isLight ? 'border-gray-200 text-gray-600' : 'border-gray-900 text-gray-500'}`}>
         Chat History shows transcript-based session archives from OpenClaw, including user, assistant, tool, and thinking blocks for debugging and audit.
       </div>
     </div>
