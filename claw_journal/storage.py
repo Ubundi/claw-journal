@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import re
 import sqlite3
 from collections import Counter
 from datetime import datetime, timezone
@@ -546,7 +547,8 @@ class UsageRepository:
         return data
 
     def get_top_tools(self, limit: int = 5) -> list[dict]:
-        counter: Counter[str] = Counter()
+        tool_counter: Counter[str] = Counter()
+        activity_counter: Counter[str] = Counter()
 
         with self._connect() as conn:
             usage_rows = conn.execute(
@@ -562,11 +564,14 @@ class UsageRepository:
 
             transcript_rows = conn.execute(
                 """
-                SELECT raw_json
+                SELECT message_type, role, content_text, raw_json
                 FROM conversation_messages
-                WHERE raw_json IS NOT NULL AND raw_json != ''
+                WHERE (raw_json IS NOT NULL AND raw_json != '')
+                   OR (content_text IS NOT NULL AND content_text != '')
+                   OR (message_type IS NOT NULL AND message_type != '')
+                   OR (role IS NOT NULL AND role != '')
                 ORDER BY id DESC
-                LIMIT 6000
+                LIMIT 12000
                 """
             ).fetchall()
 
@@ -582,13 +587,39 @@ class UsageRepository:
             elif raw_name.startswith("tool_"):
                 normalized = raw_name.split("tool_", 1)[1]
             if normalized:
-                counter[normalized] += int(row["count"] or 0)
+                tool_counter[normalized] += int(row["count"] or 0)
 
         for row in transcript_rows:
-            for tool_name in _extract_tool_names_from_raw_json(row["raw_json"]):
-                counter[tool_name] += 1
+            raw_json = row["raw_json"]
+            content_text = str(row["content_text"] or "")
+            message_type = str(row["message_type"] or "").strip().lower()
+            role = str(row["role"] or "").strip().lower()
 
-        if not counter:
+            extracted_tools = _extract_tool_names_from_raw_json(raw_json)
+            extracted_tools.extend(_extract_tool_names_from_text(content_text))
+            for tool_name in extracted_tools:
+                tool_counter[tool_name] += 1
+
+            if message_type == "toolcall":
+                activity_counter["tool calls"] += 1
+            elif message_type == "toolresult":
+                activity_counter["tool results"] += 1
+            elif message_type == "thinking":
+                activity_counter["thinking blocks"] += 1
+            elif role == "assistant":
+                activity_counter["assistant messages"] += 1
+            elif role == "user":
+                activity_counter["user messages"] += 1
+
+        if tool_counter:
+            top = tool_counter.most_common(max(1, int(limit)))
+            return [{"name": f"tool:{name}", "count": count} for name, count in top]
+
+        if activity_counter:
+            top = activity_counter.most_common(max(1, int(limit)))
+            return [{"name": name, "count": count} for name, count in top]
+
+        if not tool_counter and not activity_counter:
             with self._connect() as conn:
                 fallback_rows = conn.execute(
                     """
@@ -602,8 +633,7 @@ class UsageRepository:
                 ).fetchall()
             return [{"name": str(row["name"] or "unknown"), "count": int(row["count"] or 0)} for row in fallback_rows]
 
-        top = counter.most_common(max(1, int(limit)))
-        return [{"name": name, "count": count} for name, count in top]
+        return []
 
     def get_recent_sessions(self, limit: int = 10) -> list[dict]:
         with self._connect() as conn:
@@ -1484,6 +1514,27 @@ def _extract_tool_names_from_raw_json(raw_json: object) -> list[str]:
             if name:
                 names.append(name)
     return names
+
+
+def _extract_tool_names_from_text(content_text: object) -> list[str]:
+    if not isinstance(content_text, str) or not content_text.strip():
+        return []
+
+    text = content_text.strip()
+    matches: list[str] = []
+
+    patterns = [
+        r"toolcall\s*[·:\-]\s*([A-Za-z0-9._/\-]+)",
+        r"tool\s*[.:]\s*([A-Za-z0-9._/\-]+)",
+    ]
+
+    for pattern in patterns:
+        for raw_name in re.findall(pattern, text, flags=re.IGNORECASE):
+            clean_name = str(raw_name or "").strip().lower()
+            if clean_name:
+                matches.append(clean_name)
+
+    return matches
 
     def get_checkpoints(self, limit: int = 500) -> list[dict]:
         with self._connect() as conn:

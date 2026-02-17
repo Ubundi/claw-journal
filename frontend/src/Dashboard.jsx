@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { LineChart, Line, Area, BarChart, Bar, ScatterChart, Scatter, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { HelpCircle } from 'lucide-react';
 import axios from 'axios';
 
-const Dashboard = ({ theme = 'dark' }) => {
+const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => {
   const [data, setData] = useState(null);
   const [legacyData, setLegacyData] = useState(null);
   const [modelCatalog, setModelCatalog] = useState({ available_models: [], used_models: [] });
@@ -25,9 +25,18 @@ const Dashboard = ({ theme = 'dark' }) => {
   const [logsExplorerError, setLogsExplorerError] = useState('');
   const [activeKpiTooltip, setActiveKpiTooltip] = useState('');
 
-  const money = (value) => {
-    const number = Number(value || 0);
-    return `$${number.toFixed(6)}`;
+  const fxRate = Number(conversionRate || 1) > 0 ? Number(conversionRate) : 1;
+
+  const convertUsd = (value) => Number(value || 0) * fxRate;
+
+  const formatMoney = (value, minFraction = 2, maxFraction = 2) => {
+    const numeric = convertUsd(value);
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: minFraction,
+      maximumFractionDigits: maxFraction,
+    }).format(numeric);
   };
 
   const formatIsoOrDash = (value) => {
@@ -243,33 +252,26 @@ const Dashboard = ({ theme = 'dark' }) => {
     y: row.blended,
   }));
 
-  const pricingTooltip = ({ active, payload }) => {
-    if (!active || !payload || payload.length === 0) return null;
-    const point = payload[0]?.payload;
-    if (!point) return null;
-
-    return (
-      <div className="bg-[#101010] border border-gray-700 rounded px-3 py-2 text-[11px] text-gray-200 shadow-lg">
-        <p className="text-white font-semibold">{point.model}</p>
-        <p className="text-gray-400">provider: {point.provider}</p>
-        <p>input: ${point.input.toFixed(4)} / 1M</p>
-        <p>output: ${point.output.toFixed(4)} / 1M</p>
-        <p>cache: ${point.cache.toFixed(4)} / 1M {point.hasCache ? '' : '(fallback=input)'}</p>
-        <p>cache window: {Number(point.cacheWindowTokens || 0).toLocaleString()} tokens {point.hasCacheWindow ? '' : '(fallback=context)'}</p>
-        <p>blended (75/25): ${point.blended.toFixed(4)} / 1M</p>
-        {point.used && <p className="text-orange-400">Used on instance</p>}
-      </div>
-    );
-  };
-
   const costTrendData = Array.isArray(data.costTrend)
     ? data.costTrend.map((row) => ({
       ...row,
       cost: Number(row?.cost || 0),
+      cost_display: convertUsd(row?.cost || 0),
     }))
     : [];
 
-  const costTrendCeiling = Math.max(...costTrendData.map((row) => Number(row.cost || 0)), 0);
+  const costTrendCeiling = Math.max(...costTrendData.map((row) => Number(row.cost_display || 0)), 0);
+
+  const costByAgentData = Array.isArray(data?.costByAgent)
+    ? data.costByAgent.map((row) => ({ ...row, cost_display: convertUsd(row.cost || 0) }))
+    : [];
+
+  const topActivityData = Array.isArray(data?.topTools)
+    ? data.topTools.map((row) => ({
+      ...row,
+      name: String(row?.name || '').replace(/^tool:/i, ''),
+    }))
+    : [];
 
   const kpiDescription = (key) => {
     const normalized = String(key || '').toLowerCase();
@@ -299,6 +301,25 @@ const Dashboard = ({ theme = 'dark' }) => {
     return Number(row.input_tokens || 0) + Number(row.output_tokens || 0);
   };
 
+  const pricingTooltip = useMemo(() => ({ active, payload }) => {
+    if (!active || !payload || payload.length === 0) return null;
+    const point = payload[0]?.payload;
+    if (!point) return null;
+
+    return (
+      <div className="bg-[#101010] border border-gray-700 rounded px-3 py-2 text-[11px] text-gray-200 shadow-lg">
+        <p className="text-white font-semibold">{point.model}</p>
+        <p className="text-gray-400">provider: {point.provider}</p>
+        <p>input: {formatMoney(point.input, 4, 4)} / 1M</p>
+        <p>output: {formatMoney(point.output, 4, 4)} / 1M</p>
+        <p>cache: {formatMoney(point.cache, 4, 4)} / 1M {point.hasCache ? '' : '(fallback=input)'}</p>
+        <p>cache window: {Number(point.cacheWindowTokens || 0).toLocaleString()} tokens {point.hasCacheWindow ? '' : '(fallback=context)'}</p>
+        <p>blended (75/25): {formatMoney(point.blended, 4, 4)} / 1M</p>
+        {point.used && <p className="text-orange-400">Used on instance</p>}
+      </div>
+    );
+  }, [currency, conversionRate]);
+
   return (
     <div className={`relative min-h-screen p-6 font-mono overflow-hidden ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-[#0a0a0a] text-gray-300'}`}>
       <div className="pointer-events-none absolute inset-0">
@@ -318,7 +339,7 @@ const Dashboard = ({ theme = 'dark' }) => {
           </span>
           {billingMode === 'claude_max' && (
             <span className="text-[11px] uppercase border rounded px-2 py-[2px] bg-purple-900/30 text-purple-300 border-purple-800">
-              plan: ${profile.claude_max_monthly_usd || 0}/mo
+              plan: {formatMoney(profile.claude_max_monthly_usd || 0, 2, 2)}/mo
             </span>
           )}
           <span className="text-[11px] border rounded px-2 py-[2px] bg-orange-900/30 text-orange-300 border-orange-800">
@@ -416,7 +437,7 @@ const Dashboard = ({ theme = 'dark' }) => {
                 {kpiDescription(key)}
               </div>
             )}
-            <p className="text-lg font-bold text-orange-500">{typeof val === 'number' && key.toLowerCase().includes('spend') ? `$${val}` : typeof val === 'number' && key.toLowerCase().includes('avg') ? `$${val}` : val}</p>
+            <p className="text-lg font-bold text-orange-500">{typeof val === 'number' && (key.toLowerCase().includes('spend') || key.toLowerCase().includes('avg') || key.toLowerCase().includes('cost')) ? formatMoney(val, 2, 4) : val}</p>
           </div>
         ))}
       </div>
@@ -442,11 +463,11 @@ const Dashboard = ({ theme = 'dark' }) => {
                   tickLine={false}
                   axisLine={false}
                   domain={[0, Math.max(costTrendCeiling * 1.2, 0.01)]}
-                  tickFormatter={(val) => `$${val}`}
+                  tickFormatter={(val) => formatMoney(val, 0, 2)}
                 />
                 <Tooltip contentStyle={{backgroundColor: '#111', border: '1px solid #333', color: '#fff'}} itemStyle={{color: '#f97316'}} />
-                <Area type="monotone" dataKey="cost" baseValue={0} stroke="none" fill="url(#costGradientFill)" fillOpacity={1} />
-                <Line type="monotone" dataKey="cost" stroke="#f97316" strokeWidth={2} dot={false} activeDot={{r: 4, strokeWidth: 0}} />
+                <Area type="monotone" dataKey="cost_display" baseValue={0} stroke="none" fill="url(#costGradientFill)" fillOpacity={1} />
+                <Line type="monotone" dataKey="cost_display" stroke="#f97316" strokeWidth={2} dot={false} activeDot={{r: 4, strokeWidth: 0}} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -457,12 +478,12 @@ const Dashboard = ({ theme = 'dark' }) => {
           <div className="space-y-6">
              <div>
                 <p className="text-xs text-gray-500 mb-1">TODAY</p>
-                 <p className="text-3xl text-white font-bold">${costTrendData.length > 0 ? costTrendData[costTrendData.length - 1].cost : '0.00'}</p>
+                  <p className="text-3xl text-white font-bold">{formatMoney(costTrendData.length > 0 ? costTrendData[costTrendData.length - 1].cost : 0, 2, 2)}</p>
              </div>
              <div className="h-[2px] bg-gradient-to-r from-orange-500 to-transparent w-full opacity-50"></div>
              <div>
                 <p className="text-xs text-gray-500 mb-1">7D TOTAL</p>
-                <p className="text-3xl text-white font-bold">${data.summary.totalSpend}</p>
+                 <p className="text-3xl text-white font-bold">{formatMoney(data.summary.totalSpend || 0, 2, 2)}</p>
              </div>
           </div>
         </div>
@@ -474,21 +495,21 @@ const Dashboard = ({ theme = 'dark' }) => {
           <h3 className="text-xs uppercase mb-4 text-gray-500">Cost By Agent</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart layout="vertical" data={data.costByAgent} margin={{top: 0, right: 30, left: 40, bottom: 0}}>
+              <BarChart layout="vertical" data={costByAgentData} margin={{top: 0, right: 30, left: 40, bottom: 0}}>
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" stroke="#666" fontSize={11} width={80} tick={{fill: '#888'}} axisLine={false} tickLine={false} />
                 <Tooltip cursor={{fill: 'transparent'}} contentStyle={{backgroundColor: '#111', border: '1px solid #333', color: '#fff'}} />
-                <Bar dataKey="cost" fill="#f97316" radius={[0, 4, 4, 0]} barSize={20} />
+                <Bar dataKey="cost_display" fill="#f97316" radius={[0, 4, 4, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         <div className={`${cardSurfaceClass} p-4 rounded border`}>
-          <h3 className="text-xs uppercase mb-4 text-gray-500">Top Tools</h3>
+          <h3 className="text-xs uppercase mb-4 text-gray-500">Top Tool & Conversation Activity</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart layout="vertical" data={data.topTools} margin={{top: 0, right: 30, left: 40, bottom: 0}}>
+              <BarChart layout="vertical" data={topActivityData} margin={{top: 0, right: 30, left: 40, bottom: 0}}>
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" stroke="#666" fontSize={11} width={100} tick={{fill: '#888'}} axisLine={false} tickLine={false} />
                 <Tooltip cursor={{fill: 'transparent'}} contentStyle={{backgroundColor: '#111', border: '1px solid #333', color: '#fff'}} />
@@ -522,7 +543,7 @@ const Dashboard = ({ theme = 'dark' }) => {
                             <td className="px-4 py-3 font-bold text-white">{session.agent}</td>
                             <td className="px-4 py-3 font-mono text-[10px] text-gray-500 truncate max-w-[200px]">{session.sessionKey}</td>
                             <td className="px-4 py-3 text-right">{session.msgs}</td>
-                            <td className="px-4 py-3 text-right text-orange-500">${typeof session.cost === 'number' ? session.cost.toFixed(2) : session.cost}</td>
+                            <td className="px-4 py-3 text-right text-orange-500">{formatMoney(typeof session.cost === 'number' ? session.cost : 0, 2, 2)}</td>
                             <td className="px-4 py-3 text-right">{session.tokens}</td>
                             <td className="px-4 py-3 text-right text-gray-600">{new Date(session.lastActive).toLocaleString()}</td>
                         </tr>
@@ -673,8 +694,8 @@ const Dashboard = ({ theme = 'dark' }) => {
                     <ResponsiveContainer width="100%" height="100%">
                       <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
                         <CartesianGrid stroke="#2a2a2a" strokeDasharray="3 3" />
-                        <XAxis type="number" dataKey="x" name="Input" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => `$${Number(value).toFixed(2)}`} />
-                        <YAxis type="number" dataKey="y" name="Output" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => `$${Number(value).toFixed(2)}`} />
+                        <XAxis type="number" dataKey="x" name="Input" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => formatMoney(value, 2, 2)} />
+                        <YAxis type="number" dataKey="y" name="Output" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => formatMoney(value, 2, 2)} />
                         <Tooltip content={pricingTooltip} cursor={{ stroke: '#555' }} />
                         <Scatter data={inputOutputPlotData} fill="rgba(249, 115, 22, 0.3)" fillOpacity={0.5} />
                       </ScatterChart>
@@ -690,7 +711,7 @@ const Dashboard = ({ theme = 'dark' }) => {
                       <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
                         <CartesianGrid stroke="#2a2a2a" strokeDasharray="3 3" />
                         <XAxis type="number" dataKey="x" name="Cache Window Tokens" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => Number(value).toLocaleString()} />
-                        <YAxis type="number" dataKey="y" name="Blended" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => `$${Number(value).toFixed(2)}`} />
+                        <YAxis type="number" dataKey="y" name="Blended" stroke="#666" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(value) => formatMoney(value, 2, 2)} />
                         <Tooltip content={pricingTooltip} cursor={{ stroke: '#555' }} />
                         <Scatter data={cacheBlendedPlotData} fill="rgba(251, 146, 60, 0.3)" fillOpacity={0.5} />
                       </ScatterChart>
@@ -730,8 +751,8 @@ const Dashboard = ({ theme = 'dark' }) => {
                           className={row.used_by_openclaw ? 'bg-[#1f1608]' : 'hover:bg-[#1a1a1a]'}
                         >
                           <td className="px-3 py-2 text-gray-300">{row.model || row.id || '-'}</td>
-                          <td className="px-3 py-2 text-right">${Number(row.input_per_million || 0).toFixed(4)}</td>
-                          <td className="px-3 py-2 text-right">${Number(row.output_per_million || 0).toFixed(4)}</td>
+                          <td className="px-3 py-2 text-right">{formatMoney(row.input_per_million || 0, 4, 4)}</td>
+                          <td className="px-3 py-2 text-right">{formatMoney(row.output_per_million || 0, 4, 4)}</td>
                           <td className="px-3 py-2 text-right">{Number(row.context_length || 0).toLocaleString()}</td>
                           <td className="px-3 py-2">
                             {row.used_by_openclaw
