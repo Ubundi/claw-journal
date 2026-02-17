@@ -12,6 +12,10 @@ const ChatPage = () => {
   const [messagesError, setMessagesError] = useState('');
   const [nextBeforeId, setNextBeforeId] = useState(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [providerFilter, setProviderFilter] = useState('all');
+  const [modelFilter, setModelFilter] = useState('all');
+  const [searchText, setSearchText] = useState('');
 
   const sessionTypeClass = (sessionType) => {
     const key = String(sessionType || '').toLowerCase();
@@ -110,6 +114,63 @@ const ChatPage = () => {
     () => sessions.find((row) => row.session_id === selectedSessionId) || null,
     [sessions, selectedSessionId],
   );
+
+  const typeOptions = useMemo(
+    () => ['all', ...new Set(sessions.map((row) => String(row.session_type || 'general').toLowerCase()))],
+    [sessions],
+  );
+
+  const providerOptions = useMemo(
+    () => ['all', ...new Set(sessions.map((row) => String(row.provider || 'unknown').toLowerCase()))],
+    [sessions],
+  );
+
+  const modelOptions = useMemo(
+    () => ['all', ...new Set(sessions.map((row) => String(row.model || 'unknown').toLowerCase()))],
+    [sessions],
+  );
+
+  const filteredSessions = useMemo(() => {
+    return sessions.filter((session) => {
+      const typeValue = String(session.session_type || 'general').toLowerCase();
+      const providerValue = String(session.provider || 'unknown').toLowerCase();
+      const modelValue = String(session.model || 'unknown').toLowerCase();
+
+      if (typeFilter !== 'all' && typeValue !== typeFilter) {
+        return false;
+      }
+      if (providerFilter !== 'all' && providerValue !== providerFilter) {
+        return false;
+      }
+      if (modelFilter !== 'all' && modelValue !== modelFilter) {
+        return false;
+      }
+
+      if (!searchText.trim()) {
+        return true;
+      }
+      const needle = searchText.toLowerCase();
+      const haystack = [
+        String(session.session_id || ''),
+        String(session.provider || ''),
+        String(session.model || ''),
+        String(session.session_type || ''),
+      ].join(' ').toLowerCase();
+      return haystack.includes(needle);
+    });
+  }, [sessions, typeFilter, providerFilter, modelFilter, searchText]);
+
+  const filteredMessages = useMemo(() => {
+    if (!searchText.trim()) {
+      return messages;
+    }
+    const needle = searchText.toLowerCase();
+    return messages.filter((message) => {
+      const text = String(message.content_text || '').toLowerCase();
+      const raw = String(message.raw_json || '').toLowerCase();
+      return text.includes(needle) || raw.includes(needle);
+    });
+  }, [messages, searchText]);
 
   const formatIso = (value) => {
     if (!value) return '-';
@@ -220,6 +281,52 @@ const ChatPage = () => {
         </div>
       </div>
 
+      <div className="bg-[#141414] rounded border border-gray-900 p-3 mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+        <select
+          value={typeFilter}
+          onChange={(event) => setTypeFilter(event.target.value)}
+          className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
+        >
+          {typeOptions.map((option) => (
+            <option key={option} value={option}>
+              Type: {option}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={providerFilter}
+          onChange={(event) => setProviderFilter(event.target.value)}
+          className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
+        >
+          {providerOptions.map((option) => (
+            <option key={option} value={option}>
+              Provider: {option}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={modelFilter}
+          onChange={(event) => setModelFilter(event.target.value)}
+          className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200"
+        >
+          {modelOptions.map((option) => (
+            <option key={option} value={option}>
+              Model: {option}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="text"
+          value={searchText}
+          onChange={(event) => setSearchText(event.target.value)}
+          placeholder="Search text in sessions + messages"
+          className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200 placeholder:text-gray-500"
+        />
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <div className="xl:col-span-4 bg-[#141414] rounded border border-gray-900 overflow-hidden">
           <div className="p-4 border-b border-gray-900">
@@ -231,7 +338,7 @@ const ChatPage = () => {
 
           {!sessionsLoading && !sessionsError && (
             <div className="max-h-[78vh] overflow-y-auto divide-y divide-gray-900">
-              {sessions.map((session) => (
+              {filteredSessions.map((session) => (
                 <button
                   key={session.session_id}
                   onClick={() => setSelectedSessionId(session.session_id)}
@@ -256,7 +363,7 @@ const ChatPage = () => {
                   </p>
                 </button>
               ))}
-              {sessions.length === 0 && (
+              {filteredSessions.length === 0 && (
                 <p className="text-xs text-gray-600 p-4">No transcript sessions found yet.</p>
               )}
             </div>
@@ -289,7 +396,7 @@ const ChatPage = () => {
                   </button>
                 )}
 
-                {messages.map((message) => (
+                {filteredMessages.map((message) => (
                   <div key={message.id} className="bg-[#111111] border border-gray-900 rounded p-3">
                     <p className="text-[11px] text-gray-500 mb-2 flex items-center gap-2 flex-wrap">
                       <span className={roleClass(message.role)}>{message.role || 'unknown'}</span>
@@ -305,7 +412,7 @@ const ChatPage = () => {
                   </div>
                 ))}
 
-                {messages.length === 0 && (
+                {filteredMessages.length === 0 && (
                   <p className="text-xs text-gray-600">No messages found for this session.</p>
                 )}
               </>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { LineChart, Line, Area, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { RefreshCcw } from 'lucide-react';
 import axios from 'axios';
 
@@ -260,9 +260,16 @@ const Dashboard = () => {
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data.costTrend}>
+                <defs>
+                  <linearGradient id="costGradientFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f97316" stopOpacity={0.45} />
+                    <stop offset="100%" stopColor="#f97316" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
                 <XAxis dataKey="date" stroke="#444" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis stroke="#444" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val}`} />
                 <Tooltip contentStyle={{backgroundColor: '#111', border: '1px solid #333', color: '#fff'}} itemStyle={{color: '#f97316'}} />
+                <Area type="monotone" dataKey="cost" stroke="none" fill="url(#costGradientFill)" />
                 <Line type="monotone" dataKey="cost" stroke="#f97316" strokeWidth={2} dot={false} activeDot={{r: 4, strokeWidth: 0}} />
               </LineChart>
             </ResponsiveContainer>
