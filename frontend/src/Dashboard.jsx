@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { LineChart, Line, Area, BarChart, Bar, ScatterChart, Scatter, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { HelpCircle } from 'lucide-react';
 import axios from 'axios';
@@ -301,7 +301,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
     return Number(row.input_tokens || 0) + Number(row.output_tokens || 0);
   };
 
-  const pricingTooltip = useMemo(() => ({ active, payload }) => {
+  const pricingTooltip = ({ active, payload }) => {
     if (!active || !payload || payload.length === 0) return null;
     const point = payload[0]?.payload;
     if (!point) return null;
@@ -318,7 +318,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
         {point.used && <p className="text-orange-400">Used on instance</p>}
       </div>
     );
-  }, [currency, conversionRate]);
+  };
 
   return (
     <div className={`relative min-h-screen p-6 font-mono overflow-hidden ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-[#0a0a0a] text-gray-300'}`}>
@@ -483,7 +483,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
              <div className="h-[2px] bg-gradient-to-r from-orange-500 to-transparent w-full opacity-50"></div>
              <div>
                 <p className="text-xs text-gray-500 mb-1">7D TOTAL</p>
-                 <p className="text-3xl text-white font-bold">{formatMoney(data.summary.totalSpend || 0, 2, 2)}</p>
+                 <p className="text-3xl text-white font-bold">{formatMoney(data?.summary?.totalSpend || 0, 2, 2)}</p>
              </div>
           </div>
         </div>
@@ -586,9 +586,9 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                     <td className="px-4 py-3">{row.provider || '-'}</td>
                     <td className="px-4 py-3">{row.model || '-'}</td>
                     <td className="px-4 py-3 text-right">{row.total_tokens || 0}</td>
-                    {showCostColumns && <td className="px-4 py-3 text-right text-orange-500">{money(row.input_cost_usd)}</td>}
-                    {showCostColumns && <td className="px-4 py-3 text-right text-orange-500">{money(row.output_cost_usd)}</td>}
-                    {showCostColumns && <td className="px-4 py-3 text-right text-orange-500">{money(row.cost_usd)}</td>}
+                    {showCostColumns && <td className="px-4 py-3 text-right text-orange-500">{formatMoney(row.input_cost_usd, 6, 6)}</td>}
+                    {showCostColumns && <td className="px-4 py-3 text-right text-orange-500">{formatMoney(row.output_cost_usd, 6, 6)}</td>}
+                    {showCostColumns && <td className="px-4 py-3 text-right text-orange-500">{formatMoney(row.cost_usd, 6, 6)}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -616,7 +616,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                     <td className="px-4 py-3 text-gray-300">{row.session_id || '-'}</td>
                     <td className="px-4 py-3">{row.model || '-'}</td>
                     <td className="px-4 py-3 text-right">{row.total_tokens || 0}</td>
-                    <td className="px-4 py-3 text-right text-orange-500">{money(row.observed_cost_usd)}</td>
+                    <td className="px-4 py-3 text-right text-orange-500">{formatMoney(row.observed_cost_usd, 6, 6)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -648,9 +648,9 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                     <td className="px-4 py-3 text-right">{row.input_tokens || 0}</td>
                     <td className="px-4 py-3 text-right">{row.output_tokens || 0}</td>
                     <td className="px-4 py-3 text-right">{row.total_tokens || 0}</td>
-                    {showCostColumns && <td className="px-4 py-3 text-right text-orange-500">{money(row.input_cost_usd)}</td>}
-                    {showCostColumns && <td className="px-4 py-3 text-right text-orange-500">{money(row.output_cost_usd)}</td>}
-                    {showCostColumns && <td className="px-4 py-3 text-right text-orange-500">{money(row.cost_usd)}</td>}
+                    {showCostColumns && <td className="px-4 py-3 text-right text-orange-500">{formatMoney(row.input_cost_usd, 6, 6)}</td>}
+                    {showCostColumns && <td className="px-4 py-3 text-right text-orange-500">{formatMoney(row.output_cost_usd, 6, 6)}</td>}
+                    {showCostColumns && <td className="px-4 py-3 text-right text-orange-500">{formatMoney(row.cost_usd, 6, 6)}</td>}
                   </tr>
                 ))}
               </tbody>
