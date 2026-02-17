@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import socket
 import time
 from threading import Thread
@@ -99,6 +100,20 @@ def _start_startup_health_probe(base_url: str, timeout_seconds: float) -> None:
     Thread(target=_probe, daemon=True, name="startup-health-check").start()
 
 
+def _warn_if_local_openclaw_missing(remote_enabled: bool) -> None:
+    if remote_enabled:
+        return
+    if shutil.which("openclaw") is not None:
+        return
+
+    logging.warning(
+        "`openclaw` was not found in PATH for the current user. "
+        "Claw Journal can still run from existing logs, but local OpenClaw sync "
+        "and live usage capture may be incomplete until `openclaw` is installed "
+        "or available on PATH."
+    )
+
+
 def build_runtime() -> tuple[
     object,
     IngestLoop,
@@ -108,6 +123,7 @@ def build_runtime() -> tuple[
     object,
 ]:
     settings = load_settings()
+    _warn_if_local_openclaw_missing(remote_enabled=settings.remote_enabled)
     repository = UsageRepository(settings.db_path)
     pricing_engine = PricingEngine.from_file(settings.pricing_file)
 
