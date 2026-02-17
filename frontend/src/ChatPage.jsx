@@ -16,6 +16,9 @@ const ChatPage = () => {
   const [providerFilter, setProviderFilter] = useState('all');
   const [modelFilter, setModelFilter] = useState('all');
   const [searchText, setSearchText] = useState('');
+  const [searchSessions, setSearchSessions] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
 
   const sessionTypeClass = (sessionType) => {
     const key = String(sessionType || '').toLowerCase();
@@ -131,6 +134,8 @@ const ChatPage = () => {
   );
 
   const filteredSessions = useMemo(() => {
+    const searchSessionIds = new Set(searchSessions.map((row) => row.session_id));
+
     return sessions.filter((session) => {
       const typeValue = String(session.session_type || 'general').toLowerCase();
       const providerValue = String(session.provider || 'unknown').toLowerCase();
@@ -149,16 +154,17 @@ const ChatPage = () => {
       if (!searchText.trim()) {
         return true;
       }
+      if (searchSessionIds.size > 0) {
+        return searchSessionIds.has(session.session_id);
+      }
+
       const needle = searchText.toLowerCase();
-      const haystack = [
-        String(session.session_id || ''),
-        String(session.provider || ''),
-        String(session.model || ''),
-        String(session.session_type || ''),
-      ].join(' ').toLowerCase();
-      return haystack.includes(needle);
+      const metadata = [String(session.provider || ''), String(session.model || ''), String(session.session_type || '')]
+        .join(' ')
+        .toLowerCase();
+      return metadata.includes(needle);
     });
-  }, [sessions, typeFilter, providerFilter, modelFilter, searchText]);
+  }, [sessions, typeFilter, providerFilter, modelFilter, searchText, searchSessions]);
 
   const filteredMessages = useMemo(() => {
     if (!searchText.trim()) {
@@ -171,6 +177,42 @@ const ChatPage = () => {
       return text.includes(needle) || raw.includes(needle);
     });
   }, [messages, searchText]);
+
+  useEffect(() => {
+    const trimmed = searchText.trim();
+    if (trimmed.length < 2) {
+      setSearchSessions([]);
+      setSearchError('');
+      setSearchLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timeout = setTimeout(async () => {
+      try {
+        setSearchLoading(true);
+        setSearchError('');
+        const response = await axios.get(`/api/chat/search?query=${encodeURIComponent(trimmed)}&limit=500`);
+        if (cancelled) return;
+        const rows = response.data?.sessions || [];
+        setSearchSessions(rows);
+      } catch (error) {
+        if (cancelled) return;
+        console.error(error);
+        setSearchError('Search failed.');
+        setSearchSessions([]);
+      } finally {
+        if (!cancelled) {
+          setSearchLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [searchText]);
 
   const formatIso = (value) => {
     if (!value) return '-';
@@ -326,6 +368,16 @@ const ChatPage = () => {
           className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-2 text-xs text-gray-200 placeholder:text-gray-500"
         />
       </div>
+
+      {(searchLoading || searchError || searchText.trim()) && (
+        <div className="mb-4 text-[11px] text-gray-500">
+          {searchLoading && <span>Searching message content...</span>}
+          {!searchLoading && !searchError && searchText.trim() && (
+            <span>Search matches in sessions: {searchSessions.length}</span>
+          )}
+          {!searchLoading && searchError && <span className="text-red-400">{searchError}</span>}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <div className="xl:col-span-4 bg-[#141414] rounded border border-gray-900 overflow-hidden">

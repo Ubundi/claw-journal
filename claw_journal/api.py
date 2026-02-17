@@ -97,6 +97,13 @@ def create_app(usage_service: UsageService) -> FastAPI:
             before_id=before_id,
         )
 
+    @app.get("/api/chat/search")
+    def chat_search(
+        query: str = Query(..., min_length=2),
+        limit: int = Query(default=200, ge=1, le=2000),
+    ) -> dict[str, object]:
+        return usage_service.chat_search(query=query, limit=limit)
+
     @app.get("/api/usage/session/{session_id}")
     def session_detail(session_id: str, limit: int = Query(default=300, ge=1, le=2000)) -> dict[str, object]:
         return usage_service.session_detail(session_id=session_id, limit=limit)

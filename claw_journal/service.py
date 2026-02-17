@@ -165,6 +165,9 @@ class UsageService:
             before_id=before_id,
         )
 
+    def chat_search(self, query: str, limit: int = 200) -> dict:
+        return self._repository.search_chat_messages(query=query, limit=limit)
+
     def logs_explorer(self, file_limit: int = 12, tail_lines: int = 80) -> dict:
         safe_file_limit = max(1, min(file_limit, 30))
         safe_tail_lines = max(1, min(tail_lines, 300))

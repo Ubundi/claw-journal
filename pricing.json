@@ -260,7 +260,7 @@
     "output_per_million": 0.7899999999999999
   },
   "deepseek/deepseek-v3.2": {
-    "input_per_million": 0.25,
+    "input_per_million": 0.26,
     "output_per_million": 0.38
   },
   "deepseek/deepseek-v3.2-exp": {

@@ -1291,6 +1291,78 @@ class UsageRepository:
             "next_before_id": next_before_id,
         }
 
+    def search_chat_messages(self, query: str, limit: int = 200) -> dict:
+        normalized = str(query or "").strip()
+        if len(normalized) < 2:
+            return {"query": normalized, "rows": [], "sessions": []}
+
+        pattern = f"%{normalized}%"
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    id,
+                    session_id,
+                    source_path,
+                    COALESCE(NULLIF(event_ts, ''), message_ts) AS event_ts,
+                    role,
+                    COALESCE(NULLIF(content_text, ''), text_content) AS content_text,
+                    message_type,
+                    provider,
+                    model,
+                    raw_json
+                FROM conversation_messages
+                WHERE
+                    COALESCE(NULLIF(content_text, ''), text_content, '') LIKE ?
+                    OR raw_json LIKE ?
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (pattern, pattern, int(limit)),
+            ).fetchall()
+
+        result_rows: list[dict] = []
+        sessions_seen: set[str] = set()
+        session_rows: list[dict] = []
+
+        for row in rows:
+            canonical_session_id = _canonical_session_id(
+                session_id=str(row["session_id"] or "unknown"),
+                source_path=row["source_path"],
+            )
+
+            message_row = {
+                "id": int(row["id"]),
+                "session_id": canonical_session_id,
+                "event_ts": row["event_ts"],
+                "role": row["role"],
+                "content_text": row["content_text"],
+                "message_type": row["message_type"],
+                "provider": row["provider"],
+                "model": row["model"],
+                "source_path": row["source_path"],
+                "raw_json": row["raw_json"],
+            }
+            result_rows.append(message_row)
+
+            if canonical_session_id not in sessions_seen:
+                sessions_seen.add(canonical_session_id)
+                session_rows.append(
+                    {
+                        "session_id": canonical_session_id,
+                        "provider": row["provider"],
+                        "model": row["model"],
+                        "last_event_ts": row["event_ts"],
+                    }
+                )
+
+        return {
+            "query": normalized,
+            "rows": result_rows,
+            "sessions": session_rows,
+        }
+
 
 def _canonical_session_id(session_id: str, source_path: object) -> str:
     if isinstance(source_path, str) and source_path.strip():
