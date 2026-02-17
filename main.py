@@ -13,7 +13,7 @@ import uvicorn
 from claw_journal.api import create_app
 from claw_journal.backfill import SnapshotBackfillLoop
 from claw_journal.config import load_settings
-from claw_journal.gateway_client import SshGatewayClient, SshGatewayClientConfig
+from claw_journal.gateway_client import LocalGatewayClient, SshGatewayClient, SshGatewayClientConfig
 from claw_journal.ingest import IngestLoop, LogIngestor
 from claw_journal.pricing import PricingEngine
 from claw_journal.session_sync import SessionSyncLoop
@@ -144,6 +144,19 @@ def build_runtime() -> tuple[
         session_client = SshGatewayClient(
             SshGatewayClientConfig(
                 ssh_host=settings.remote_ssh_host,
+                openclaw_bin=settings.remote_openclaw_bin,
+                path_prefix=settings.remote_path_prefix,
+            )
+        )
+        session_sync_loop = SessionSyncLoop(
+            repository=repository,
+            session_client=session_client,
+            interval_seconds=settings.session_sync_seconds,
+        )
+    elif settings.session_sync_enabled and not settings.remote_enabled:
+        session_client = LocalGatewayClient(
+            SshGatewayClientConfig(
+                ssh_host="localhost",
                 openclaw_bin=settings.remote_openclaw_bin,
                 path_prefix=settings.remote_path_prefix,
             )

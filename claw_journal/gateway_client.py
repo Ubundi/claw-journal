@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from dataclasses import dataclass
 
@@ -44,6 +45,41 @@ class GatewayClient:
             return payload["result"]
         if isinstance(payload, dict) and isinstance(payload.get("sessions"), list):
             return payload["sessions"]
+        if isinstance(payload, list):
+            return payload
+        return []
+
+
+class LocalGatewayClient:
+    """Calls the OpenClaw gateway on the local machine (no SSH)."""
+
+    def __init__(self, config: SshGatewayClientConfig) -> None:
+        self._config = config
+
+    def list_sessions(self) -> list[dict]:
+        command = [
+            self._config.openclaw_bin,
+            "gateway",
+            "call",
+            "sessions.list",
+            "--params",
+            "{}",
+        ]
+        env = {**os.environ, "PATH": f"{self._config.path_prefix}:{os.environ.get('PATH', '')}"}
+        result = subprocess.run(command, capture_output=True, text=True, check=False, env=env)
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or "failed to call local OpenClaw gateway")
+
+        output = result.stdout or ""
+        start = output.find("{")
+        if start == -1:
+            return []
+
+        payload = json.loads(output[start:])
+        if isinstance(payload, dict) and isinstance(payload.get("sessions"), list):
+            return payload["sessions"]
+        if isinstance(payload, dict) and isinstance(payload.get("result"), list):
+            return payload["result"]
         if isinstance(payload, list):
             return payload
         return []
