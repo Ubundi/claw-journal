@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, Area, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { Compass, Database, LineChart as LineChartIcon, RefreshCcw } from 'lucide-react';
+import { Compass, Database, Feather, LineChart as LineChartIcon, RefreshCcw, Sparkles } from 'lucide-react';
 import axios from 'axios';
 
 const Dashboard = () => {
@@ -203,13 +203,31 @@ const Dashboard = () => {
   const costTrendCeiling = Math.max(...costTrendData.map((row) => Number(row.cost || 0)), 0);
 
   return (
-    <div className="bg-[#0a0a0a] min-h-screen text-gray-300 p-6 font-mono">
+    <div className="relative bg-[#0a0a0a] min-h-screen text-gray-300 p-6 font-mono overflow-hidden">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="dashboard-glow dashboard-glow-primary" />
+        <div className="dashboard-glow dashboard-glow-secondary" />
+      </div>
+
+      <div className="relative z-10">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-xl font-bold text-white">ClawDash <span className="text-gray-500">Local</span></h1>
-        <div className="flex gap-4 items-center">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8 border border-gray-900 bg-[#121212]/90 rounded-lg px-4 py-3 backdrop-blur-sm">
+        <div className="flex items-start gap-3">
+          <div className="h-9 w-9 rounded border border-orange-800/60 bg-orange-950/40 flex items-center justify-center">
+            <Feather size={16} className="text-orange-300" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-white">Calw Journal</h1>
+            <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1.5">
+              <Sparkles size={12} className="text-orange-400" />
+              OpenClaw observability dashboard
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-4 items-center flex-wrap">
           <a href="/chat" className="bg-[#1a1a1a] border border-gray-800 px-4 py-1 rounded hover:bg-gray-800 transition text-xs text-white">Chat History</a>
-            <span className="text-xs text-gray-500">Last scan: Just now</span>
+            <span className="text-xs text-gray-500">Last scan: just now</span>
             <button onClick={fetchData} className="bg-[#1a1a1a] border border-gray-800 px-4 py-1 rounded flex items-center gap-2 hover:bg-gray-800 transition text-xs text-white">
             <RefreshCcw size={14} /> Rescan
             </button>
@@ -764,6 +782,7 @@ const Dashboard = () => {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 };
