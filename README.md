@@ -30,7 +30,10 @@ sed -i '' "s/\"port\": 18789/\"port\": $PORT/" ~/.openclaw/openclaw.json
 
 export OPENCLAW_GATEWAY_URL="ws://127.0.0.1:${PORT}"
 openclaw tui --token "$OPENCLAW_GATEWAY_TOKEN"
+unset OPENCLAW_GATEWAY_TOKEN
 ```
+
+> ⚠️ **Token safety:** avoid printing tokens to terminal output, screenshots, screen recordings, and pasted support logs. Prefer hidden prompt input (`read -s`) and clear variables after use.
 
 ### Terminal 3 — Start Claw Journal backend
 ```bash
@@ -359,7 +362,9 @@ Claw Journal continuously monitors your OpenClaw log files (default: `/tmp/openc
 
 Use this flow when you need local access to a remote OpenClaw Control endpoint.
 
-1. **Get your OpenClaw token (local or remote host where OpenClaw runs):**
+> ⚠️ **Security warning:** treat gateway tokens like passwords. Do not paste token values into shared terminals, ticket comments, chat logs, screenshots, or recordings.
+
+1. **Read your OpenClaw token securely (local or remote host where OpenClaw runs):**
    ```bash
    read -r -s -p "OpenClaw gateway token: " OPENCLAW_GATEWAY_TOKEN && echo
    ```
@@ -374,6 +379,7 @@ Use this flow when you need local access to a remote OpenClaw Control endpoint.
    ```bash
    export OPENCLAW_GATEWAY_URL="ws://127.0.0.1:<my_port>"
    openclaw tui --token "$OPENCLAW_GATEWAY_TOKEN"
+   unset OPENCLAW_GATEWAY_TOKEN
    ```
 
 4. **Create SSH tunnel for remote control port (explicit `user@host`, no SSH config needed):**
