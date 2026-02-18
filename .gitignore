@@ -38,3 +38,5 @@ build/
 *.swp
 *.swo
 pricing.json
+.claw-journal-run.env
+
