@@ -23,6 +23,42 @@ const MemoryPage = ({ theme = 'dark' }) => {
   const itemBg = isLight ? 'hover:bg-gray-100 text-gray-800' : 'hover:bg-[#1b1b1b] text-gray-200';
   const selectedBg = isLight ? 'bg-orange-100 text-orange-800 border border-orange-200' : 'bg-orange-900/40 text-orange-300 border border-orange-800';
 
+  const markdownComponents = useMemo(() => ({
+    h1: ({ children }) => <h1 className={`text-2xl font-bold mt-4 mb-3 ${isLight ? 'text-gray-900' : 'text-white'}`}>{children}</h1>,
+    h2: ({ children }) => <h2 className={`text-xl font-semibold mt-4 mb-2 ${isLight ? 'text-gray-900' : 'text-gray-100'}`}>{children}</h2>,
+    h3: ({ children }) => <h3 className={`text-lg font-semibold mt-3 mb-2 ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>{children}</h3>,
+    h4: ({ children }) => <h4 className={`text-base font-semibold mt-3 mb-2 ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>{children}</h4>,
+    p: ({ children }) => <p className={`text-sm leading-6 mb-3 ${isLight ? 'text-gray-800' : 'text-gray-300'}`}>{children}</p>,
+    ul: ({ children }) => <ul className={`list-disc pl-5 mb-3 text-sm ${isLight ? 'text-gray-800' : 'text-gray-300'}`}>{children}</ul>,
+    ol: ({ children }) => <ol className={`list-decimal pl-5 mb-3 text-sm ${isLight ? 'text-gray-800' : 'text-gray-300'}`}>{children}</ol>,
+    li: ({ children }) => <li className="mb-1">{children}</li>,
+    blockquote: ({ children }) => (
+      <blockquote className={`border-l-4 pl-3 py-1 mb-3 text-sm ${isLight ? 'border-gray-300 text-gray-700 bg-gray-100' : 'border-gray-700 text-gray-300 bg-[#111]'}`}>
+        {children}
+      </blockquote>
+    ),
+    hr: () => <hr className={`my-4 ${isLight ? 'border-gray-300' : 'border-gray-700'}`} />,
+    a: ({ href, children }) => (
+      <a href={href} target="_blank" rel="noreferrer" className={`underline text-sm ${isLight ? 'text-blue-700 hover:text-blue-800' : 'text-blue-300 hover:text-blue-200'}`}>
+        {children}
+      </a>
+    ),
+    code: ({ inline, children }) => (
+      inline ? (
+        <code className={`px-1 py-0.5 rounded text-[12px] ${isLight ? 'bg-gray-200 text-gray-900' : 'bg-[#1a1a1a] text-orange-300'}`}>
+          {children}
+        </code>
+      ) : (
+        <code className="block whitespace-pre-wrap break-words">{children}</code>
+      )
+    ),
+    pre: ({ children }) => (
+      <pre className={`text-xs rounded p-3 mb-3 overflow-x-auto ${isLight ? 'bg-gray-100 border border-gray-200 text-gray-900' : 'bg-[#111] border border-gray-800 text-gray-200'}`}>
+        {children}
+      </pre>
+    ),
+  }), [isLight]);
+
   const groupedFiles = useMemo(() => {
     const memoryRows = files.filter((row) => row.group === 'memory');
     const workspaceRows = files.filter((row) => row.group === 'workspace');
@@ -176,8 +212,8 @@ const MemoryPage = ({ theme = 'dark' }) => {
           {!loadingContent && !contentError && !selectedPath && <p className="text-xs text-gray-500">No file selected.</p>}
 
           {!loadingContent && !contentError && selectedPath && (
-            <article className={`prose prose-sm max-w-none ${isLight ? 'prose-gray' : 'prose-invert'}`}>
-              <ReactMarkdown>{content || '_Empty file_'}</ReactMarkdown>
+            <article className="max-w-none">
+              <ReactMarkdown components={markdownComponents}>{content || '_Empty file_'}</ReactMarkdown>
             </article>
           )}
         </div>
