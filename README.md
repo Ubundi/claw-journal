@@ -4,6 +4,26 @@
 
 > ⚠️ **Note:** Standard OpenClaw tools often hide cost metrics when using OAuth. Claw Journal aims to bridge this gap by providing local, detailed tracking for power users.
 
+## 🚀 Features
+
+Claw Journal runs as a local service alongside your OpenClaw instance to capture and display:
+
+### 📊 Comprehensive Usage Analytics
+- **Token Tracking:** Real-time breakdown of input/output tokens parsed directly from OpenClaw session logs.
+- **Cost Observability:** Accurate cost estimation by applying model-specific pricing tables to token counts, bypassing the lack of provider billing data for OAuth users.
+- **Visual Graphs:** Interactive charts showing usage trends over time (daily, weekly, monthly).
+- **Forecasting:** Compare actual usage against predicted costs for different models.
+
+### 🧠 Agent Logic & Reasoning
+- **Conversation Logs:** Searchable archive of your interactions, reconstructed from session log events.
+- **Thinking Process Annotation:** Visualize "Wait... thinking" blocks and internal reasoning steps often hidden in chat UIs.
+- **Sub-Agent Tracking:** See exactly when and why specific sub-agents or tools (e.g., file search, terminal) were invoked.
+
+### 🔔 Alerts & Benchmarks
+- **Budget Alerts:** Receive real-time WhatsApp notifications when your daily API spend hits a defined threshold.
+- **Model Benchmarking:** Track latency (TTFT) and error rates to compare performance across different LLM backends.
+
+
 ## ⚡ Recommended Startup (.env + one command)
 
 Use `.env` + one script instead of manually juggling 4 terminals.
@@ -69,25 +89,6 @@ Open:
 - Claw Journal: `http://127.0.0.1:${CJ_FRONTEND_PORT:-5173}`
 - Chat History: `http://127.0.0.1:${CJ_FRONTEND_PORT:-5173}/chat`
 - Memory Explorer: `http://127.0.0.1:${CJ_FRONTEND_PORT:-5173}/memory`
-
-## 🚀 Features
-
-Claw Journal runs as a local service alongside your OpenClaw instance to capture and display:
-
-### 📊 Comprehensive Usage Analytics
-- **Token Tracking:** Real-time breakdown of input/output tokens parsed directly from OpenClaw session logs.
-- **Cost Observability:** Accurate cost estimation by applying model-specific pricing tables to token counts, bypassing the lack of provider billing data for OAuth users.
-- **Visual Graphs:** Interactive charts showing usage trends over time (daily, weekly, monthly).
-- **Forecasting:** Compare actual usage against predicted costs for different models.
-
-### 🧠 Agent Logic & Reasoning
-- **Conversation Logs:** Searchable archive of your interactions, reconstructed from session log events.
-- **Thinking Process Annotation:** Visualize "Wait... thinking" blocks and internal reasoning steps often hidden in chat UIs.
-- **Sub-Agent Tracking:** See exactly when and why specific sub-agents or tools (e.g., file search, terminal) were invoked.
-
-### 🔔 Alerts & Benchmarks
-- **Budget Alerts:** Receive real-time WhatsApp notifications when your daily API spend hits a defined threshold.
-- **Model Benchmarking:** Track latency (TTFT) and error rates to compare performance across different LLM backends.
 
 ## 🛠️ Installation
 
