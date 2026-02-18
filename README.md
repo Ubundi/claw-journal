@@ -4,63 +4,71 @@
 
 > ⚠️ **Note:** Standard OpenClaw tools often hide cost metrics when using OAuth. Claw Journal aims to bridge this gap by providing local, detailed tracking for power users.
 
-## ⚡ Copy/Paste: First-Time Remote Setup
+## ⚡ Recommended Startup (.env + one command)
 
-Use this as a single starting flow (no SSH config alias required).
+Use `.env` + one script instead of manually juggling 4 terminals.
 
-### Terminal 1 — Verify SSH and start tunnel
+### 1) Create `.env` from template
 ```bash
-REMOTE_SSH_HOST="user@your-host"
-LOCAL_TUNNEL_PORT=18791   # pick a free local port (18790, 18791, ...)
-
-# 1) Verify SSH works
-ssh -o BatchMode=yes "$REMOTE_SSH_HOST" 'hostname'
-
-# 2) Start tunnel (keep this terminal open)
-ssh -L ${LOCAL_TUNNEL_PORT}:localhost:18790 "$REMOTE_SSH_HOST"
+cp .env.example .env
 ```
 
-### Terminal 2 — Point OpenClaw at local tunnel and launch TUI
+### 2) Set profile values in `.env`
+
+**Local OpenClaw profile (same machine):**
+
+Required:
+- `CJ_REMOTE_ENABLED=false`
+- `CJ_OPENCLAW_LOG_GLOB=/tmp/openclaw/openclaw-*.log`
+
+Recommended:
+- `CJ_PORT=3000`
+- `CJ_FRONTEND_PORT=5173`
+
+Not needed for local profile:
+- `CJ_REMOTE_SSH_HOST`
+- `CJ_REMOTE_GATEWAY_URL`
+- `CJ_REMOTE_GATEWAY_TOKEN`
+- `CJ_REMOTE_GATEWAY_AGENT_ID`
+
+**Remote OpenClaw profile (SSH):**
+
+Required:
+- `CJ_REMOTE_ENABLED=true`
+- `CJ_REMOTE_SSH_HOST=user@your-host`
+
+Recommended:
+- `CJ_PORT=3000`
+- `CJ_FRONTEND_PORT=5173`
+- `CJ_REMOTE_INGEST_MODE=file`
+
+Not needed for remote `file` ingest profile:
+- `CJ_REMOTE_GATEWAY_URL`
+- `CJ_REMOTE_GATEWAY_TOKEN`
+- `CJ_REMOTE_GATEWAY_AGENT_ID`
+
+Only needed when using `CJ_REMOTE_INGEST_MODE=rpc` or `hybrid`:
+- `CJ_REMOTE_GATEWAY_URL`
+- `CJ_REMOTE_GATEWAY_TOKEN`
+- `CJ_REMOTE_GATEWAY_AGENT_ID`
+
+### 3) Run one command
 ```bash
-REMOTE_SSH_HOST="user@your-host"
-ssh $REMOTE_SSH_HOST
-
-read -r -s -p "OpenClaw gateway token: " OPENCLAW_GATEWAY_TOKEN && echo
-
-# Set your local OpenClaw gateway port to match LOCAL_TUNNEL_PORT
-PORT=18791
-sed -i '' "s/\"port\": 18789/\"port\": $PORT/" ~/.openclaw/openclaw.json
-
-export OPENCLAW_GATEWAY_URL="ws://127.0.0.1:${PORT}"
-openclaw tui --token "$OPENCLAW_GATEWAY_TOKEN"
-unset OPENCLAW_GATEWAY_TOKEN
+chmod +x scripts/start-dashboard.sh
+chmod +x scripts/stop-dashboard.sh
+./scripts/start-dashboard.sh
 ```
 
-> ⚠️ **Token safety:** avoid printing tokens to terminal output, screenshots, screen recordings, and pasted support logs. Prefer hidden prompt input (`read -s`) and clear variables after use.
+Stop services:
 
-### Terminal 3 — Start Claw Journal backend
 ```bash
-REMOTE_SSH_HOST="user@your-host"
-LOCAL_TUNNEL_PORT=18791
-CJ_PORT_LOCAL=3002
-
-source .venv/bin/activate
-CJ_REMOTE_ENABLED=true \
-CJ_REMOTE_SSH_HOST="$REMOTE_SSH_HOST" \
-CJ_AUTO_PORT=false \
-CJ_PORT=$CJ_PORT_LOCAL \
-python main.py
-```
-
-### Terminal 4 — Start Claw Journal frontend
-```bash
-cd ./frontend
-npm run dev -- --host 127.0.0.1 --port 5173
+./scripts/stop-dashboard.sh
 ```
 
 Open:
-- OpenClaw Control UI: `http://localhost:${LOCAL_TUNNEL_PORT}`
-- Claw Journal: `http://localhost:5173`
+- Claw Journal: `http://127.0.0.1:${CJ_FRONTEND_PORT:-5173}`
+- Chat History: `http://127.0.0.1:${CJ_FRONTEND_PORT:-5173}/chat`
+- Memory Explorer: `http://127.0.0.1:${CJ_FRONTEND_PORT:-5173}/memory`
 
 ## 🚀 Features
 
@@ -107,26 +115,25 @@ cd ..
 ```
 
 ### 3. Configure
-You can run Claw Journal without any `.env` file.
+Use `.env` as the default startup contract (recommended):
 
-- **Local OpenClaw on same machine:** `.env` is not required for first run.
-- **Remote OpenClaw over SSH:** `.env` is still optional; you can pass env vars inline on startup.
-- **Repeatable setup:** use `.env` when you want persistent config.
-
-Create a `.env` file only if you want saved defaults:
 ```bash
-touch .env
+cp .env.example .env
 ```
-Minimal local `.env` (optional):
+
+Minimal local `.env`:
 ```bash
-CJ_AUTO_PORT=false
+CJ_REMOTE_ENABLED=false
 CJ_PORT=3000
+CJ_FRONTEND_PORT=5173
 ```
 
-Minimal remote `.env` (optional):
+Minimal remote `.env` (file ingest over SSH):
 ```bash
 CJ_REMOTE_ENABLED=true
-CJ_REMOTE_SSH_HOST=user@host
+CJ_REMOTE_SSH_HOST=user@your-host
+CJ_PORT=3000
+CJ_FRONTEND_PORT=5173
 ```
 
 Edit `.env` to configure your settings:
@@ -159,26 +166,52 @@ Edit `.env` to configure your settings:
 - `CJ_CLAUDE_MAX_MONTHLY_USD`: Monthly Claude Max subscription amount used for dashboard context (default: `200`).
 - `CJ_AUTO_PORT`: Automatically bind the first available local port starting at `CJ_PORT` (default: `true`).
 - `CJ_PORT_SEARCH_LIMIT`: Number of incremental ports to try after `CJ_PORT` when occupied (default: `50`).
+- `CJ_FRONTEND_PORT`: Vite dev server port used by `scripts/start-dashboard.sh` (default: `5173`).
 - `CJ_STARTUP_HEALTHCHECK_ENABLED`: Run an automatic self-check at startup for `/health` + `/api/system/connection` (default: `true`).
 - `CJ_STARTUP_HEALTHCHECK_TIMEOUT_SECONDS`: Max wait for startup self-check before failing fast (default: `20`).
 
 ## 🖥️ Running (API + Graph Dashboard)
 
-Start the local API service (Terminal 1):
+Use the script-based flow:
 
 ```bash
-source .venv/bin/activate
-CJ_AUTO_PORT=false CJ_PORT=3000 python main.py
+./scripts/start-dashboard.sh
 ```
 
-Start the React dashboard (Terminal 2):
+This launches backend + frontend together, loads `.env`, auto-picks a free API port if `CJ_PORT` is busy, and points Vite proxy at the selected API target.
+
+### How ports work
+
+- **Claw Journal API port (`CJ_PORT`)**: FastAPI backend port (default `3000`).
+- **Claw Journal frontend port (`CJ_FRONTEND_PORT`)**: Vite UI port (default `5173`).
+- **Vite API proxy**: frontend `/api/*` requests are proxied to `CJ_API_TARGET` (set by script).
+- **OpenClaw Control UI port**: typically `18790` on OpenClaw side.
+- **SSH tunnel local port**: your local mapping for remote Control UI (for example `18791:localhost:18790`).
+
+### Multi-remote and conflict behavior
+
+- **Remote OpenClaw ports are not bound locally**: Claw Journal reads remote logs/sessions over SSH, so it does not reserve remote API ports on your local machine.
+- **Each local device uses its own local ports**: every laptop/workstation running Claw Journal binds its own local `CJ_PORT` and `CJ_FRONTEND_PORT` only.
+- **Multiple remote instances are isolated by `.env`**: point each run to a specific `CJ_REMOTE_SSH_HOST` (and optional remote ingest settings) to track different remote OpenClaw instances.
+- **No local conflict on same machine**: if `CJ_PORT` is busy, `start-dashboard.sh` auto-selects the next free API port and updates frontend proxy target automatically.
+- **Control UI tunnel conflicts**: if `18790`/`18791` is busy locally, pick another local tunnel port while keeping remote side on `18790`.
+
+Example for two remote instances from the same local machine:
 
 ```bash
-cd frontend
-npm run dev -- --host 127.0.0.1 --port 5173
-```
+# remote A profile
+cp .env .env.remote-a
 
-Open the dashboard at `http://localhost:5173`.
+# remote B profile
+cp .env .env.remote-b
+
+# run A
+cp .env.remote-a .env
+./scripts/start-dashboard.sh
+
+# run B in another clone/worktree with different local ports
+# (for example CJ_PORT=3010, CJ_FRONTEND_PORT=5180)
+```
 
 ### Quick health checks
 
@@ -187,6 +220,34 @@ After startup, verify both backend and proxy paths:
 ```bash
 curl -sS http://127.0.0.1:3000/health
 curl -sS http://127.0.0.1:5173/api/dashboard-data | head -c 200
+```
+
+If script selected a non-3000 API port, use the printed backend URL from script output.
+
+### Manual port troubleshooting
+
+Find an open port in a range:
+
+```bash
+for p in $(seq 3000 3050); do
+   lsof -nP -iTCP:$p -sTCP:LISTEN >/dev/null || { echo "open port: $p"; break; }
+done
+```
+
+Inspect what process is using a port:
+
+```bash
+lsof -nP -iTCP:3000 -sTCP:LISTEN
+```
+
+Stop process hogging a port (manual):
+
+```bash
+# graceful stop first
+lsof -ti tcp:3000 | xargs kill
+
+# force kill only if still stuck
+lsof -ti tcp:3000 | xargs kill -9
 ```
 
 Expected backend health response:
@@ -228,23 +289,18 @@ ssh -o BatchMode=yes "$REMOTE_SSH_HOST" 'hostname'
 ```
 
 ### 2. Run Claw Journal API (Remote Mode)
-Run the following command locally in Terminal 1. This connects to your remote host to sync session totals via SSH.
+Set `.env` for remote mode and run the script.
 
 ```bash
-REMOTE_SSH_HOST="user@your-host"
-source .venv/bin/activate
-CJ_REMOTE_ENABLED=true \
-CJ_REMOTE_SSH_HOST="$REMOTE_SSH_HOST" \
-CJ_AUTO_PORT=false \
-CJ_PORT=3000 \
-uv run python main.py
-```
+cat > .env <<'EOF'
+CJ_REMOTE_ENABLED=true
+CJ_REMOTE_SSH_HOST=user@your-host
+CJ_REMOTE_INGEST_MODE=file
+CJ_PORT=3000
+CJ_FRONTEND_PORT=5173
+EOF
 
-Start the graph dashboard in Terminal 2:
-
-```bash
-cd frontend
-npm run dev
+./scripts/start-dashboard.sh
 ```
 
 *Optional: To see full conversation logs (thinking steps), copy logs from remote:*
@@ -254,9 +310,9 @@ CJ_OPENCLAW_LOG_GLOB=/tmp/openclaw-remote.log uv run python main.py
 ```
 
 ### 3. View Dashboard
-Open `http://localhost:5173` in your local browser.
+Open `http://127.0.0.1:5173` in your local browser.
 
-For full conversation transcripts, open `http://localhost:5173/chat`.
+For full conversation transcripts, open `http://127.0.0.1:5173/chat`.
 
 > **Note:** This mode syncs session history from the remote `openclaw` instance every 30 seconds and streams logs as they are written. It does NOT modify your remote instance.
 

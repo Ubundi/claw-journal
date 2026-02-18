@@ -7,6 +7,11 @@ const MemoryPage = ({ theme = 'dark' }) => {
   const [files, setFiles] = useState([]);
   const [loadingFiles, setLoadingFiles] = useState(true);
   const [filesError, setFilesError] = useState('');
+  const [memoryMeta, setMemoryMeta] = useState({
+    remote_enabled: false,
+    remote_ssh_host: null,
+    memory_dir: '~/.openclaw/workspace/memory',
+  });
 
   const [selectedPath, setSelectedPath] = useState('');
   const [content, setContent] = useState('');
@@ -31,13 +36,23 @@ const MemoryPage = ({ theme = 'dark' }) => {
       const response = await axios.get('/api/memory/files');
       const rows = response.data?.rows || [];
       setFiles(rows);
+      setMemoryMeta({
+        remote_enabled: Boolean(response.data?.remote_enabled),
+        remote_ssh_host: response.data?.remote_ssh_host || null,
+        memory_dir: response.data?.memory_dir || '~/.openclaw/workspace/memory',
+      });
 
       if (!selectedPath || !rows.some((row) => row.path === selectedPath)) {
         setSelectedPath(rows[0]?.path || '');
       }
     } catch (error) {
       console.error(error);
-      setFilesError('Failed to load memory files.');
+      const status = error?.response?.status;
+      if (status === 404) {
+        setFilesError('Memory API route not found. Restart backend so the latest routes are loaded.');
+      } else {
+        setFilesError('Failed to load memory files.');
+      }
       setFiles([]);
     } finally {
       setLoadingFiles(false);
@@ -102,6 +117,16 @@ const MemoryPage = ({ theme = 'dark' }) => {
 
           {!loadingFiles && !filesError && (
             <div className="space-y-4">
+              {files.length === 0 && (
+                <div className={`text-xs rounded border p-2 ${isLight ? 'border-gray-200 text-gray-600 bg-white' : 'border-gray-800 text-gray-400 bg-[#111]'}`}>
+                  <p className="mb-1">No memory markdown files found.</p>
+                  <p>Checked: {memoryMeta.memory_dir} and workspace root memory files.</p>
+                  {!memoryMeta.remote_enabled && (
+                    <p className="mt-1">Remote mode is disabled. Set `CJ_REMOTE_ENABLED=true` and `CJ_REMOTE_SSH_HOST=user@your-host` to browse remote OpenClaw memory.</p>
+                  )}
+                </div>
+              )}
+
               <div>
                 <p className={`text-[11px] uppercase tracking-wide mb-2 ${isLight ? 'text-gray-600' : 'text-gray-500'}`}>
                   <FolderOpen size={12} className="inline mr-1" /> memory/
