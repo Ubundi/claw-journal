@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Compass, Database, Feather, LineChart as LineChartIcon, Moon, RefreshCw, Sparkles, Sun } from 'lucide-react';
 
-import ChatPage from './ChatPage';
+// import ChatPage from './ChatPage';
 import Dashboard from './Dashboard';
 import MemoryPage from './MemoryPage';
 
@@ -81,7 +81,6 @@ function App() {
     };
   }, [fontSize]);
 
-  const isChat = pathname.startsWith('/chat');
   const isMemory = pathname.startsWith('/memory');
 
   const shellClass = useMemo(
@@ -205,15 +204,9 @@ function App() {
             </div>
             <button
               onClick={() => navigateTo('/')}
-              className={`px-3 py-1 text-xs rounded border transition ${(isChat || isMemory) ? inactiveTabClass : activeTabClass}`}
+              className={`px-3 py-1 text-xs rounded border transition ${isMemory ? inactiveTabClass : activeTabClass}`}
             >
               Usage
-            </button>
-            <button
-              onClick={() => navigateTo('/chat')}
-              className={`px-3 py-1 text-xs rounded border transition ${isChat ? activeTabClass : inactiveTabClass}`}
-            >
-              Chat History
             </button>
             <button
               onClick={() => navigateTo('/memory')}
@@ -262,7 +255,7 @@ function App() {
         </div>
       )}
 
-      {isChat ? <ChatPage theme={theme} /> : isMemory ? <MemoryPage theme={theme} /> : <Dashboard theme={theme} currency={currency} conversionRate={conversionRate} />}
+      {isMemory ? <MemoryPage theme={theme} /> : <Dashboard theme={theme} currency={currency} conversionRate={conversionRate} />}
 
       <footer className={`mt-8 py-8 px-5 border rounded mx-6 ${theme === 'light' ? 'bg-gray-100 border-gray-300' : 'bg-[#141414] border-gray-900'}`}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -286,7 +279,6 @@ function App() {
             <p className={`text-xs uppercase mb-3 ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>Navigate</p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <a href="/" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Usage</a>
-              <a href="/chat" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Chat History</a>
               <a href="/memory" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Memory Explorer</a>
             </div>
           </div>
