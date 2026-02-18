@@ -1,68 +1,120 @@
 {% extends "base.html" %}
-{% block title %}{{ tool_name }} - Tool Detail - Claw Journal{% endblock %}
+{% block title %}{{ tool_name }} - Claw Journal{% endblock %}
 {% block content %}
-<hgroup>
-    <h1>{{ tool_name }}</h1>
-    <p>
-        {% if summary %}
-        {{ summary.invocation_count }} invocations | {{ summary.error_count or 0 }} errors
-        {% if summary.subagent_count and summary.subagent_count > 0 %}
-        | <span class="subagent-badge">Subagent</span>
-        {% endif %}
-        {% endif %}
-        | <a href="/tools">Back to all tools</a>
-    </p>
-</hgroup>
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-xl font-bold text-white">{{ tool_name }}</h1>
+        <p class="text-[11px] mt-1 text-gray-500">
+            {% if summary %}
+            {{ summary.invocation_count }} invocations &middot; {{ summary.error_count or 0 }} errors
+            {% if summary.subagent_count and summary.subagent_count > 0 %}
+            &middot; <span class="text-[10px] uppercase border rounded px-2 py-[1px] bg-purple-900/40 text-purple-300 border-purple-800">Subagent</span>
+            {% endif %}
+            {% endif %}
+            &middot; <a href="/tools" class="text-orange-400 hover:text-orange-300">Back to all tools</a>
+        </p>
+    </div>
+    <div class="flex items-center gap-3">
+        <span id="filter-count" class="text-[11px] text-gray-600 hidden"></span>
+        <input type="text" id="tool-filter"
+               placeholder="Type to filter by keyword..."
+               class="bg-[#1a1a1a] border border-gray-800 text-gray-200 rounded px-3 py-1.5 text-xs placeholder:text-gray-500 focus:outline-none focus:border-orange-800 w-56">
+    </div>
+</div>
 
 {% if invocations %}
-<div class="tool-detail-list">
+<div class="space-y-3" id="invocations-list">
     {% for inv in invocations %}
-    <article class="tool-detail-card{% if inv.is_error %} tool-error{% endif %}">
-        <header>
-            <span>{{ inv.invocation_ts | ts }}</span>
-            <small> | <a href="/conversation/{{ inv.session_id }}">{{ inv.session_id | short_id }}</a></small>
-        </header>
+    <div class="bg-[#141414] border border-gray-900 rounded overflow-hidden invocation-card {{ 'border-l-2 border-l-red-500' if inv.is_error else '' }}">
+        <div class="px-3 py-2 border-b border-gray-900 flex items-center gap-3 flex-wrap">
+            <span class="text-[11px] text-gray-500">{{ inv.invocation_ts | ts }}</span>
+            <span class="text-gray-700">&middot;</span>
+            <a href="/conversation/{{ inv.session_id }}" class="text-[11px] text-orange-400 hover:text-orange-300">{{ inv.session_id | short_id }}</a>
+        </div>
 
         {% if inv.reasoning %}
-        <div class="reasoning-block">
-            <details>
-                <summary><strong>Reasoning:</strong> {{ inv.reasoning[:100] | replace('\n', ' ') }}{% if inv.reasoning|length > 100 %}...{% endif %}</summary>
-                <pre class="thinking-text">{{ inv.reasoning[:500] }}{% if inv.reasoning|length > 500 %}...{% endif %}</pre>
-            </details>
+        {% set reasoning_flat = inv.reasoning | replace('\n', ' ') %}
+        <div class="px-3 py-2 bg-[#111111] border-b border-gray-900 text-[12px]">
+            <span class="text-amber-400 font-semibold">Reasoning:</span>
+            {% if reasoning_flat|length > 200 %}
+            <span class="text-gray-300 reasoning-preview">{{ reasoning_flat[:200] }}…
+                <button onclick="this.parentElement.classList.add('hidden');this.parentElement.nextElementSibling.classList.remove('hidden')"
+                        class="text-orange-400 hover:text-orange-300 ml-1 underline underline-offset-2">See more</button>
+            </span>
+            <span class="text-gray-300 reasoning-full hidden">{{ reasoning_flat }}
+                <button onclick="this.parentElement.classList.add('hidden');this.parentElement.previousElementSibling.classList.remove('hidden')"
+                        class="text-orange-400 hover:text-orange-300 ml-1 underline underline-offset-2">See less</button>
+            </span>
+            {% else %}
+            <span class="text-gray-300">{{ reasoning_flat }}</span>
+            {% endif %}
         </div>
         {% endif %}
 
         {% if inv.trigger_text %}
-        <div class="trigger-context">
-            <small><strong>Triggered by:</strong> {{ inv.trigger_text[:150] }}{% if inv.trigger_text|length > 150 %}...{% endif %}</small>
+        {% set trigger = inv.trigger_text | parse_trigger %}
+        <div class="px-3 py-2 bg-[#111111] border-b border-gray-900 text-[11px]">
+            <span class="text-cyan-400 font-semibold">Triggered by:</span>
+            {% if trigger.name %}
+            <span class="text-white font-medium">{{ trigger.name }}</span>
+            {% else %}
+            <span class="text-gray-400">{{ trigger.raw }}</span>
+            {% endif %}
         </div>
         {% endif %}
 
-        {% if not inv.reasoning and not inv.trigger_text %}
-        <div class="no-reasoning">
-            <small>No reasoning context available.</small>
-        </div>
-        {% endif %}
-
-        <div class="tool-io">
+        <div class="p-3 space-y-1">
             {% if inv.tool_input %}
             <details>
-                <summary>Input</summary>
-                <pre>{{ inv.tool_input[:1000] }}</pre>
+                <summary class="text-[11px] text-gray-400 cursor-pointer">Input</summary>
+                <pre class="text-[11px] text-gray-300 mt-1 bg-[#0f0f0f] border border-gray-900 rounded p-2 max-h-48 overflow-y-auto">{{ inv.tool_input[:1000] }}</pre>
             </details>
             {% endif %}
-
             {% if inv.tool_result %}
             <details>
-                <summary>Result{% if inv.is_error %} (error){% endif %}</summary>
-                <pre>{{ inv.tool_result[:1000] }}</pre>
+                <summary class="text-[11px] {{ 'text-red-400' if inv.is_error else 'text-gray-400' }} cursor-pointer">
+                    Result{% if inv.is_error %} (error){% endif %}
+                </summary>
+                <pre class="text-[11px] text-gray-300 mt-1 bg-[#0f0f0f] border border-gray-900 rounded p-2 max-h-48 overflow-y-auto">{{ inv.tool_result[:1000] }}</pre>
             </details>
             {% endif %}
         </div>
-    </article>
+    </div>
     {% endfor %}
 </div>
+
+<p id="no-results" class="text-xs text-gray-600 mt-4 hidden">No invocations match your filter.</p>
+
+<script>
+(function() {
+    var input = document.getElementById('tool-filter');
+    var counter = document.getElementById('filter-count');
+    var noResults = document.getElementById('no-results');
+    var cards = document.querySelectorAll('.invocation-card');
+    var total = cards.length;
+
+    input.addEventListener('input', function() {
+        var q = this.value.toLowerCase().trim();
+        var visible = 0;
+
+        cards.forEach(function(card) {
+            var match = !q || card.textContent.toLowerCase().indexOf(q) !== -1;
+            card.style.display = match ? '' : 'none';
+            if (match) visible++;
+        });
+
+        if (q) {
+            counter.textContent = visible + ' of ' + total;
+            counter.classList.remove('hidden');
+            noResults.classList.toggle('hidden', visible > 0);
+        } else {
+            counter.classList.add('hidden');
+            noResults.classList.add('hidden');
+        }
+    });
+})();
+</script>
 {% else %}
-<p class="muted">No invocations found for <strong>{{ tool_name }}</strong>.</p>
+<p class="text-xs text-gray-600 mt-4">No invocations found for <strong class="text-white">{{ tool_name }}</strong>.</p>
 {% endif %}
 {% endblock %}

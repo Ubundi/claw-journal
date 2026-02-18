@@ -1,90 +1,136 @@
 {% extends "base.html" %}
-{% block title %}Dashboard - Claw Journal{% endblock %}
+{% block title %}Sessions - Claw Journal{% endblock %}
 {% block content %}
-<h1>Dashboard</h1>
+<div class="relative overflow-hidden">
+    <div class="pointer-events-none absolute inset-0">
+        <div class="dashboard-glow dashboard-glow-primary"></div>
+        <div class="dashboard-glow dashboard-glow-secondary"></div>
+    </div>
 
-{% if daily %}
-<section class="stats-grid">
-    {% set totals = namespace(input=0, output=0, cost=0.0) %}
-    {% for d in daily %}
-        {% set totals.input = totals.input + d.input_tokens %}
-        {% set totals.output = totals.output + d.output_tokens %}
-        {% set totals.cost = totals.cost + d.cost_usd %}
-    {% endfor %}
-    <article class="stat-card">
-        <small class="muted">14-Day Input Tokens</small>
-        <strong class="stat-value">{{ "{:,.0f}".format(totals.input) }}</strong>
-    </article>
-    <article class="stat-card">
-        <small class="muted">14-Day Output Tokens</small>
-        <strong class="stat-value">{{ "{:,.0f}".format(totals.output) }}</strong>
-    </article>
-    <article class="stat-card">
-        <small class="muted">14-Day Cost</small>
-        <strong class="stat-value">${{ "%.2f"|format(totals.cost) }}</strong>
-    </article>
-    <article class="stat-card">
-        <small class="muted">Sessions</small>
-        <strong class="stat-value">{{ sessions|length if sessions else 0 }}</strong>
-    </article>
-</section>
-{% endif %}
+    <div class="relative z-10">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <h1 class="text-xl font-bold text-white">Sessions</h1>
+            <form method="get" action="/search" class="flex gap-2">
+                <input type="search" name="q"
+                       placeholder="Search conversations..."
+                       class="bg-[#1a1a1a] border border-gray-800 text-gray-200 rounded px-3 py-1.5 text-xs placeholder:text-gray-500 focus:outline-none focus:border-orange-800 w-64">
+                <button type="submit"
+                        class="bg-orange-900/40 border border-orange-800 text-orange-300 px-3 py-1.5 rounded text-xs hover:bg-orange-900/60 transition">
+                    Search
+                </button>
+            </form>
+        </div>
 
-<section>
-    <h2>Recent Sessions</h2>
-    {% if sessions %}
-    <div class="session-list">
-        {% for s in sessions %}
-        <a href="/conversation/{{ s.session_id }}" class="session-card">
-            <div class="session-card-header">
-                <code class="session-id">{{ s.session_id | short_id }}</code>
-                <span class="session-time">{{ s.last_message_ts | ts }}</span>
+        {% if daily %}
+        {% set totals = namespace(input=0, output=0, cost=0.0) %}
+        {% for d in daily %}
+            {% set totals.input = totals.input + d.input_tokens %}
+            {% set totals.output = totals.output + d.output_tokens %}
+            {% set totals.cost = totals.cost + d.cost_usd %}
+        {% endfor %}
+        <div class="grid gap-4 mb-8" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))">
+            <div class="bg-[#141414] border border-gray-900 p-3 rounded shadow-sm">
+                <p class="text-[10px] uppercase text-gray-500 mb-1">14-Day Input Tokens</p>
+                <p class="text-lg font-bold text-orange-500">{{ "{:,.0f}".format(totals.input) }}</p>
             </div>
-            <div class="session-card-body">
-                <span class="session-model">{{ s.model or 'unknown' }}</span>
-                <div class="session-stats">
-                    <span title="Messages">{{ s.message_count }} msgs</span>
-                    <span title="Thinking blocks">{{ s.thinking_count or 0 }} thinking</span>
-                    <span title="Tool calls">{{ s.tool_use_count or 0 }} tools</span>
+            <div class="bg-[#141414] border border-gray-900 p-3 rounded shadow-sm">
+                <p class="text-[10px] uppercase text-gray-500 mb-1">14-Day Output Tokens</p>
+                <p class="text-lg font-bold text-orange-500">{{ "{:,.0f}".format(totals.output) }}</p>
+            </div>
+            <div class="bg-[#141414] border border-gray-900 p-3 rounded shadow-sm">
+                <p class="text-[10px] uppercase text-gray-500 mb-1">14-Day Cost</p>
+                <p class="text-lg font-bold text-orange-500">${{ "%.2f"|format(totals.cost) }}</p>
+            </div>
+            <div class="bg-[#141414] border border-gray-900 p-3 rounded shadow-sm">
+                <p class="text-[10px] uppercase text-gray-500 mb-1">Sessions</p>
+                <p class="text-lg font-bold text-orange-500">{{ sessions|length if sessions else 0 }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="bg-[#141414] border border-gray-900 rounded overflow-hidden mb-6">
+            <div class="p-4 border-b border-gray-900 flex flex-wrap items-center justify-between gap-3">
+                <h3 class="text-xs uppercase text-gray-500">Recent Sessions</h3>
+                <div class="flex items-center gap-2">
+                    <input type="date" id="date-filter"
+                           value="{{ active_date or '' }}"
+                           class="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-1 text-xs text-gray-200"
+                           onchange="var p=new URLSearchParams(location.search);if(this.value){p.set('date',this.value)}else{p.delete('date')};location.href='/?'+p.toString()">
+                    <select onchange="var p=new URLSearchParams(location.search);if(this.value){p.set('tool',this.value)}else{p.delete('tool')};location.href='/?'+p.toString()"
+                            class="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-1 text-xs text-gray-200 min-w-[160px]">
+                        <option value="">All tools</option>
+                        {% for t in tool_names %}
+                        <option value="{{ t }}"{% if active_tool == t %} selected{% endif %}>{{ t }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
-        </a>
-        {% endfor %}
-    </div>
-    {% else %}
-    <p class="muted">No transcript data yet. Waiting for session JSONL files...</p>
-    {% endif %}
-</section>
 
-{% if daily %}
-<section>
-    <details>
-        <summary><h2 style="display:inline">Daily Usage (14 days)</h2></summary>
-        <figure>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Input</th>
-                        <th>Output</th>
-                        <th>Total</th>
-                        <th>Cost</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for d in daily %}
-                    <tr>
-                        <td>{{ d.usage_date }}</td>
-                        <td>{{ "{:,}".format(d.input_tokens) }}</td>
-                        <td>{{ "{:,}".format(d.output_tokens) }}</td>
-                        <td>{{ "{:,}".format(d.total_tokens) }}</td>
-                        <td>${{ "%.4f"|format(d.cost_usd) }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </figure>
-    </details>
-</section>
-{% endif %}
+            {% if active_tool or active_date %}
+            <div class="px-4 py-2 text-[11px] text-gray-500 border-b border-gray-900">
+                Showing sessions
+                {% if active_date %} from <span class="text-orange-400 font-semibold">{{ active_date }}</span>{% endif %}
+                {% if active_tool %} using <span class="text-orange-400 font-semibold">{{ active_tool }}</span>{% endif %}
+                &middot; <a href="/" class="text-orange-400 hover:text-orange-300">Clear filters</a>
+            </div>
+            {% endif %}
+
+            {% if sessions %}
+            <div class="divide-y divide-gray-900">
+                {% for s in sessions %}
+                <a href="/conversation/{{ s.session_id }}"
+                   class="block px-4 py-3 hover:bg-[#1a1a1a] transition no-underline text-inherit">
+                    {% set title = (s.display_title | clean_title) or (s.assistant_title | clean_title) or ('Rune heartbeat check' if s.display_title else s.session_id | short_id) %}
+                    <div class="flex items-center gap-3 mb-1 min-w-0">
+                        <span class="text-xs text-white truncate min-w-0 flex-1">{{ title }}</span>
+                        <span class="text-[11px] text-gray-600 shrink-0">{{ s.last_message_ts | ts }}</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-[11px]">
+                        <span class="text-gray-500">{{ s.session_id | short_id }}</span>
+                        <span class="text-orange-400">{{ s.model or 'unknown' }}</span>
+                        <span class="text-gray-600 ml-auto">{{ s.message_count }} msgs &middot; {{ s.thinking_count or 0 }} thinking &middot; {{ s.tool_use_count or 0 }} tools</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-xs text-gray-600 p-4">No transcript data yet. Waiting for session JSONL files...</p>
+            {% endif %}
+        </div>
+
+        {% if daily %}
+        <div class="bg-[#141414] border border-gray-900 rounded overflow-hidden">
+            <details>
+                <summary class="p-4 text-xs uppercase text-gray-500 cursor-pointer hover:text-gray-400 border-b border-gray-900">
+                    Daily Usage (14 days)
+                </summary>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-gray-400">
+                        <thead class="bg-[#1a1a1a] text-gray-500 uppercase font-medium">
+                            <tr>
+                                <th class="px-4 py-3">Date</th>
+                                <th class="px-4 py-3 text-right">Input</th>
+                                <th class="px-4 py-3 text-right">Output</th>
+                                <th class="px-4 py-3 text-right">Total</th>
+                                <th class="px-4 py-3 text-right">Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-900">
+                            {% for d in daily %}
+                            <tr class="hover:bg-[#1a1a1a] transition-colors">
+                                <td class="px-4 py-3 text-gray-300">{{ d.usage_date }}</td>
+                                <td class="px-4 py-3 text-right">{{ "{:,}".format(d.input_tokens) }}</td>
+                                <td class="px-4 py-3 text-right">{{ "{:,}".format(d.output_tokens) }}</td>
+                                <td class="px-4 py-3 text-right">{{ "{:,}".format(d.total_tokens) }}</td>
+                                <td class="px-4 py-3 text-right text-orange-500">${{ "%.4f"|format(d.cost_usd) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        </div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

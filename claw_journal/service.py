@@ -37,8 +37,14 @@ class UsageService:
     def session_conversation(self, session_id: str, limit: int = 200) -> list[dict]:
         return self._repository.get_session_conversation(session_id, limit)
 
-    def sessions_with_transcripts(self, limit: int = 100) -> list[dict]:
-        return self._repository.get_session_list_with_transcript_info(limit)
+    def sessions_with_transcripts(self, limit: int = 100, date: str | None = None) -> list[dict]:
+        return self._repository.get_session_list_with_transcript_info(limit, date=date)
+
+    def sessions_filtered_by_tool(self, tool_name: str, limit: int = 100, date: str | None = None) -> list[dict]:
+        return self._repository.get_sessions_filtered_by_tool(tool_name, limit, date=date)
+
+    def distinct_tool_names(self) -> list[str]:
+        return self._repository.get_distinct_tool_names()
 
     # ── Thinking blocks ────────────────────────────────────────────────
 

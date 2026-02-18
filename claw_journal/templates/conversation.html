@@ -1,86 +1,149 @@
 {% extends "base.html" %}
 {% block title %}Conversation {{ session_id | short_id }} - Claw Journal{% endblock %}
 {% block content %}
-<hgroup>
-    <h1>Conversation</h1>
-    <p>
-        <code>{{ session_id | short_id(12) }}</code>
-        <a href="/thinking?session_id={{ session_id }}">Thinking</a>
-        | <a href="/tools?session_id={{ session_id }}">Tools</a>
-    </p>
-</hgroup>
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-xl font-bold text-white">Conversation</h1>
+        <p class="text-[11px] mt-1 flex items-center gap-2 text-gray-500">
+            <code class="bg-[#1a1a1a] border border-gray-800 rounded px-2 py-0.5 text-gray-300">{{ session_id | short_id(12) }}</code>
+        </p>
+    </div>
+</div>
 
 {% if model_timeline and model_timeline|length > 0 %}
-<section class="model-timeline">
-    <div class="timeline-bar">
+<div class="bg-[#141414] border border-gray-900 rounded p-3 mb-6">
+    <div class="flex flex-wrap gap-2">
         {% for mc in model_timeline %}
-        <div class="timeline-entry">
-            <span class="timeline-dot"></span>
-            <span class="timeline-label">
-                <strong>{{ mc.model_id }}</strong>
-                <small class="muted">({{ mc.provider }})</small>
-                {% if mc.timestamp %}<small class="muted">{{ mc.timestamp | ts }}</small>{% endif %}
+        <div class="flex items-center gap-2 bg-[#1a1a1a] rounded-md px-3 py-1.5">
+            <span class="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0"></span>
+            <span class="text-xs">
+                <strong class="text-white">{{ mc.model_id }}</strong>
+                <span class="text-gray-500">({{ mc.provider }})</span>
+                {% if mc.timestamp %}<span class="text-gray-600">{{ mc.timestamp | ts }}</span>{% endif %}
             </span>
         </div>
         {% endfor %}
     </div>
-</section>
+</div>
 {% endif %}
 
-<div class="chat-container">
+<div class="space-y-3">
     {% for msg in messages %}
-    <article class="chat-message chat-{{ msg.role }}">
-        <header>
-            <strong>{{ msg.role | capitalize }}</strong>
-            {% if msg.model %}<small class="muted"> {{ msg.model }}</small>{% endif %}
-            {% if msg.message_ts %}<small class="ts">{{ msg.message_ts | ts }}</small>{% endif %}
-        </header>
+    {% set sender = msg | parse_sender %}
+    <div class="bg-[#111111] border border-gray-900 rounded p-3 {{ 'border-l-2 border-l-' + sender.color + '-600' }}">
+        <div class="flex items-start gap-3">
+            <div class="w-10 shrink-0 pt-0.5 flex justify-center">
+                {% if sender.label == 'Rune' %}
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-300"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                {% elif sender.label == 'Tool Result' %}
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-300"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                {% elif sender.label == 'System' %}
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                {% else %}
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-cyan-300"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                {% endif %}
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="text-[11px] mb-2 flex items-center gap-2 flex-wrap text-gray-500">
+                    <span class="text-{{ sender.color }}-300">{{ sender.label }}</span>
+                    {% if sender.channel %}<span class="text-[10px] uppercase border rounded px-1.5 py-[1px] border-gray-700 text-gray-400">{{ sender.channel }}</span>{% endif %}
+                    {% if msg.model %}<span>&middot; {{ msg.model }}</span>{% endif %}
+                    {% if msg.message_ts %}<span>&middot; {{ msg.message_ts | ts }}</span>{% endif %}
+                </p>
 
-        {% set content_blocks = msg.content_json | fromjson if msg.content_json else [] %}
-        {% for block in content_blocks %}
-            {% if block.type == "thinking" %}
-            <details class="thinking-block">
-                <summary>
-                    Thinking...
-                    {% set tools_after = [] %}
-                    {% for later in content_blocks[loop.index:] %}
-                        {% if later.type in ["tool_use", "toolCall"] %}
-                            {% if tools_after.append(later.name or later.toolName or "unknown") %}{% endif %}
-                        {% elif later.type == "thinking" %}
+                {% set content_blocks = msg.content_json | fromjson if msg.content_json else [] %}
+
+                {# Detect reasoning chains in Rune messages #}
+                {% set chain = namespace(count=0) %}
+                {% if sender.label == 'Rune' %}
+                    {% for block in content_blocks %}
+                        {% if block.type in ["thinking", "tool_use", "toolCall"] %}
+                            {% set chain.count = chain.count + 1 %}
                         {% endif %}
                     {% endfor %}
-                    {% if tools_after %}
-                    <span class="thinking-led-to">Led to: {{ tools_after | join(", ") }}</span>
-                    {% endif %}
-                </summary>
-                <pre>{{ block.thinking or block.text or '' }}</pre>
-            </details>
-            {% elif block.type == "text" %}
-            <div class="text-block">{{ block.text }}</div>
-            {% elif block.type in ["tool_use", "toolCall"] %}
-            <div class="tool-use-block">
-                <strong>{{ block.name or block.toolName }}</strong>
-                <details>
-                    <summary>Input</summary>
-                    <pre>{{ block.input | tojson(indent=2) if block.input else '' }}</pre>
-                </details>
-            </div>
-            {% elif block.type in ["tool_result", "toolResult"] %}
-            <details class="tool-result-block">
-                <summary>Tool Result{% if block.is_error %} (error){% endif %}</summary>
-                <pre>{{ block.content if block.content is string else (block.content | tojson(indent=2) if block.content else '') }}</pre>
-            </details>
-            {% endif %}
-        {% endfor %}
+                {% endif %}
 
-        {% if not content_blocks and msg.text_content %}
-        <div class="text-block">{{ msg.text_content }}</div>
-        {% endif %}
-    </article>
+                {% if chain.count > 1 %}
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-[10px] uppercase text-blue-400/60 tracking-wider font-semibold">Reasoning chain</span>
+                    <span class="text-[10px] text-gray-700">&middot;</span>
+                    <span class="text-[10px] text-gray-600">{{ chain.count }} steps</span>
+                </div>
+                <div class="relative pl-5 ml-1">
+                    <div class="absolute left-[4px] top-1 bottom-1 w-px bg-gradient-to-b from-blue-700/40 via-emerald-700/40 to-orange-700/30"></div>
+                {% endif %}
+
+                {% for block in content_blocks %}
+                    {% if chain.count > 1 %}
+                    <div class="relative">
+                        <div class="absolute -left-[16px] top-3 w-[9px] h-[9px] rounded-full ring-2 ring-[#111111] {% if block.type == 'thinking' %}bg-blue-500{% elif block.type in ['tool_use', 'toolCall'] %}bg-emerald-500{% elif block.type in ['tool_result', 'toolResult'] %}bg-emerald-400/40{% else %}bg-orange-500{% endif %}"></div>
+                    {% endif %}
+
+                    {% if block.type == "thinking" %}
+                    <div class="bg-[#191919] border border-gray-800 rounded p-2 mb-2">
+                        <details>
+                            <summary class="text-[11px] text-blue-300 cursor-pointer flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>
+                                <span>Thinking...</span>
+                                {% set tools_after = [] %}
+                                {% for later in content_blocks[loop.index:] %}
+                                    {% if later.type in ["tool_use", "toolCall"] %}
+                                        {% if tools_after.append(later.name or later.toolName or "unknown") %}{% endif %}
+                                    {% elif later.type == "thinking" %}
+                                    {% endif %}
+                                {% endfor %}
+                                {% if tools_after %}
+                                <span class="text-emerald-400 text-[10px] italic ml-auto">Led to: {{ tools_after | join(", ") }}</span>
+                                {% endif %}
+                            </summary>
+                            <pre class="text-[12px] text-gray-200 mt-2 max-h-96 overflow-y-auto">{{ block.thinking or block.text or '' }}</pre>
+                        </details>
+                    </div>
+                    {% elif block.type == "text" %}
+                    <pre class="text-[12px] text-gray-200 whitespace-pre-wrap break-words mb-2">{{ block.text }}</pre>
+                    {% elif block.type in ["tool_use", "toolCall"] %}
+                    <div class="bg-[#191919] border border-gray-800 rounded p-2 mb-2">
+                        <div class="flex items-start gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-300 mt-0.5 flex-shrink-0"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-[11px] text-emerald-300 mb-1">toolCall &middot; {{ block.name or block.toolName }}</p>
+                                <details>
+                                    <summary class="text-[11px] text-gray-400 cursor-pointer">Input</summary>
+                                    <pre class="text-[12px] text-gray-200 mt-1 max-h-72 overflow-y-auto">{{ block.input | tojson(indent=2) if block.input else '' }}</pre>
+                                </details>
+                            </div>
+                        </div>
+                    </div>
+                    {% elif block.type in ["tool_result", "toolResult"] %}
+                    <div class="bg-[#191919] border border-gray-800 rounded p-2 mb-2">
+                        <details>
+                            <summary class="text-[11px] {{ 'text-red-400' if block.is_error else 'text-emerald-300' }} cursor-pointer">
+                                Tool Result{% if block.is_error %} (error){% endif %}
+                            </summary>
+                            <pre class="text-[12px] text-gray-200 mt-1 max-h-72 overflow-y-auto">{{ block.content if block.content is string else (block.content | tojson(indent=2) if block.content else '') }}</pre>
+                        </details>
+                    </div>
+                    {% endif %}
+
+                    {% if chain.count > 1 %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+
+                {% if chain.count > 1 %}
+                </div>
+                {% endif %}
+
+                {% if not content_blocks and msg.text_content %}
+                <pre class="text-[12px] text-gray-200 whitespace-pre-wrap break-words">{{ msg.text_content }}</pre>
+                {% endif %}
+            </div>
+        </div>
+    </div>
     {% endfor %}
 </div>
 
 {% if not messages %}
-<p class="muted">No messages found for this session.</p>
+<p class="text-xs text-gray-600 mt-4">No messages found for this session.</p>
 {% endif %}
 {% endblock %}

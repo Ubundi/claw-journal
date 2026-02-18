@@ -731,10 +731,19 @@ class UsageRepository:
 
         return [dict(row) for row in rows]
 
-    def get_session_list_with_transcript_info(self, limit: int = 100) -> list[dict]:
+    def get_session_list_with_transcript_info(
+        self, limit: int = 100, date: str | None = None,
+    ) -> list[dict]:
+        params: list[object] = []
+        having = ""
+        if date:
+            having = "HAVING DATE(last_message_ts) = ?"
+            params.append(date)
+        params.append(int(limit))
+
         with self._connect() as conn:
             rows = conn.execute(
-                """
+                f"""
                 SELECT
                     session_id,
                     agent_id,
@@ -743,13 +752,30 @@ class UsageRepository:
                     SUM(has_tool_use) AS tool_use_count,
                     MIN(message_ts) AS first_message_ts,
                     MAX(message_ts) AS last_message_ts,
-                    MAX(model) AS model
+                    MAX(model) AS model,
+                    (SELECT SUBSTR(c2.text_content, 1, 120)
+                     FROM conversation_messages c2
+                     WHERE c2.session_id = conversation_messages.session_id
+                       AND c2.role = 'user'
+                       AND c2.text_content IS NOT NULL
+                       AND c2.text_content != ''
+                     ORDER BY c2.message_ts ASC
+                     LIMIT 1) AS display_title,
+                    (SELECT SUBSTR(c3.text_content, 1, 120)
+                     FROM conversation_messages c3
+                     WHERE c3.session_id = conversation_messages.session_id
+                       AND c3.role = 'assistant'
+                       AND c3.text_content IS NOT NULL
+                       AND c3.text_content != ''
+                     ORDER BY c3.message_ts ASC
+                     LIMIT 1) AS assistant_title
                 FROM conversation_messages
                 GROUP BY session_id
+                {having}
                 ORDER BY last_message_ts DESC
                 LIMIT ?
                 """,
-                (int(limit),),
+                params,
             ).fetchall()
 
         return [dict(row) for row in rows]
@@ -944,7 +970,15 @@ class UsageRepository:
                        ti.tool_use_id, ti.tool_name, ti.tool_input, ti.tool_result,
                        ti.invocation_ts, ti.is_error, ti.is_subagent,
                        tb.thinking_text AS reasoning,
-                       tb.preceding_user_text AS trigger_text
+                       tb.preceding_user_text AS trigger_text,
+                       (SELECT SUBSTR(c2.text_content, 1, 120)
+                        FROM conversation_messages c2
+                        WHERE c2.session_id = ti.session_id
+                          AND c2.role = 'user'
+                          AND c2.text_content IS NOT NULL
+                          AND c2.text_content != ''
+                        ORDER BY c2.message_ts ASC
+                        LIMIT 1) AS session_title
                 FROM tool_invocations ti
                 LEFT JOIN thinking_blocks tb ON tb.message_id = ti.message_id
                 WHERE ti.tool_name = ?
@@ -955,6 +989,64 @@ class UsageRepository:
                 (tool_name, int(limit)),
             ).fetchall()
 
+        return [dict(row) for row in rows]
+
+    def get_distinct_tool_names(self) -> list[str]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT tool_name FROM tool_invocations ORDER BY tool_name"
+            ).fetchall()
+        return [row["tool_name"] for row in rows]
+
+    def get_sessions_filtered_by_tool(
+        self, tool_name: str, limit: int = 100, date: str | None = None,
+    ) -> list[dict]:
+        params: list[object] = [tool_name]
+        having = ""
+        if date:
+            having = "HAVING DATE(last_message_ts) = ?"
+            params.append(date)
+        params.append(int(limit))
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT
+                    cm.session_id,
+                    cm.agent_id,
+                    COUNT(DISTINCT cm.id) AS message_count,
+                    SUM(cm.has_thinking) AS thinking_count,
+                    SUM(cm.has_tool_use) AS tool_use_count,
+                    MIN(cm.message_ts) AS first_message_ts,
+                    MAX(cm.message_ts) AS last_message_ts,
+                    MAX(cm.model) AS model,
+                    (SELECT SUBSTR(c2.text_content, 1, 120)
+                     FROM conversation_messages c2
+                     WHERE c2.session_id = cm.session_id
+                       AND c2.role = 'user'
+                       AND c2.text_content IS NOT NULL
+                       AND c2.text_content != ''
+                     ORDER BY c2.message_ts ASC
+                     LIMIT 1) AS display_title,
+                    (SELECT SUBSTR(c3.text_content, 1, 120)
+                     FROM conversation_messages c3
+                     WHERE c3.session_id = cm.session_id
+                       AND c3.role = 'assistant'
+                       AND c3.text_content IS NOT NULL
+                       AND c3.text_content != ''
+                     ORDER BY c3.message_ts ASC
+                     LIMIT 1) AS assistant_title
+                FROM conversation_messages cm
+                WHERE cm.session_id IN (
+                    SELECT DISTINCT session_id FROM tool_invocations WHERE tool_name = ?
+                )
+                GROUP BY cm.session_id
+                {having}
+                ORDER BY last_message_ts DESC
+                LIMIT ?
+                """,
+                (tool_name, int(limit)),
+            ).fetchall()
         return [dict(row) for row in rows]
 
     # ── Annotated thinking (with tool links) ───────────────────────────

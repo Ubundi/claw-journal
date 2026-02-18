@@ -1,483 +1,81 @@
-/* ── Global ─────────────────────────────────────────────────────── */
-.muted { opacity: 0.6; }
-.ts { opacity: 0.6; margin-left: 0.5rem; }
+/* ── Custom styles (Tailwind CDN handles the base) ──────────────── */
 
-footer { margin-top: 3rem; padding: 1rem 0; text-align: center; }
-
-/* ── Stats Grid (dashboard) ────────────────────────────────────── */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
+/* Glow effects matching dev branch */
+@keyframes dashboardGlowFloat {
+    0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.28; }
+    50% { transform: translate3d(0, -14px, 0) scale(1.03); opacity: 0.4; }
+    100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.28; }
 }
 
-.stat-card {
-    text-align: center;
-    padding: 1rem;
-    margin: 0;
+.dashboard-glow {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(68px);
+    animation: dashboardGlowFloat 14s ease-in-out infinite;
 }
 
-.stat-value {
-    display: block;
-    font-size: 1.6rem;
-    margin-top: 0.25rem;
+.dashboard-glow-primary {
+    width: 420px;
+    height: 420px;
+    top: -180px;
+    right: -120px;
+    background: radial-gradient(circle, rgba(249, 115, 22, 0.2) 0%, rgba(249, 115, 22, 0.02) 68%, rgba(0, 0, 0, 0) 100%);
 }
 
-/* ── Session List (dashboard) ──────────────────────────────────── */
-.session-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 0.75rem;
+.dashboard-glow-secondary {
+    width: 360px;
+    height: 360px;
+    left: -140px;
+    bottom: -120px;
+    animation-delay: 2.5s;
+    background: radial-gradient(circle, rgba(234, 88, 12, 0.14) 0%, rgba(234, 88, 12, 0.02) 70%, rgba(0, 0, 0, 0) 100%);
 }
 
-.session-card {
-    display: block;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    text-decoration: none;
-    color: inherit;
-    transition: border-color 0.15s, background 0.15s;
-}
-
-.session-card:hover {
-    border-color: var(--pico-primary);
-    background: rgba(255, 255, 255, 0.06);
-}
-
-.session-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.4rem;
-}
-
-.session-id {
-    font-size: 0.85rem;
-    background: rgba(255, 255, 255, 0.08);
-    padding: 0.1rem 0.4rem;
-    border-radius: 4px;
-}
-
-.session-time {
-    font-size: 0.8rem;
-    opacity: 0.6;
-}
-
-.session-card-body {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.session-model {
-    font-size: 0.8rem;
-    color: var(--pico-primary);
-}
-
-.session-stats {
-    display: flex;
-    gap: 0.75rem;
-    font-size: 0.75rem;
-    opacity: 0.7;
-}
-
-/* ── Chat layout ───────────────────────────────────────────────── */
-.chat-container {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.chat-message {
-    margin: 0;
-    padding: 0.75rem 1rem;
-}
-
-.chat-user {
-    border-left: 4px solid var(--pico-primary);
-}
-
-.chat-assistant {
-    border-left: 4px solid var(--pico-secondary);
-}
-
-/* ── Thinking blocks ───────────────────────────────────────────── */
-.thinking-block {
-    background: rgba(255, 193, 7, 0.08);
-    border-left: 3px solid #ffc107;
-    padding: 0.5rem;
-    margin: 0.5rem 0;
-    border-radius: 4px;
-}
-
-.thinking-block pre,
-.thinking-text {
+/* Pre/code blocks */
+pre {
     white-space: pre-wrap;
     word-break: break-word;
-    max-height: 400px;
-    overflow-y: auto;
-    font-size: 0.82rem;
-}
-
-.thinking-text-wrapper {
-    margin: 0.5rem 0;
-}
-
-.thinking-text-wrapper > summary {
-    font-size: 0.85rem;
-    opacity: 0.8;
-    cursor: pointer;
-    line-height: 1.4;
-}
-
-/* ── Thinking List ─────────────────────────────────────────────── */
-.thinking-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.thinking-card {
     margin: 0;
 }
 
-.thinking-card-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-}
-
-.secondary-link {
-    font-size: 0.8rem;
-    margin-left: auto;
-}
-
-/* ── Thinking → Tool annotation ────────────────────────────────── */
-.thinking-led-to {
-    margin-left: 0.75rem;
-    font-size: 0.8rem;
-    color: #00bcd4;
-    font-style: italic;
-}
-
-.tool-annotation {
-    background: rgba(0, 188, 212, 0.06);
-    border-left: 3px solid #00bcd4;
-    padding: 0.4rem 0.6rem;
-    margin-top: 0.5rem;
-    font-size: 0.85rem;
-    border-radius: 0 4px 4px 0;
-}
-
-.tool-chip {
-    display: inline-block;
-    background: rgba(0, 188, 212, 0.15);
-    border: 1px solid rgba(0, 188, 212, 0.3);
-    border-radius: 12px;
-    padding: 0.1rem 0.5rem;
-    margin: 0.1rem 0.15rem;
-    font-size: 0.8rem;
-    text-decoration: none;
-}
-
-.tool-chip:hover {
-    background: rgba(0, 188, 212, 0.3);
-}
-
-/* ── Tool blocks (conversation view) ──────────────────────────── */
-.tool-use-block {
-    background: rgba(0, 188, 212, 0.08);
-    border-left: 3px solid #00bcd4;
-    padding: 0.5rem;
-    margin: 0.5rem 0;
-    border-radius: 0 4px 4px 0;
-}
-
-.tool-result-block {
-    background: rgba(76, 175, 80, 0.08);
-    border-left: 3px solid #4caf50;
-    padding: 0.5rem;
-    margin: 0.5rem 0;
-    border-radius: 0 4px 4px 0;
-}
-
-.tool-use-block pre,
-.tool-result-block pre {
-    white-space: pre-wrap;
-    word-break: break-word;
-    max-height: 300px;
-    overflow-y: auto;
-    font-size: 0.8rem;
-}
-
-/* ── Badges ────────────────────────────────────────────────────── */
-.subagent-badge {
-    display: inline-block;
-    background: rgba(156, 39, 176, 0.2);
-    border: 1px solid rgba(156, 39, 176, 0.4);
-    color: #ce93d8;
-    border-radius: 12px;
-    padding: 0.1rem 0.5rem;
-    font-size: 0.72rem;
-    font-weight: 600;
-}
-
-.tool-badge {
-    display: inline-block;
-    background: rgba(0, 188, 212, 0.12);
-    border: 1px solid rgba(0, 188, 212, 0.25);
-    color: #4dd0e1;
-    border-radius: 12px;
-    padding: 0.1rem 0.5rem;
-    font-size: 0.72rem;
-}
-
-.error-badge {
-    display: inline-block;
-    background: rgba(244, 67, 54, 0.15);
-    border: 1px solid rgba(244, 67, 54, 0.3);
-    color: #ef9a9a;
-    border-radius: 12px;
-    padding: 0.1rem 0.5rem;
-    font-size: 0.72rem;
-    font-weight: 600;
-}
-
-.role-badge {
-    display: inline-block;
-    border-radius: 12px;
-    padding: 0.1rem 0.6rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
-.role-user {
-    background: rgba(33, 150, 243, 0.15);
-    color: #64b5f6;
-}
-
-.role-assistant {
-    background: rgba(156, 39, 176, 0.15);
-    color: #ce93d8;
-}
-
-/* ── Tool Summary Grid ─────────────────────────────────────────── */
-.tool-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-}
-
-.tool-summary-card {
-    display: block;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    text-decoration: none;
-    color: inherit;
-    transition: border-color 0.15s, background 0.15s;
-}
-
-.tool-summary-card:hover {
-    border-color: #00bcd4;
-    background: rgba(0, 188, 212, 0.05);
-}
-
-.tool-summary-name {
-    font-weight: 600;
-    font-size: 0.9rem;
-    margin-bottom: 0.4rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.tool-summary-stats {
-    display: flex;
-    align-items: baseline;
-    gap: 0.4rem;
-}
-
-.tool-stat-main {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: var(--pico-primary);
-}
-
-.tool-stat-error {
-    font-size: 0.75rem;
-    color: #ef9a9a;
-}
-
-/* ── Invocation List (tools page) ──────────────────────────────── */
-.invocation-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.invocation-card {
-    margin: 0;
-    padding: 0.6rem 0.8rem;
-}
-
-.invocation-card.subagent-card {
-    border-left: 3px solid #ce93d8;
-}
-
-.invocation-card.error-card {
-    border-left: 3px solid #f44336;
-}
-
-.invocation-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-/* ── Model timeline ────────────────────────────────────────────── */
-.model-timeline {
-    margin-bottom: 1.5rem;
-}
-
-.timeline-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-    padding: 0.5rem 0;
-}
-
-.timeline-entry {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    background: rgba(255, 255, 255, 0.04);
-    border-radius: 6px;
-    padding: 0.35rem 0.7rem;
-}
-
-.timeline-dot {
-    width: 8px;
-    height: 8px;
-    background: #00bcd4;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.timeline-entry + .timeline-entry::before {
-    content: "";
-}
-
-.timeline-label {
-    font-size: 0.85rem;
-}
-
-.timeline-label small {
-    opacity: 0.7;
-}
-
-/* ── Text blocks ───────────────────────────────────────────────── */
-.text-block {
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-
-/* ── Trigger context ───────────────────────────────────────────── */
-.trigger-context {
-    background: rgba(255, 255, 255, 0.04);
-    padding: 0.4rem 0.6rem;
-    border-radius: 4px;
-    margin-bottom: 0.4rem;
-}
-
-/* ── Search ────────────────────────────────────────────────────── */
+/* Search highlight */
 mark {
-    background: rgba(255, 235, 59, 0.4);
+    background: rgba(249, 115, 22, 0.4);
+    color: inherit;
     padding: 0 2px;
+    border-radius: 2px;
 }
 
-.search-results {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+/* Details/summary styling */
+details > summary {
+    cursor: pointer;
 }
 
-.search-result-card {
-    margin: 0;
+details > summary:hover {
+    opacity: 0.8;
 }
 
-.search-result-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
+/* Date picker icon */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
 }
 
-.search-snippet {
-    white-space: pre-wrap;
-    word-break: break-word;
-    font-size: 0.9rem;
-    line-height: 1.5;
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
 }
 
-/* ── Table tweaks ──────────────────────────────────────────────── */
-table pre {
-    margin: 0;
-    font-size: 0.75rem;
+::-webkit-scrollbar-track {
+    background: #0a0a0a;
 }
 
-/* ── Tool detail page ──────────────────────────────────────────── */
-.tool-detail-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 3px;
 }
 
-.tool-detail-card {
-    margin: 0;
-}
-
-.tool-detail-card.tool-error {
-    border-left: 4px solid #f44336;
-}
-
-.reasoning-block {
-    background: rgba(255, 193, 7, 0.06);
-    border-left: 3px solid #ffc107;
-    padding: 0.4rem 0.6rem;
-    margin: 0.4rem 0;
-    border-radius: 0 4px 4px 0;
-}
-
-.reasoning-block pre {
-    margin: 0.25rem 0 0 0;
-}
-
-.no-reasoning {
-    opacity: 0.4;
-    font-style: italic;
-    padding: 0.25rem 0;
-}
-
-.tool-io {
-    margin-top: 0.4rem;
-}
-
-.tool-io details {
-    margin: 0.25rem 0;
-}
-
-.tool-io pre {
-    white-space: pre-wrap;
-    word-break: break-word;
-    max-height: 300px;
-    overflow-y: auto;
-    font-size: 0.8rem;
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }

@@ -1,74 +1,36 @@
 {% extends "base.html" %}
-{% block title %}Tool Invocations - Claw Journal{% endblock %}
+{% block title %}Tools - Claw Journal{% endblock %}
 {% block content %}
-<hgroup>
-    <h1>Tool Tracking</h1>
-    <p>
-    {% if session_id %} Session: <code>{{ session_id | short_id }}</code> |{% endif %}
-    {% if tool_name %} Tool: <code>{{ tool_name }}</code> |{% endif %}
-    <a href="/tools">Show all</a>
-    </p>
-</hgroup>
+<div class="mb-6">
+    <h1 class="text-xl font-bold text-white">Tools</h1>
+    <p class="text-[11px] mt-1 text-gray-500">All tools used by Rune across sessions.</p>
+</div>
 
 {% if summary %}
-<section>
-    <h2>Usage Summary</h2>
-    <div class="tool-summary-grid">
-        {% for s in summary %}
-        <a href="/tools/detail/{{ s.tool_name }}" class="tool-summary-card">
-            <div class="tool-summary-name">
-                {{ s.tool_name }}
+<div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr))">
+    {% for s in summary %}
+    <a href="/tools/detail/{{ s.tool_name }}"
+       class="group bg-[#141414] border border-gray-900 p-3 rounded hover:border-orange-800/60 hover:bg-[#1a1a1a] transition no-underline text-inherit block">
+        <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-white">{{ s.tool_name }}</span>
                 {% if s.subagent_count and s.subagent_count > 0 %}
-                <span class="subagent-badge">Subagent</span>
+                <span class="text-[10px] uppercase border rounded px-2 py-[1px] bg-purple-900/40 text-purple-300 border-purple-800">Subagent</span>
                 {% endif %}
             </div>
-            <div class="tool-summary-stats">
-                <span class="tool-stat-main">{{ s.invocation_count }}</span>
-                <small class="muted">invocations</small>
-                {% if s.error_count and s.error_count > 0 %}
-                <span class="tool-stat-error">{{ s.error_count }} errors</span>
-                {% endif %}
-            </div>
-        </a>
-        {% endfor %}
-    </div>
-</section>
-{% endif %}
-
-{% if invocations %}
-<section>
-    <h2>Recent Invocations</h2>
-    <div class="invocation-list">
-        {% for inv in invocations %}
-        <article class="invocation-card{% if inv.is_subagent %} subagent-card{% endif %}{% if inv.is_error %} error-card{% endif %}">
-            <header>
-                <div class="invocation-header">
-                    <strong>{{ inv.tool_name }}</strong>
-                    {% if inv.is_subagent %}<span class="subagent-badge">Subagent</span>{% endif %}
-                    {% if inv.is_error %}<span class="error-badge">Error</span>{% endif %}
-                    <span class="ts">{{ inv.invocation_ts | ts }}</span>
-                </div>
-                <small><a href="/conversation/{{ inv.session_id }}">{{ inv.session_id | short_id }}</a></small>
-            </header>
-            <div class="tool-io">
-                {% if inv.tool_input %}
-                <details>
-                    <summary>Input</summary>
-                    <pre>{{ inv.tool_input[:500] }}</pre>
-                </details>
-                {% endif %}
-                {% if inv.tool_result %}
-                <details>
-                    <summary>Result</summary>
-                    <pre>{{ inv.tool_result[:500] }}</pre>
-                </details>
-                {% endif %}
-            </div>
-        </article>
-        {% endfor %}
-    </div>
-</section>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-700 group-hover:text-orange-400 transition shrink-0"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="flex items-baseline gap-2">
+            <span class="text-lg font-bold text-orange-500">{{ s.invocation_count }}</span>
+            <span class="text-[11px] text-gray-500">invocations</span>
+            {% if s.error_count and s.error_count > 0 %}
+            <span class="text-[11px] text-red-400">{{ s.error_count }} errors</span>
+            {% endif %}
+        </div>
+    </a>
+    {% endfor %}
+</div>
 {% else %}
-<p class="muted">No tool invocations found.</p>
+<p class="text-xs text-gray-600 mt-4">No tool invocations found.</p>
 {% endif %}
 {% endblock %}
