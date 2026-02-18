@@ -22,6 +22,9 @@ ssh -L ${LOCAL_TUNNEL_PORT}:localhost:18790 "$REMOTE_SSH_HOST"
 
 ### Terminal 2 — Point OpenClaw at local tunnel and launch TUI
 ```bash
+REMOTE_SSH_HOST="user@your-host"
+ssh $REMOTE_SSH_HOST
+
 read -r -s -p "OpenClaw gateway token: " OPENCLAW_GATEWAY_TOKEN && echo
 
 # Set your local OpenClaw gateway port to match LOCAL_TUNNEL_PORT
@@ -37,19 +40,21 @@ unset OPENCLAW_GATEWAY_TOKEN
 
 ### Terminal 3 — Start Claw Journal backend
 ```bash
-cd claw-journal
-source .venv/bin/activate
+REMOTE_SSH_HOST="user@your-host"
+LOCAL_TUNNEL_PORT=18791
+CJ_PORT_LOCAL=3002
 
+source .venv/bin/activate
 CJ_REMOTE_ENABLED=true \
-CJ_REMOTE_SSH_HOST="user@your-host" \
+CJ_REMOTE_SSH_HOST="$REMOTE_SSH_HOST" \
 CJ_AUTO_PORT=false \
-CJ_PORT=3000 \
+CJ_PORT=$CJ_PORT_LOCAL \
 python main.py
 ```
 
 ### Terminal 4 — Start Claw Journal frontend
 ```bash
-cd claw-journal/frontend
+cd ./frontend
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
 

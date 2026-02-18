@@ -135,6 +135,10 @@
     "input_per_million": 3.0,
     "output_per_million": 15.0
   },
+  "anthropic/claude-sonnet-4.6": {
+    "input_per_million": 3.0,
+    "output_per_million": 15.0
+  },
   "arcee-ai/coder-large": {
     "input_per_million": 0.5,
     "output_per_million": 0.7999999999999999
@@ -244,8 +248,8 @@
     "output_per_million": 0.0
   },
   "deepseek/deepseek-r1-distill-llama-70b": {
-    "input_per_million": 0.03,
-    "output_per_million": 0.11
+    "input_per_million": 0.7,
+    "output_per_million": 0.7999999999999999
   },
   "deepseek/deepseek-r1-distill-qwen-32b": {
     "input_per_million": 0.29,
@@ -268,8 +272,8 @@
     "output_per_million": 0.41
   },
   "deepseek/deepseek-v3.2-speciale": {
-    "input_per_million": 0.27,
-    "output_per_million": 0.41
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 1.2
   },
   "eleutherai/llemma_7b": {
     "input_per_million": 0.7999999999999999,
@@ -340,8 +344,8 @@
     "output_per_million": 0.09
   },
   "google/gemma-3-12b-it": {
-    "input_per_million": 0.03,
-    "output_per_million": 0.09999999999999999
+    "input_per_million": 0.04,
+    "output_per_million": 0.13
   },
   "google/gemma-3-12b-it:free": {
     "input_per_million": 0.0,
@@ -524,16 +528,16 @@
     "output_per_million": 0.95
   },
   "minimax/minimax-m2.5": {
-    "input_per_million": 0.0,
-    "output_per_million": 0.0
+    "input_per_million": 0.3,
+    "output_per_million": 1.1
   },
   "mistralai/codestral-2508": {
     "input_per_million": 0.3,
     "output_per_million": 0.8999999999999999
   },
   "mistralai/devstral-2512": {
-    "input_per_million": 0.049999999999999996,
-    "output_per_million": 0.22
+    "input_per_million": 0.39999999999999997,
+    "output_per_million": 2.0
   },
   "mistralai/devstral-medium": {
     "input_per_million": 0.39999999999999997,
@@ -608,8 +612,8 @@
     "output_per_million": 0.08
   },
   "mistralai/mistral-small-3.1-24b-instruct": {
-    "input_per_million": 0.03,
-    "output_per_million": 0.11
+    "input_per_million": 0.35,
+    "output_per_million": 0.56
   },
   "mistralai/mistral-small-3.1-24b-instruct:free": {
     "input_per_million": 0.0,
@@ -704,8 +708,8 @@
     "output_per_million": 3.0
   },
   "nousresearch/hermes-4-70b": {
-    "input_per_million": 0.11,
-    "output_per_million": 0.38
+    "input_per_million": 0.13,
+    "output_per_million": 0.39999999999999997
   },
   "nvidia/llama-3.1-nemotron-70b-instruct": {
     "input_per_million": 1.2,
@@ -1028,8 +1032,8 @@
     "output_per_million": 0.09999999999999999
   },
   "qwen/qwen-2.5-coder-32b-instruct": {
-    "input_per_million": 0.03,
-    "output_per_million": 0.11
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.19999999999999998
   },
   "qwen/qwen-2.5-vl-7b-instruct": {
     "input_per_million": 0.19999999999999998,
@@ -1068,20 +1072,20 @@
     "output_per_million": 0.09
   },
   "qwen/qwen2.5-vl-32b-instruct": {
-    "input_per_million": 0.049999999999999996,
-    "output_per_million": 0.22
+    "input_per_million": 0.19999999999999998,
+    "output_per_million": 0.6
   },
   "qwen/qwen2.5-vl-72b-instruct": {
     "input_per_million": 0.15,
     "output_per_million": 0.6
   },
   "qwen/qwen3-14b": {
-    "input_per_million": 0.049999999999999996,
-    "output_per_million": 0.22
+    "input_per_million": 0.06,
+    "output_per_million": 0.24
   },
   "qwen/qwen3-235b-a22b": {
-    "input_per_million": 0.3,
-    "output_per_million": 1.2
+    "input_per_million": 0.45499999999999996,
+    "output_per_million": 1.8199999999999998
   },
   "qwen/qwen3-235b-a22b-2507": {
     "input_per_million": 0.071,
@@ -1092,12 +1096,12 @@
     "output_per_million": 0.0
   },
   "qwen/qwen3-30b-a3b": {
-    "input_per_million": 0.06,
-    "output_per_million": 0.22
+    "input_per_million": 0.08,
+    "output_per_million": 0.28
   },
   "qwen/qwen3-30b-a3b-instruct-2507": {
-    "input_per_million": 0.08,
-    "output_per_million": 0.33
+    "input_per_million": 0.09,
+    "output_per_million": 0.3
   },
   "qwen/qwen3-30b-a3b-thinking-2507": {
     "input_per_million": 0.051,
@@ -1336,8 +1340,8 @@
     "output_per_million": 0.09999999999999999
   },
   "z-ai/glm-4.5": {
-    "input_per_million": 0.35,
-    "output_per_million": 1.55
+    "input_per_million": 0.55,
+    "output_per_million": 2.0
   },
   "z-ai/glm-4.5-air": {
     "input_per_million": 0.13,
@@ -1352,8 +1356,8 @@
     "output_per_million": 1.7999999999999998
   },
   "z-ai/glm-4.6": {
-    "input_per_million": 0.33999999999999997,
-    "output_per_million": 1.7
+    "input_per_million": 0.35,
+    "output_per_million": 1.71
   },
   "z-ai/glm-4.6:exacto": {
     "input_per_million": 0.44,

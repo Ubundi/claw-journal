@@ -37,3 +37,4 @@ build/
 .idea/
 *.swp
 *.swo
+pricing.json
