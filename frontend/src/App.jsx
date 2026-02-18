@@ -269,16 +269,16 @@ function App() {
           <div>
             <p className={`text-sm font-semibold mb-2 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Claw Journal</p>
             <p className={`text-xs leading-relaxed ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>
-              Local observability for OpenClaw sessions. Track token usage, cost trends, model mix, and raw event detail in one place.
+              Local observability for OpenClaw sessions. Track token usage, cost trends, agent reasoning, and tool invocations in one place.
             </p>
           </div>
 
           <div>
             <p className={`text-xs uppercase mb-3 ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>Product Focus</p>
             <div className={`space-y-2 text-xs ${theme === 'light' ? 'text-gray-700' : 'text-gray-400'}`}>
-              <p className="flex items-center gap-2"><LineChartIcon size={14} className="text-orange-400" /> Analytics-first usage tracking</p>
-              <p className="flex items-center gap-2"><Database size={14} className="text-orange-400" /> Raw logs + snapshots + reconciled totals</p>
-              <p className="flex items-center gap-2"><Compass size={14} className="text-orange-400" /> Fast diagnostics for local + remote runs</p>
+              <p className="flex items-center gap-2"><LineChartIcon size={14} className="text-orange-400" /> Analytics-first usage & cost tracking</p>
+              <p className="flex items-center gap-2"><Database size={14} className="text-orange-400" /> Thinking process annotation & reasoning chains</p>
+              <p className="flex items-center gap-2"><Compass size={14} className="text-orange-400" /> Conversation search, replay & tool diagnostics</p>
             </div>
           </div>
 
