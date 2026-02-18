@@ -207,7 +207,7 @@ function App() {
               onClick={() => navigateTo('/')}
               className={`px-3 py-1 text-xs rounded border transition ${(isChat || isMemory) ? inactiveTabClass : activeTabClass}`}
             >
-              Dashboard
+              Usage
             </button>
             <button
               onClick={() => navigateTo('/chat')}
@@ -285,7 +285,7 @@ function App() {
           <div>
             <p className={`text-xs uppercase mb-3 ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>Navigate</p>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <a href="/" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Dashboard</a>
+              <a href="/" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Usage</a>
               <a href="/chat" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Chat History</a>
               <a href="/memory" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Memory Explorer</a>
             </div>
