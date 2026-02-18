@@ -3,6 +3,7 @@ from __future__ import annotations
 import getpass
 import json
 import socket
+import subprocess
 from collections import deque
 from datetime import datetime, timedelta, timezone
 from glob import glob
@@ -13,6 +14,14 @@ from .pricing import PricingEngine
 from .redaction import redact_raw_json_line
 from .session_sync import SESSION_SYNC_LAST_SUCCESS_KEY
 from .storage import UsageRepository
+
+
+REMOTE_MEMORY_DIR = "~/.openclaw/workspace/memory"
+REMOTE_ROOT_MEMORY_FILES = [
+    "~/.openclaw/workspace/MEMORY.md",
+    "~/.openclaw/workspace/SOUL.md",
+    "~/.openclaw/workspace/HEARTBEAT.md",
+]
 
 
 class UsageService:
@@ -171,6 +180,34 @@ class UsageService:
     def chat_search(self, query: str, limit: int = 200) -> dict:
         return self._repository.search_chat_messages(query=query, limit=limit)
 
+    def memory_files(self) -> dict:
+        payload = self._list_memory_files()
+        return {
+            "rows": payload,
+            "remote_enabled": self._settings.remote_enabled,
+            "remote_ssh_host": self._settings.remote_ssh_host,
+            "memory_dir": REMOTE_MEMORY_DIR,
+        }
+
+    def memory_file(self, path: str) -> dict:
+        safe_path = str(path or "").strip()
+        if not safe_path:
+            return {"path": safe_path, "content": "", "exists": False}
+
+        allowed_paths = {row.get("path") for row in self._list_memory_files() if isinstance(row.get("path"), str)}
+        if safe_path not in allowed_paths:
+            return {
+                "path": safe_path,
+                "content": "",
+                "exists": False,
+                "error": "Path is not in allowed memory explorer scope.",
+            }
+
+        content = self._read_remote_or_local_file(path=safe_path)
+        if content is None:
+            return {"path": safe_path, "content": "", "exists": False}
+        return {"path": safe_path, "content": content, "exists": True}
+
     def logs_explorer(self, file_limit: int = 12, tail_lines: int = 80) -> dict:
         safe_file_limit = max(1, min(file_limit, 30))
         safe_tail_lines = max(1, min(tail_lines, 300))
@@ -213,6 +250,126 @@ class UsageService:
             "data_status": data_status,
             "files": file_rows,
         }
+
+    def _list_memory_files(self) -> list[dict[str, str]]:
+        memory_dir = REMOTE_MEMORY_DIR
+        if self._settings.remote_enabled and self._settings.remote_ssh_host:
+            return self._remote_list_memory_files(memory_dir=memory_dir)
+        return self._local_list_memory_files(memory_dir=memory_dir)
+
+    def _local_list_memory_files(self, memory_dir: str) -> list[dict[str, str]]:
+        base = Path(memory_dir).expanduser()
+        rows: list[dict[str, str]] = []
+
+        if base.exists() and base.is_dir():
+            for file_path in sorted(base.glob("*.md")):
+                rows.append(
+                    {
+                        "path": str(file_path),
+                        "name": file_path.name,
+                        "group": "memory",
+                    }
+                )
+
+        for file_name in REMOTE_ROOT_MEMORY_FILES:
+            root_path = Path(file_name).expanduser()
+            if root_path.exists() and root_path.is_file():
+                rows.append(
+                    {
+                        "path": str(root_path),
+                        "name": root_path.name,
+                        "group": "workspace",
+                    }
+                )
+
+        return rows
+
+    def _remote_list_memory_files(self, memory_dir: str) -> list[dict[str, str]]:
+        script = """
+import glob
+import json
+import os
+
+rows = []
+memory_dir = os.path.expanduser(__MEMORY_DIR__)
+if os.path.isdir(memory_dir):
+    for path in sorted(glob.glob(os.path.join(memory_dir, '*.md'))):
+        rows.append({"path": path, "name": os.path.basename(path), "group": "memory"})
+
+for raw_path in __ROOT_FILES__:
+    path = os.path.expanduser(raw_path)
+    if os.path.isfile(path):
+        rows.append({"path": path, "name": os.path.basename(path), "group": "workspace"})
+
+print(json.dumps(rows))
+""".replace("__MEMORY_DIR__", json.dumps(memory_dir)).replace(
+            "__ROOT_FILES__", json.dumps(REMOTE_ROOT_MEMORY_FILES)
+        )
+
+        output = self._run_remote_python(script)
+        if not output:
+            return []
+        try:
+            payload = json.loads(output)
+        except json.JSONDecodeError:
+            return []
+        if not isinstance(payload, list):
+            return []
+
+        rows: list[dict[str, str]] = []
+        for row in payload:
+            if not isinstance(row, dict):
+                continue
+            path = str(row.get("path") or "").strip()
+            name = str(row.get("name") or "").strip()
+            group = str(row.get("group") or "memory").strip() or "memory"
+            if not path or not name:
+                continue
+            rows.append({"path": path, "name": name, "group": group})
+        return rows
+
+    def _read_remote_or_local_file(self, path: str) -> str | None:
+        if self._settings.remote_enabled and self._settings.remote_ssh_host:
+            script = """
+import os
+import sys
+
+path = os.path.expanduser(__PATH__)
+if not os.path.isfile(path):
+    sys.exit(0)
+
+with open(path, 'r', encoding='utf-8', errors='replace') as handle:
+    sys.stdout.write(handle.read())
+""".replace("__PATH__", json.dumps(path))
+            return self._run_remote_python(script)
+
+        local_path = Path(path).expanduser()
+        if not local_path.exists() or not local_path.is_file():
+            return None
+        return local_path.read_text(encoding="utf-8", errors="replace")
+
+    def _run_remote_python(self, script: str) -> str | None:
+        if not self._settings.remote_ssh_host:
+            return None
+
+        command = [
+            "ssh",
+            "-o",
+            "BatchMode=yes",
+            self._settings.remote_ssh_host,
+            "python3 -",
+        ]
+
+        result = subprocess.run(
+            command,
+            input=script,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            return None
+        return result.stdout
 
     def connection_info(self) -> dict:
         remote_host_raw = (self._settings.remote_ssh_host or "").strip()

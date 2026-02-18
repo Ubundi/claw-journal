@@ -104,6 +104,14 @@ def create_app(usage_service: UsageService) -> FastAPI:
     ) -> dict[str, object]:
         return usage_service.chat_search(query=query, limit=limit)
 
+    @app.get("/api/memory/files")
+    def memory_files() -> dict[str, object]:
+        return usage_service.memory_files()
+
+    @app.get("/api/memory/file")
+    def memory_file(path: str = Query(..., min_length=1)) -> dict[str, object]:
+        return usage_service.memory_file(path=path)
+
     @app.get("/api/usage/session/{session_id}")
     def session_detail(session_id: str, limit: int = Query(default=300, ge=1, le=2000)) -> dict[str, object]:
         return usage_service.session_detail(session_id=session_id, limit=limit)

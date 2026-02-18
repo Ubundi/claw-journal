@@ -340,12 +340,14 @@ If you need more control than the Quick Start provides, you can configure `.env`
 - [x] Add dedupe keying for repeated log lines across rotations/restarts.
 - [x] Add redaction guardrails for sensitive values in stored `raw_json`.
 
+
 ### Medium Priority
 
 - [ ] Add a background task for remote log pull (read-only) when logs are not locally mounted.
 - [ ] Add API filter params (`provider`, `model`, `session_id`, date range).
 - [ ] Add integration tests using captured fixture logs + mocked `sessions.list` payloads.
-- [ ] Add migration/versioning for SQLite schema changes.
+- [x] Add migration/versioning for SQLite schema changes.
+
 
 ### Later
 
