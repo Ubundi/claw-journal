@@ -32,7 +32,7 @@ const ToolsPage = ({ theme = 'dark', onNavigate }) => {
   }, []);
 
   return (
-    <div className={`${isLight ? 'bg-white text-gray-900' : 'bg-[#0a0a0a] text-gray-300'} p-6 font-mono max-w-7xl mx-auto`}>
+    <div className={`${isLight ? 'bg-white text-gray-900' : 'bg-[#0a0a0a] text-gray-300'} p-6 max-w-7xl mx-auto`}>
       <div className="mb-6">
         <h1 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Tools</h1>
         <p className="text-[11px] mt-1 text-gray-500">All tools used by Rune across sessions.</p>

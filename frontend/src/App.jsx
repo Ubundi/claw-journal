@@ -12,6 +12,7 @@ function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
   const [theme, setTheme] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_theme')) || 'dark');
   const [fontSize, setFontSize] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_font_size')) || 'normal');
+  const [fontFamily, setFontFamily] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_font_family')) || 'mono');
   const [lastSyncAt, setLastSyncAt] = useState(() => (typeof window !== 'undefined' && window.localStorage.getItem('cj_last_sync_at')) || '');
   const [currency, setCurrency] = useState('USD');
   const [conversionRate, setConversionRate] = useState(1);
@@ -72,6 +73,26 @@ function App() {
   useEffect(() => {
     try {
       if (typeof window !== 'undefined') {
+        window.localStorage.setItem('cj_font_family', fontFamily);
+      }
+    } catch (_) {}
+
+    const html = document.documentElement;
+    switch (fontFamily) {
+      case 'inter':
+        html.style.fontFamily = 'Inter, sans-serif';
+        break;
+      default:
+        html.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+        break;
+    }
+
+    return () => { html.style.fontFamily = ''; };
+  }, [fontFamily]);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
         window.localStorage.setItem('cj_font_size', fontSize);
       }
     } catch (_) {}
@@ -105,7 +126,7 @@ function App() {
   };
 
   const shellClass = useMemo(
-    () => (theme === 'light' ? 'min-h-screen flex flex-col bg-white text-gray-900 font-mono' : 'min-h-screen flex flex-col bg-[#0a0a0a] text-gray-300 font-mono'),
+    () => (theme === 'light' ? 'min-h-screen flex flex-col bg-white text-gray-900' : 'min-h-screen flex flex-col bg-[#0a0a0a] text-gray-300'),
     [theme],
   );
 
@@ -284,6 +305,17 @@ function App() {
           <div className="relative z-50 w-full max-w-lg p-4">
             <div className={`rounded shadow-lg p-4 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-[#0b0b0b] text-gray-200'}`}>
               <h3 className="text-lg font-semibold mb-2">Settings</h3>
+              <label className="block text-sm mb-2">Font Family</label>
+              <div className="flex flex-wrap items-center gap-4 mb-4">
+                <label className="inline-flex items-center gap-2">
+                  <input type="radio" name="font-family" value="mono" checked={fontFamily === 'mono'} onChange={() => setFontFamily('mono')} />
+                  <span style={{ fontFamily: 'monospace' }}>Monospace</span>
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input type="radio" name="font-family" value="inter" checked={fontFamily === 'inter'} onChange={() => setFontFamily('inter')} />
+                  <span style={{ fontFamily: 'Inter, sans-serif' }}>Inter</span>
+                </label>
+              </div>
               <label className="block text-sm mb-2">Font Size</label>
               <div className="flex items-center gap-4">
                 <label className="inline-flex items-center gap-2">

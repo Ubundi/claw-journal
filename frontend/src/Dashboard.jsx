@@ -167,8 +167,8 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
     loadTabData();
   }, [explorerTab, selectedSessionId, snapshotData.rows.length, snapshotLoading, logsExplorerData, logsExplorerLoading]);
 
-  if (loading) return <div className="bg-[#0a0a0a] min-h-screen text-orange-500 p-10 font-mono">Loading data...</div>;
-  if (error) return <div className="bg-[#0a0a0a] min-h-screen text-red-500 p-10 font-mono">{error} <button onClick={fetchData} className="underline ml-4">Retry</button></div>;
+  if (loading) return <div className="bg-[#0a0a0a] min-h-screen text-orange-500 p-10">Loading data...</div>;
+  if (error) return <div className="bg-[#0a0a0a] min-h-screen text-red-500 p-10">{error} <button onClick={fetchData} className="underline ml-4">Retry</button></div>;
   if (!data) return null;
 
   const profile = legacyData?.profile || {};
@@ -375,7 +375,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
   };
 
   return (
-    <div className={`relative min-h-screen p-6 font-mono overflow-hidden ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-[#0a0a0a] text-gray-300'}`}>
+    <div className={`relative min-h-screen p-6 overflow-hidden ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-[#0a0a0a] text-gray-300'}`}>
       <div className="pointer-events-none absolute inset-0">
         <div className="dashboard-glow dashboard-glow-primary" />
         <div className="dashboard-glow dashboard-glow-secondary" />

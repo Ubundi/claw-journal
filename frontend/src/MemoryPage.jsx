@@ -135,7 +135,7 @@ const MemoryPage = ({ theme = 'dark' }) => {
   }, []);
 
   return (
-    <div className={isLight ? 'bg-white min-h-screen text-gray-900 p-6 font-mono' : 'bg-[#0a0a0a] min-h-screen text-gray-300 p-6 font-mono'}>
+    <div className={isLight ? 'bg-white min-h-screen text-gray-900 p-6' : 'bg-[#0a0a0a] min-h-screen text-gray-300 p-6'}>
       <div className="flex justify-between items-center mb-6">
         <h1 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Memory Explorer</h1>
         <button

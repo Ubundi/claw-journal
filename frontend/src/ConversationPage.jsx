@@ -262,7 +262,7 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
   };
 
   return (
-    <div className={`${isLight ? 'bg-white text-gray-900' : 'bg-[#0a0a0a] text-gray-300'} p-6 font-mono max-w-7xl mx-auto`}>
+    <div className={`${isLight ? 'bg-white text-gray-900' : 'bg-[#0a0a0a] text-gray-300'} p-6 max-w-7xl mx-auto`}>
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>

@@ -82,7 +82,7 @@ const ToolDetailPage = ({ theme = 'dark', toolName, onNavigate }) => {
   }, [invocations, filterText]);
 
   return (
-    <div className={`${isLight ? 'bg-white text-gray-900' : 'bg-[#0a0a0a] text-gray-300'} p-6 font-mono max-w-7xl mx-auto`}>
+    <div className={`${isLight ? 'bg-white text-gray-900' : 'bg-[#0a0a0a] text-gray-300'} p-6 max-w-7xl mx-auto`}>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>

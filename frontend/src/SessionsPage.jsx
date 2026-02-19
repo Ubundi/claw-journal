@@ -107,7 +107,7 @@ const SessionsPage = ({ theme = 'dark', onNavigate }) => {
   const inputBg = isLight ? 'bg-white border border-gray-200 text-gray-900' : 'bg-[#1a1a1a] border border-gray-800 text-gray-200';
 
   return (
-    <div className={`${isLight ? 'bg-white text-gray-900' : 'bg-[#0a0a0a] text-gray-300'} p-6 font-mono max-w-7xl mx-auto`}>
+    <div className={`${isLight ? 'bg-white text-gray-900' : 'bg-[#0a0a0a] text-gray-300'} p-6 max-w-7xl mx-auto`}>
       <div className="relative overflow-hidden">
         <div className="relative z-10">
           {/* Header */}
