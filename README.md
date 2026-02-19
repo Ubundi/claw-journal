@@ -120,7 +120,7 @@ Common issues with ports, blank dashboards, and connectivity.
 ## 🗺️ Roadmap
 
 - Track progress and upcoming milestones in GitHub Projects:
-   - https://github.com/Ubundi/claw-journal/projects
+   - https://github.com/orgs/Ubundi/projects/1/views/1
 
 ## 🤝 Contributing
 
@@ -152,8 +152,6 @@ These items require human action to fully complete the OSS/public repo refactor:
 2. Create `CONTRIBUTING.md` with PR workflow, development setup, and coding standards.
 3. Add `CODE_OF_CONDUCT.md` (GitHub Community Standards template is fine).
 4. Add `SECURITY.md` with private vulnerability disclosure instructions.
-5. Configure GitHub labels: `good first issue`, `help wanted`, `documentation`, `bug`, `enhancement`, `question`.
-6. Open and publish a GitHub Project roadmap board, then confirm the roadmap link above.
 7. Add your community URL (Discord/Slack) into the Community section.
 8. Verify the license file exists and matches the badge expectations.
 
