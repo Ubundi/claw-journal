@@ -21,18 +21,45 @@
 
 ## ⚡ Quick Start
 
-### 1. Configure
+### Option A: Local (Same Machine)
 
-```bash
-cp .env.example .env
-```
-Edit `.env` to set `CJ_OPENCLAW_LOG_GLOB` (local) or `CJ_REMOTE_SSH_HOST` (remote).
+If OpenClaw runs on this computer:
 
-### 2. Run
+1. **Configure:** Copy and check defaults.
+   ```bash
+   cp .env.example .env
+   # Default assumes logs at /tmp/openclaw/openclaw-*.log
+   ```
+2. **Run:** Start the dashboard.
+   ```bash
+   ./scripts/start-dashboard.sh
+   ```
 
-```bash
-./scripts/start-dashboard.sh
-```
+### Option B: Remote (Over SSH)
+
+If OpenClaw runs on a server/VM and you want the dashboard locally:
+
+1. **Check SSH:** Ensure you can connect without a password prompt.
+   ```bash
+   ssh user@your-host "echo connected"
+   ```
+
+2. **Configure:** Create `.env` pointing to the remote host.
+   ```bash
+   # Create .env with remote settings
+   cat > .env <<EOF
+   CJ_REMOTE_ENABLED=true
+   CJ_REMOTE_SSH_HOST=user@your-host
+   CJ_REMOTE_INGEST_MODE=file
+   CJ_PORT=3000
+   CJ_FRONTEND_PORT=5173
+   EOF
+   ```
+
+3. **Run:**
+   ```bash
+   ./scripts/start-dashboard.sh
+   ```
 
 - **Dashboard:** `http://localhost:5173`
 - **Chat History:** `http://localhost:5173/chat`
