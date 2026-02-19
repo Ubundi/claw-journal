@@ -36,11 +36,31 @@ from pathlib import Path
 config_path = Path(sys.argv[1])
 payload = json.loads(config_path.read_text(encoding="utf-8"))
 
-workspace = payload.get("workspace")
-context_pruning = payload.get("contextPruning") if isinstance(payload.get("contextPruning"), dict) else {}
-compaction = payload.get("compaction") if isinstance(payload.get("compaction"), dict) else {}
+agents = payload.get("agents") if isinstance(payload.get("agents"), dict) else {}
+defaults = agents.get("defaults") if isinstance(agents.get("defaults"), dict) else {}
+
+workspace = defaults.get("workspace") if isinstance(defaults.get("workspace"), str) else payload.get("workspace")
+
+context_pruning = (
+  defaults.get("contextPruning")
+  if isinstance(defaults.get("contextPruning"), dict)
+  else payload.get("contextPruning")
+)
+if not isinstance(context_pruning, dict):
+  context_pruning = {}
+
+compaction = (
+  defaults.get("compaction")
+  if isinstance(defaults.get("compaction"), dict)
+  else payload.get("compaction")
+)
+if not isinstance(compaction, dict):
+  compaction = {}
+
 memory_flush = compaction.get("memoryFlush") if isinstance(compaction.get("memoryFlush"), dict) else {}
 logging_cfg = payload.get("logging") if isinstance(payload.get("logging"), dict) else {}
+
+print("schema:", "agents.defaults" if defaults else "top-level")
 
 print("workspace:", workspace)
 print("contextPruning.mode:", context_pruning.get("mode"))
@@ -63,7 +83,10 @@ from pathlib import Path
 
 config_path = Path(sys.argv[1])
 payload = json.loads(config_path.read_text(encoding="utf-8"))
-workspace = payload.get("workspace")
+agents = payload.get("agents") if isinstance(payload.get("agents"), dict) else {}
+defaults = agents.get("defaults") if isinstance(agents.get("defaults"), dict) else {}
+
+workspace = defaults.get("workspace") if isinstance(defaults.get("workspace"), str) else payload.get("workspace")
 if isinstance(workspace, str) and workspace.strip():
     print(os.path.expanduser(workspace.strip()))
 else:
@@ -75,10 +98,14 @@ if [[ -n "$WORKSPACE_PATH" ]]; then
   echo "Workspace from config: $WORKSPACE_PATH"
 fi
 
-mapfile -t SESSION_GLOBS < <(printf '%s\n' \
-  "$HOME/.openclaw/agents/*/sessions/*.jsonl" \
-  "$HOME/.openclaw/workspace/agents/*/sessions/*.jsonl" \
-  "$WORKSPACE_PATH/agents/*/sessions/*.jsonl")
+SESSION_GLOBS=(
+  "$HOME/.openclaw/agents/*/sessions/*.jsonl"
+  "$HOME/.openclaw/workspace/agents/*/sessions/*.jsonl"
+)
+
+if [[ -n "$WORKSPACE_PATH" ]]; then
+  SESSION_GLOBS+=("$WORKSPACE_PATH/agents/*/sessions/*.jsonl")
+fi
 
 for pattern in "${SESSION_GLOBS[@]}"; do
   [[ -z "$pattern" ]] && continue
@@ -92,11 +119,15 @@ done
 
 echo
 echo "== OpenClaw Log Candidates =="
-mapfile -t LOG_GLOBS < <(printf '%s\n' \
-  "/tmp/openclaw/openclaw-*.log" \
-  "$HOME/.openclaw/logs/*.log" \
-  "$HOME/Library/Logs/openclaw/*.log" \
-  "$WORKSPACE_PATH/logs/*.log")
+LOG_GLOBS=(
+  "/tmp/openclaw/openclaw-*.log"
+  "$HOME/.openclaw/logs/*.log"
+  "$HOME/Library/Logs/openclaw/*.log"
+)
+
+if [[ -n "$WORKSPACE_PATH" ]]; then
+  LOG_GLOBS+=("$WORKSPACE_PATH/logs/*.log")
+fi
 
 for pattern in "${LOG_GLOBS[@]}"; do
   [[ -z "$pattern" ]] && continue

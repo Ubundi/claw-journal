@@ -33,16 +33,43 @@ from pathlib import Path
 config_path = Path(sys.argv[1])
 payload = json.loads(config_path.read_text(encoding="utf-8"))
 
-context_pruning = payload.get("contextPruning")
+agents = payload.get("agents")
+if not isinstance(agents, dict):
+  agents = {}
+  payload["agents"] = agents
+
+defaults = agents.get("defaults")
+if not isinstance(defaults, dict):
+  defaults = {}
+  agents["defaults"] = defaults
+
+context_pruning = defaults.get("contextPruning")
+target_scope = "agents.defaults"
 if not isinstance(context_pruning, dict):
-    context_pruning = {}
-    payload["contextPruning"] = context_pruning
+  context_pruning = payload.get("contextPruning")
+  target_scope = "top-level"
+
+if not isinstance(context_pruning, dict):
+  context_pruning = {}
+
+if target_scope == "agents.defaults":
+  defaults["contextPruning"] = context_pruning
+else:
+  payload["contextPruning"] = context_pruning
+
 context_pruning["mode"] = "none"
 
-compaction = payload.get("compaction")
+compaction = defaults.get("compaction")
 if not isinstance(compaction, dict):
-    compaction = {}
-    payload["compaction"] = compaction
+  compaction = payload.get("compaction")
+if not isinstance(compaction, dict):
+  compaction = {}
+
+if target_scope == "agents.defaults":
+  defaults["compaction"] = compaction
+else:
+  payload["compaction"] = compaction
+
 memory_flush = compaction.get("memoryFlush")
 if not isinstance(memory_flush, dict):
     memory_flush = {}
@@ -54,6 +81,7 @@ config_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 print("Applied settings:")
 print("- contextPruning.mode = none")
 print("- compaction.memoryFlush.enabled = false")
+print("- target config scope =", target_scope)
 print("- compaction.mode =", compaction.get("mode"))
 PY
 
