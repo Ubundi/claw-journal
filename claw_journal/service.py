@@ -38,6 +38,46 @@ class UsageService:
     def daily_usage(self, days: int = 30) -> list[dict]:
         return [row.__dict__ for row in self._repository.get_daily_usage(days=days)]
 
+    def usage_forecast(self, lookback_days: int = 7) -> dict:
+        """Project monthly spend based on average daily cost over recent days."""
+        rows = self._repository.get_daily_usage(days=lookback_days)
+        now = datetime.now(timezone.utc)
+        days_in_month = (
+            (now.replace(month=now.month % 12 + 1, day=1) - timedelta(days=1)).day
+            if now.month < 12
+            else 31
+        )
+        day_of_month = now.day
+
+        daily_costs = [row.cost_usd for row in rows if row.cost_usd > 0]
+        if not daily_costs:
+            return {
+                "avg_daily_cost_usd": 0.0,
+                "days_with_data": 0,
+                "lookback_days": lookback_days,
+                "day_of_month": day_of_month,
+                "days_in_month": days_in_month,
+                "month_to_date_usd": 0.0,
+                "projected_monthly_usd": 0.0,
+            }
+
+        month_rows = self._repository.get_daily_usage(days=day_of_month)
+        month_to_date = sum(row.cost_usd for row in month_rows)
+
+        avg_daily = sum(daily_costs) / len(daily_costs)
+        remaining_days = days_in_month - day_of_month
+        projected = month_to_date + (avg_daily * remaining_days)
+
+        return {
+            "avg_daily_cost_usd": round(avg_daily, 6),
+            "days_with_data": len(daily_costs),
+            "lookback_days": lookback_days,
+            "day_of_month": day_of_month,
+            "days_in_month": days_in_month,
+            "month_to_date_usd": round(month_to_date, 6),
+            "projected_monthly_usd": round(projected, 6),
+        }
+
     def session_usage(self, limit: int = 100) -> list[dict]:
         return [row.__dict__ for row in self._repository.get_session_usage(limit=limit)]
 

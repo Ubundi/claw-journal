@@ -193,6 +193,10 @@ def create_app(usage_service: UsageService) -> FastAPI:
     def daily_usage(days: int = Query(default=30, ge=1, le=365)) -> dict[str, object]:
         return {"days": days, "rows": usage_service.daily_usage(days=days)}
 
+    @app.get("/api/usage/forecast")
+    def usage_forecast(lookback_days: int = Query(default=7, ge=1, le=30)) -> dict[str, object]:
+        return usage_service.usage_forecast(lookback_days=lookback_days)
+
     @app.get("/api/usage/sessions")
     def session_usage(limit: int = Query(default=100, ge=1, le=1000)) -> dict[str, object]:
         return {"limit": limit, "rows": usage_service.session_usage(limit=limit)}

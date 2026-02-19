@@ -23,6 +23,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
   const [logsExplorerData, setLogsExplorerData] = useState(null);
   const [logsExplorerLoading, setLogsExplorerLoading] = useState(false);
   const [logsExplorerError, setLogsExplorerError] = useState('');
+  const [forecast, setForecast] = useState(null);
   const [activeKpiTooltip, setActiveKpiTooltip] = useState('');
 
   const fxRate = Number(conversionRate || 1) > 0 ? Number(conversionRate) : 1;
@@ -67,6 +68,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
         profileResponse,
         modelsResponse,
         connectionResponse,
+        forecastResponse,
       ] = await Promise.all([
         axios.get('/api/dashboard-data'),
         axios.get('/api/usage/sessions?limit=20'),
@@ -75,12 +77,14 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
         axios.get('/api/usage/cost-sources'),
         axios.get('/api/system/profile'),
         axios.get('/api/system/models'),
-        axios.get('/api/system/connection')
+        axios.get('/api/system/connection'),
+        axios.get('/api/usage/forecast'),
       ]);
 
       setData(dashboardResponse.data);
       setModelCatalog(modelsResponse.data || { available_models: [], used_models: [] });
       setConnectionInfo(connectionResponse.data || null);
+      setForecast(forecastResponse.data || null);
       setLegacyData({
         sessions: sessionsResponse.data?.rows || [],
         reconciled: reconciledResponse.data?.rows || [],
@@ -448,7 +452,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
         )}
       </div>
 
-      <div id="usage-summary" className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 scroll-mt-24">
+      <div id="usage-summary" className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 scroll-mt-24">
         <div className={`${cardSurfaceClass} p-3 border rounded relative`}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] uppercase text-gray-500 mb-1">Tokens Today</p>
@@ -494,6 +498,37 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             </div>
           )}
           <p className="text-lg font-bold text-orange-500">{totalTokensForDay(previousDay).toLocaleString()}</p>
+        </div>
+        <div className={`${cardSurfaceClass} p-3 border rounded relative`}>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] uppercase text-gray-500 mb-1">Projected Monthly Spend</p>
+            <button
+              type="button"
+              className="text-gray-500 hover:text-orange-400"
+              title="Projected end-of-month cost based on average daily spend over the last 7 days."
+              aria-label="How Projected Monthly Spend is calculated"
+              onMouseEnter={() => setActiveKpiTooltip('summary:forecast')}
+              onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'summary:forecast' ? '' : prev))}
+              onFocus={() => setActiveKpiTooltip('summary:forecast')}
+              onBlur={() => setActiveKpiTooltip((prev) => (prev === 'summary:forecast' ? '' : prev))}
+            >
+              <HelpCircle size={13} />
+            </button>
+          </div>
+          {activeKpiTooltip === 'summary:forecast' && (
+            <div className="absolute right-2 top-7 z-20 max-w-[18rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-2 py-1 text-gray-200 shadow-lg">
+              Month-to-date spend plus remaining days projected at your 7-day average daily cost.
+              {forecast && forecast.days_with_data > 0 && (
+                <> Avg {formatMoney(forecast.avg_daily_cost_usd, 2, 4)}/day over {forecast.days_with_data} days. Day {forecast.day_of_month}/{forecast.days_in_month}.</>
+              )}
+            </div>
+          )}
+          <p className="text-lg font-bold text-orange-500">
+            {forecast && forecast.projected_monthly_usd > 0 ? formatMoney(forecast.projected_monthly_usd, 2, 2) : '-'}
+          </p>
+          {forecast && forecast.month_to_date_usd > 0 && (
+            <p className="text-[10px] text-gray-500 mt-0.5">MTD: {formatMoney(forecast.month_to_date_usd, 2, 2)}</p>
+          )}
         </div>
       </div>
 
