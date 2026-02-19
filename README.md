@@ -1,3 +1,5 @@
+<img src="docs/assets/logo_1.png" alt="Claw Journal logo" width="64" style="float:left; margin-right:12px;" />
+
 # Claw Journal 🦞
 
 > Local observability dashboard for OpenClaw — track tokens, costs, and agent reasoning without cloud dependencies.
@@ -7,9 +9,12 @@
 ![GitHub issues](https://img.shields.io/github/issues/Ubundi/claw-journal)
 ![GitHub last commit](https://img.shields.io/github/last-commit/Ubundi/claw-journal)
 
-![Claw Journal Demo](./docs/demo.gif)
+<p align="center">
+   <img src="docs/assets/demo.gif" alt="Claw Journal Demo" />
+</p>
 
 **Claw Journal** is an advanced observability and analytics skill for OpenClaw. It provides a dedicated web dashboard to track, visualize, and audit your OpenClaw usage with local-first data collection.
+
 
 > ⚠️ **Note:** Standard OpenClaw tools often hide cost metrics when using OAuth. Claw Journal aims to bridge this gap by providing local, detailed tracking for power users.
 
@@ -148,7 +153,6 @@ This project is open source under the repository license.
 
 These items require human action to fully complete the OSS/public repo refactor:
 
-1. Add a real demo asset at `docs/demo.gif` (or change the image path to your final screenshot/GIF).
 2. Create `CONTRIBUTING.md` with PR workflow, development setup, and coding standards.
 3. Add `CODE_OF_CONDUCT.md` (GitHub Community Standards template is fine).
 4. Add `SECURITY.md` with private vulnerability disclosure instructions.
