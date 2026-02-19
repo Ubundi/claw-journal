@@ -224,8 +224,8 @@
     "output_per_million": 1.25
   },
   "deepseek/deepseek-chat": {
-    "input_per_million": 0.3,
-    "output_per_million": 1.2
+    "input_per_million": 0.32,
+    "output_per_million": 0.8899999999999999
   },
   "deepseek/deepseek-chat-v3-0324": {
     "input_per_million": 0.19,
@@ -360,8 +360,8 @@
     "output_per_million": 0.0
   },
   "google/gemma-3-4b-it": {
-    "input_per_million": 0.01703012,
-    "output_per_million": 0.0681536
+    "input_per_million": 0.04,
+    "output_per_million": 0.08
   },
   "google/gemma-3-4b-it:free": {
     "input_per_million": 0.0,
@@ -656,8 +656,8 @@
     "output_per_million": 2.5
   },
   "moonshotai/kimi-k2-thinking": {
-    "input_per_million": 0.39999999999999997,
-    "output_per_million": 1.75
+    "input_per_million": 0.47,
+    "output_per_million": 2.0
   },
   "moonshotai/kimi-k2.5": {
     "input_per_million": 0.22999999999999998,
@@ -732,8 +732,8 @@
     "output_per_million": 0.0
   },
   "nvidia/nemotron-nano-12b-v2-vl": {
-    "input_per_million": 0.19999999999999998,
-    "output_per_million": 0.6
+    "input_per_million": 0.07,
+    "output_per_million": 0.19999999999999998
   },
   "nvidia/nemotron-nano-12b-v2-vl:free": {
     "input_per_million": 0.0,
@@ -1076,8 +1076,8 @@
     "output_per_million": 0.6
   },
   "qwen/qwen2.5-vl-72b-instruct": {
-    "input_per_million": 0.15,
-    "output_per_million": 0.6
+    "input_per_million": 0.25,
+    "output_per_million": 0.75
   },
   "qwen/qwen3-14b": {
     "input_per_million": 0.06,
