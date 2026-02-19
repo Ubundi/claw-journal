@@ -26,8 +26,19 @@ Run start script:
 
 This will:
 1. Connect via SSH to `user@your-host`.
-2. Stream logs from the remote OpenClaw instance to your local parser.
-3. Sync session history explicitly every 30s.
+2. Backfill historical logs from the remote OpenClaw instance into your local Claw Journal DB.
+3. Sync transcript/session history continuously.
+
+## Historic Data Expectations
+
+Claw Journal stores data in a **local** SQLite file per machine, but in remote mode it now backfills history over SSH from remote files.
+
+For a brand-new machine to recover history, ensure the remote host retains:
+
+- OpenClaw JSONL transcripts (default: `~/.openclaw/agents/*/sessions/*.jsonl`)
+- OpenClaw log files (default: `/tmp/openclaw/openclaw-*.log`)
+
+If your remote host cleans `/tmp` on reboot, move logs to a persistent directory and point `CJ_OPENCLAW_LOG_GLOB` at that path.
 
 ---
 

@@ -150,6 +150,8 @@ def build_runtime() -> tuple[
     ingestor = LogIngestor(
         repository=repository,
         log_glob=settings.openclaw_log_glob,
+        remote_enabled=settings.remote_enabled,
+        remote_ssh_host=settings.remote_ssh_host,
         pricing_engine=pricing_engine,
         cost_estimation_enabled=settings.cost_estimation_enabled,
         redaction_enabled=settings.redaction_enabled,
@@ -186,8 +188,15 @@ def build_runtime() -> tuple[
         )
 
     # Transcript sync loop (dev): syncs raw conversation messages for /chat pages
+    transcript_sync_enabled = settings.transcript_sync_enabled
+    if settings.remote_enabled and settings.transcript_ingest_enabled and transcript_sync_enabled:
+        logging.info(
+            "Remote transcript ingest is enabled; disabling transcript sync loop to avoid duplicate transcript ingestion"
+        )
+        transcript_sync_enabled = False
+
     transcript_sync_loop = None
-    if settings.transcript_sync_enabled:
+    if transcript_sync_enabled:
         transcript_sync_loop = TranscriptSyncLoop(
             repository=repository,
             interval_seconds=settings.transcript_sync_seconds,
@@ -203,6 +212,9 @@ def build_runtime() -> tuple[
         transcript_ingestor = TranscriptIngestor(
             repository=repository,
             transcript_glob=settings.transcript_glob,
+            remote_enabled=settings.remote_enabled,
+            remote_ssh_host=settings.remote_ssh_host,
+            remote_transcript_glob=settings.remote_transcript_glob,
         )
         transcript_ingest_loop = TranscriptIngestLoop(
             ingestor=transcript_ingestor,
