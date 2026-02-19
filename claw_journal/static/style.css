@@ -1,0 +1,81 @@
+/* ── Custom styles (Tailwind CDN handles the base) ──────────────── */
+
+/* Glow effects matching dev branch */
+@keyframes dashboardGlowFloat {
+    0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.28; }
+    50% { transform: translate3d(0, -14px, 0) scale(1.03); opacity: 0.4; }
+    100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.28; }
+}
+
+.dashboard-glow {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(68px);
+    animation: dashboardGlowFloat 14s ease-in-out infinite;
+}
+
+.dashboard-glow-primary {
+    width: 420px;
+    height: 420px;
+    top: -180px;
+    right: -120px;
+    background: radial-gradient(circle, rgba(249, 115, 22, 0.2) 0%, rgba(249, 115, 22, 0.02) 68%, rgba(0, 0, 0, 0) 100%);
+}
+
+.dashboard-glow-secondary {
+    width: 360px;
+    height: 360px;
+    left: -140px;
+    bottom: -120px;
+    animation-delay: 2.5s;
+    background: radial-gradient(circle, rgba(234, 88, 12, 0.14) 0%, rgba(234, 88, 12, 0.02) 70%, rgba(0, 0, 0, 0) 100%);
+}
+
+/* Pre/code blocks */
+pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+}
+
+/* Search highlight */
+mark {
+    background: rgba(249, 115, 22, 0.4);
+    color: inherit;
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+/* Details/summary styling */
+details > summary {
+    cursor: pointer;
+}
+
+details > summary:hover {
+    opacity: 0.8;
+}
+
+/* Date picker icon */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

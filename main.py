@@ -21,6 +21,7 @@ from claw_journal.session_sync import SessionSyncLoop
 from claw_journal.service import UsageService
 from claw_journal.storage import UsageRepository
 from claw_journal.transcript_sync import TranscriptSyncLoop
+from claw_journal.transcript_ingest import TranscriptIngestLoop, TranscriptIngestor
 
 
 logging.basicConfig(
@@ -119,6 +120,7 @@ def build_runtime() -> tuple[
     IngestLoop,
     SessionSyncLoop | None,
     TranscriptSyncLoop | None,
+    TranscriptIngestLoop | None,
     SnapshotBackfillLoop | None,
     object,
 ]:
@@ -183,6 +185,7 @@ def build_runtime() -> tuple[
             interval_seconds=settings.session_sync_seconds,
         )
 
+    # Transcript sync loop (dev): syncs raw conversation messages for /chat pages
     transcript_sync_loop = None
     if settings.transcript_sync_enabled:
         transcript_sync_loop = TranscriptSyncLoop(
@@ -192,6 +195,18 @@ def build_runtime() -> tuple[
             remote_enabled=settings.remote_enabled,
             remote_ssh_host=settings.remote_ssh_host,
             remote_transcript_glob=settings.remote_transcript_glob,
+        )
+
+    # Transcript ingest loop (reasoning): parses JSONL into thinking/tool/model tables
+    transcript_ingest_loop = None
+    if settings.transcript_ingest_enabled:
+        transcript_ingestor = TranscriptIngestor(
+            repository=repository,
+            transcript_glob=settings.transcript_glob,
+        )
+        transcript_ingest_loop = TranscriptIngestLoop(
+            ingestor=transcript_ingestor,
+            poll_seconds=settings.transcript_poll_seconds,
         )
 
     snapshot_backfill_loop = None
@@ -209,13 +224,22 @@ def build_runtime() -> tuple[
         ingest_loop,
         session_sync_loop,
         transcript_sync_loop,
+        transcript_ingest_loop,
         snapshot_backfill_loop,
         settings,
     )
 
 
 if __name__ == "__main__":
-    app, ingest_loop, session_sync_loop, transcript_sync_loop, snapshot_backfill_loop, settings = build_runtime()
+    (
+        app,
+        ingest_loop,
+        session_sync_loop,
+        transcript_sync_loop,
+        transcript_ingest_loop,
+        snapshot_backfill_loop,
+        settings,
+    ) = build_runtime()
 
     ingest_thread = Thread(target=ingest_loop.run_forever, daemon=True)
     ingest_thread.start()
@@ -227,6 +251,10 @@ if __name__ == "__main__":
     if transcript_sync_loop:
         transcript_thread = Thread(target=transcript_sync_loop.run_forever, daemon=True)
         transcript_thread.start()
+
+    if transcript_ingest_loop:
+        ingest_reasoning_thread = Thread(target=transcript_ingest_loop.run_forever, daemon=True)
+        ingest_reasoning_thread.start()
 
     if snapshot_backfill_loop:
         snapshot_thread = Thread(target=snapshot_backfill_loop.run_forever, daemon=True)

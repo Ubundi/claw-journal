@@ -251,6 +251,67 @@ class UsageService:
             "files": file_rows,
         }
 
+    # ── Conversation logs (from reasoning) ─────────────────────────────
+
+    def search_conversations(
+        self,
+        query: str,
+        session_id: str | None = None,
+        role: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict]:
+        return self._repository.search_conversations(query, session_id, role, limit, offset)
+
+    def session_conversation(self, session_id: str, limit: int = 200) -> list[dict]:
+        return self._repository.get_session_conversation(session_id, limit)
+
+    def sessions_with_transcripts(self, limit: int = 100, date: str | None = None) -> list[dict]:
+        return self._repository.get_session_list_with_transcript_info(limit, date=date)
+
+    def sessions_filtered_by_tool(self, tool_name: str, limit: int = 100, date: str | None = None) -> list[dict]:
+        return self._repository.get_sessions_filtered_by_tool(tool_name, limit, date=date)
+
+    def distinct_tool_names(self) -> list[str]:
+        return self._repository.get_distinct_tool_names()
+
+    # ── Thinking blocks (from reasoning) ───────────────────────────────
+
+    def thinking_blocks(self, session_id: str | None = None, limit: int = 100) -> list[dict]:
+        return self._repository.get_thinking_blocks(session_id, limit)
+
+    def session_thinking(self, session_id: str, limit: int = 100) -> list[dict]:
+        return self._repository.get_session_thinking(session_id, limit)
+
+    def annotated_thinking(self, session_id: str | None = None, limit: int = 100) -> list[dict]:
+        return self._repository.get_annotated_thinking(session_id, limit)
+
+    # ── Tool invocations (from reasoning) ──────────────────────────────
+
+    def tool_invocations(
+        self,
+        session_id: str | None = None,
+        tool_name: str | None = None,
+        limit: int = 100,
+    ) -> list[dict]:
+        return self._repository.get_tool_invocations(session_id, tool_name, limit)
+
+    def tool_usage_summary(self, session_id: str | None = None) -> list[dict]:
+        return self._repository.get_tool_usage_summary(session_id)
+
+    def tool_detail(self, tool_name: str, limit: int = 100) -> list[dict]:
+        return self._repository.get_tool_detail(tool_name, limit)
+
+    # ── Model changes (from reasoning) ─────────────────────────────────
+
+    def model_changes(self, session_id: str | None = None, limit: int = 100) -> list[dict]:
+        return self._repository.get_model_changes(session_id, limit)
+
+    def session_model_timeline(self, session_id: str) -> list[dict]:
+        return self._repository.get_session_model_timeline(session_id)
+
+    # ── Private helpers ────────────────────────────────────────────────
+
     def _list_memory_files(self) -> list[dict[str, str]]:
         memory_dir = REMOTE_MEMORY_DIR
         if self._settings.remote_enabled and self._settings.remote_ssh_host:

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import json
 import hashlib
+import json
+import logging
 import re
 import sqlite3
 from collections import Counter
@@ -10,6 +11,9 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 from .models import DailyUsageRow, NormalizedUsageEvent, SessionUsageRow
+from .transcript_models import ConversationMessage, ModelChangeEvent, ThinkingBlock, ToolInvocation
+
+logger = logging.getLogger(__name__)
 
 
 class UsageRepository:
@@ -89,18 +93,126 @@ class UsageRepository:
                 CREATE TABLE IF NOT EXISTS conversation_messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     session_id TEXT NOT NULL,
-                    event_ts TEXT NOT NULL,
+                    event_ts TEXT NOT NULL DEFAULT '',
                     role TEXT NOT NULL,
                     content_text TEXT,
+                    text_content TEXT,
                     message_type TEXT,
-                    source TEXT NOT NULL,
+                    source TEXT NOT NULL DEFAULT 'transcript',
                     source_path TEXT,
                     raw_json TEXT NOT NULL,
-                    message_fingerprint TEXT NOT NULL
+                    message_fingerprint TEXT,
+                    event_fingerprint TEXT,
+                    content_json TEXT NOT NULL DEFAULT '',
+                    provider TEXT,
+                    model TEXT,
+                    message_ts TEXT,
+                    turn_index INTEGER NOT NULL DEFAULT 0,
+                    agent_id TEXT,
+                    has_thinking INTEGER NOT NULL DEFAULT 0,
+                    has_tool_use INTEGER NOT NULL DEFAULT 0,
+                    has_tool_result INTEGER NOT NULL DEFAULT 0
                 );
+
+                CREATE INDEX IF NOT EXISTS idx_conv_messages_session ON conversation_messages(session_id);
+                CREATE INDEX IF NOT EXISTS idx_conv_messages_ts ON conversation_messages(message_ts);
+                CREATE INDEX IF NOT EXISTS idx_conv_messages_role ON conversation_messages(role);
+                CREATE INDEX IF NOT EXISTS idx_conv_messages_agent ON conversation_messages(agent_id);
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_conv_messages_fingerprint
+                    ON conversation_messages(event_fingerprint) WHERE event_fingerprint IS NOT NULL;
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_conversation_messages_fingerprint
+                    ON conversation_messages(message_fingerprint) WHERE message_fingerprint IS NOT NULL;
+                CREATE INDEX IF NOT EXISTS idx_conversation_messages_session_ts
+                    ON conversation_messages(session_id, event_ts);
+                CREATE INDEX IF NOT EXISTS idx_conversation_messages_source_path
+                    ON conversation_messages(source_path);
+
+                CREATE TABLE IF NOT EXISTS thinking_blocks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    agent_id TEXT,
+                    message_id INTEGER NOT NULL,
+                    block_index INTEGER NOT NULL,
+                    thinking_text TEXT NOT NULL,
+                    thinking_ts TEXT,
+                    model TEXT,
+                    preceding_user_text TEXT,
+                    following_tool_names TEXT,
+                    FOREIGN KEY (message_id) REFERENCES conversation_messages(id) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_thinking_session ON thinking_blocks(session_id);
+                CREATE INDEX IF NOT EXISTS idx_thinking_ts ON thinking_blocks(thinking_ts);
+                CREATE INDEX IF NOT EXISTS idx_thinking_message ON thinking_blocks(message_id);
+
+                CREATE TABLE IF NOT EXISTS tool_invocations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    agent_id TEXT,
+                    message_id INTEGER NOT NULL,
+                    tool_use_id TEXT,
+                    tool_name TEXT NOT NULL,
+                    tool_input TEXT,
+                    tool_result TEXT,
+                    result_message_id INTEGER,
+                    invocation_ts TEXT,
+                    is_error INTEGER NOT NULL DEFAULT 0,
+                    is_subagent INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (message_id) REFERENCES conversation_messages(id) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_tool_inv_session ON tool_invocations(session_id);
+                CREATE INDEX IF NOT EXISTS idx_tool_inv_name ON tool_invocations(tool_name);
+                CREATE INDEX IF NOT EXISTS idx_tool_inv_ts ON tool_invocations(invocation_ts);
+                CREATE INDEX IF NOT EXISTS idx_tool_inv_use_id ON tool_invocations(tool_use_id);
+
+                CREATE TABLE IF NOT EXISTS model_change_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    agent_id TEXT,
+                    event_id TEXT,
+                    timestamp TEXT,
+                    provider TEXT,
+                    model_id TEXT,
+                    raw_json TEXT NOT NULL,
+                    event_fingerprint TEXT
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_model_change_session ON model_change_events(session_id);
+                CREATE INDEX IF NOT EXISTS idx_model_change_ts ON model_change_events(timestamp);
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_model_change_fingerprint
+                    ON model_change_events(event_fingerprint) WHERE event_fingerprint IS NOT NULL;
                 """
             )
 
+            # FTS5 virtual table for full-text search (may not be available)
+            try:
+                conn.execute(
+                    """
+                    CREATE VIRTUAL TABLE IF NOT EXISTS conversation_messages_fts
+                    USING fts5(text_content, session_id, role,
+                               content='conversation_messages', content_rowid='id')
+                    """
+                )
+                conn.executescript(
+                    """
+                    CREATE TRIGGER IF NOT EXISTS conv_messages_ai AFTER INSERT ON conversation_messages BEGIN
+                        INSERT INTO conversation_messages_fts(rowid, text_content, session_id, role)
+                        VALUES (new.id, new.text_content, new.session_id, new.role);
+                    END;
+
+                    CREATE TRIGGER IF NOT EXISTS conv_messages_ad AFTER DELETE ON conversation_messages BEGIN
+                        INSERT INTO conversation_messages_fts(conversation_messages_fts, rowid, text_content, session_id, role)
+                        VALUES ('delete', old.id, old.text_content, old.session_id, old.role);
+                    END;
+                    """
+                )
+                self._fts_available = True
+            except sqlite3.OperationalError:
+                logger.warning("FTS5 not available; full-text search will be disabled")
+                self._fts_available = False
+
+            # ── Migrate usage_events ──────────────────────────────────────
             columns = {
                 row["name"]
                 for row in conn.execute("PRAGMA table_info(usage_events)").fetchall()
@@ -121,6 +233,7 @@ class UsageRepository:
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_events_fingerprint ON usage_events(event_fingerprint) WHERE event_fingerprint IS NOT NULL"
             )
 
+            # ── Migrate conversation_messages ─────────────────────────────
             convo_columns = {
                 row["name"]
                 for row in conn.execute("PRAGMA table_info(conversation_messages)").fetchall()
@@ -159,15 +272,36 @@ class UsageRepository:
                 conn.execute("ALTER TABLE conversation_messages ADD COLUMN content_json TEXT NOT NULL DEFAULT ''")
             if convo_columns and "raw_json" not in convo_columns:
                 conn.execute("ALTER TABLE conversation_messages ADD COLUMN raw_json TEXT NOT NULL DEFAULT ''")
-            conn.execute(
-                "CREATE UNIQUE INDEX IF NOT EXISTS idx_conversation_messages_fingerprint ON conversation_messages(message_fingerprint)"
-            )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_conversation_messages_session_ts ON conversation_messages(session_id, event_ts)"
-            )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_conversation_messages_source_path ON conversation_messages(source_path)"
-            )
+            if convo_columns and "has_thinking" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN has_thinking INTEGER NOT NULL DEFAULT 0")
+            if convo_columns and "has_tool_use" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN has_tool_use INTEGER NOT NULL DEFAULT 0")
+            if convo_columns and "has_tool_result" not in convo_columns:
+                conn.execute("ALTER TABLE conversation_messages ADD COLUMN has_tool_result INTEGER NOT NULL DEFAULT 0")
+
+            # ── Migrate thinking_blocks ───────────────────────────────────
+            tb_columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(thinking_blocks)").fetchall()
+            }
+            if "following_tool_names" not in tb_columns:
+                conn.execute(
+                    "ALTER TABLE thinking_blocks ADD COLUMN following_tool_names TEXT"
+                )
+
+            # ── Migrate tool_invocations ──────────────────────────────────
+            ti_columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(tool_invocations)").fetchall()
+            }
+            if "is_subagent" not in ti_columns:
+                conn.execute(
+                    "ALTER TABLE tool_invocations ADD COLUMN is_subagent INTEGER NOT NULL DEFAULT 0"
+                )
+
+    # ══════════════════════════════════════════════════════════════════
+    # Usage events
+    # ══════════════════════════════════════════════════════════════════
 
     def insert_usage_events(self, events: Iterable[NormalizedUsageEvent]) -> int:
         rows = [
@@ -325,6 +459,10 @@ class UsageRepository:
             for row in rows
         ]
 
+    # ══════════════════════════════════════════════════════════════════
+    # Checkpoints
+    # ══════════════════════════════════════════════════════════════════
+
     def get_checkpoint(self, source_key: str) -> int:
         with self._connect() as conn:
             row = conn.execute(
@@ -351,6 +489,39 @@ class UsageRepository:
                 """,
                 (source_key, str(cursor)),
             )
+
+    def get_checkpoints(self, limit: int = 500) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT source_key, cursor, updated_at
+                FROM checkpoints
+                ORDER BY updated_at DESC
+                LIMIT ?
+                """,
+                (int(limit),),
+            ).fetchall()
+
+        checkpoints: list[dict] = []
+        for row in rows:
+            cursor_value: int | str = row["cursor"]
+            try:
+                cursor_value = int(row["cursor"])
+            except (TypeError, ValueError):
+                cursor_value = str(row["cursor"] or "")
+
+            checkpoints.append(
+                {
+                    "source_key": row["source_key"],
+                    "cursor": cursor_value,
+                    "updated_at": row["updated_at"],
+                }
+            )
+        return checkpoints
+
+    # ══════════════════════════════════════════════════════════════════
+    # Session snapshots
+    # ══════════════════════════════════════════════════════════════════
 
     def upsert_session_snapshots(self, sessions: list[dict]) -> int:
         rows = []
@@ -408,6 +579,50 @@ class UsageRepository:
             )
         return len(rows)
 
+    def get_session_snapshots(self, limit: int = 200) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    session_id,
+                    session_key,
+                    provider,
+                    model,
+                    account_id,
+                    input_tokens,
+                    output_tokens,
+                    total_tokens,
+                    context_tokens,
+                    updated_at,
+                    raw_json
+                FROM session_snapshots
+                ORDER BY updated_at DESC
+                LIMIT ?
+                """,
+                (int(limit),),
+            ).fetchall()
+
+        return [
+            {
+                "session_id": row["session_id"],
+                "session_key": row["session_key"],
+                "provider": row["provider"],
+                "model": row["model"],
+                "account_id": row["account_id"],
+                "input_tokens": int(row["input_tokens"] or 0),
+                "output_tokens": int(row["output_tokens"] or 0),
+                "total_tokens": int(row["total_tokens"] or 0),
+                "context_tokens": int(row["context_tokens"] or 0),
+                "updated_at": int(row["updated_at"] or 0),
+                "raw_json": row["raw_json"],
+            }
+            for row in rows
+        ]
+
+    # ══════════════════════════════════════════════════════════════════
+    # Dashboard & analytics (dev)
+    # ══════════════════════════════════════════════════════════════════
+
     def get_dashboard_summary(self) -> dict:
         with self._connect() as conn:
             usage_row = conn.execute(
@@ -464,19 +679,10 @@ class UsageRepository:
 
             avg_session_cost = total_spend / sessions if sessions > 0 else 0.0
 
-            # Cache hit rate estimation (context tokens / total input tokens?)
-            # This is rough as schema doesn't strictly track cache hits vs misses
-            # Using context_tokens as "cache reads" proxy
-            cache_hit_pct = "0%" 
+            cache_hit_pct = "0%"
             if total_tokens > 0:
-                 # Very rough approximation
-                 pct = (cache_reads / total_tokens) * 100
-                 cache_hit_pct = f"{pct:.1f}%"
-
-            # Check for mocked data if DB is empty (per user request to match image exactly if empty?)
-            # No, user wants updates based on "the given text" which uses mock data.
-            # But the user also wants to "Update the UI".
-            # I will return real data primarily, but formatted to match the frontend expectations.
+                pct = (cache_reads / total_tokens) * 100
+                cache_hit_pct = f"{pct:.1f}%"
 
             return {
                 "totalSpend": round(total_spend, 2),
@@ -486,7 +692,7 @@ class UsageRepository:
                 "avgSession": round(avg_session_cost, 2),
                 "cacheHit": cache_hit_pct,
                 "cacheReads": f"{cache_reads / 1000000:.1f}M" if cache_reads >= 1000000 else (f"{cache_reads / 1000:.1f}K" if cache_reads >= 1000 else str(cache_reads)),
-                "cacheCost": 0.0 # Placeholder
+                "cacheCost": 0.0,
             }
 
     def get_cost_trend(self, days: int = 7) -> list[dict]:
@@ -537,7 +743,6 @@ class UsageRepository:
                     (limit,)
                 ).fetchall()
 
-        # Build display labels that preserve agent + conversation stream + date
         data = []
         for r in rows:
             session_key = str(r["session_key"] or "unknown")
@@ -559,7 +764,7 @@ class UsageRepository:
                 if len(event_ts_raw) >= 10:
                     event_date = event_ts_raw[:10]
 
-            label = f"{agent_name} · {conversation_name} · {event_date}"
+            label = f"{agent_name} \u00b7 {conversation_name} \u00b7 {event_date}"
             data.append({"name": label, "cost": r["cost"] or 0.0})
         return data
 
@@ -691,10 +896,9 @@ class UsageRepository:
                     """,
                     (limit,)
                 ).fetchall()
-        
+
         result = []
         for r in rows:
-            # Parse agent name from session_key if possible
             agent_name = "unknown"
             s_key = r["session_key"]
             if s_key and s_key.startswith("agent:"):
@@ -703,7 +907,7 @@ class UsageRepository:
                     agent_name = parts[1]
             elif r["provider"]:
                 agent_name = r["provider"]
-            
+
             result.append({
                 "agent": agent_name,
                 "sessionKey": r["session_key"] or r["session_id"] or "unknown",
@@ -1078,152 +1282,67 @@ class UsageRepository:
             for row in rows
         ]
 
-    def get_session_snapshots(self, limit: int = 200) -> list[dict]:
+    def get_token_accuracy(self, limit: int = 200) -> list[dict]:
         with self._connect() as conn:
             rows = conn.execute(
                 """
                 SELECT
-                    session_id,
-                    session_key,
-                    provider,
-                    model,
-                    account_id,
-                    input_tokens,
-                    output_tokens,
-                    total_tokens,
-                    context_tokens,
-                    updated_at,
-                    raw_json
-                FROM session_snapshots
-                ORDER BY updated_at DESC
+                    s.session_id,
+                    s.provider,
+                    s.model,
+                    s.input_tokens AS snapshot_input_tokens,
+                    s.output_tokens AS snapshot_output_tokens,
+                    s.total_tokens AS snapshot_total_tokens,
+                    COALESCE(e.input_tokens, 0) AS event_input_tokens,
+                    COALESCE(e.output_tokens, 0) AS event_output_tokens,
+                    COALESCE(e.total_tokens, 0) AS event_total_tokens,
+                    COALESCE(e.snapshot_event_total_tokens, 0) AS snapshot_event_total_tokens,
+                    s.updated_at
+                FROM session_snapshots s
+                LEFT JOIN (
+                    SELECT
+                        session_id,
+                        SUM(input_tokens) AS input_tokens,
+                        SUM(output_tokens) AS output_tokens,
+                        SUM(total_tokens) AS total_tokens,
+                        SUM(CASE WHEN event_type = 'session.snapshot' THEN total_tokens ELSE 0 END) AS snapshot_event_total_tokens
+                    FROM usage_events
+                    WHERE session_id IS NOT NULL
+                    GROUP BY session_id
+                ) e ON e.session_id = s.session_id
+                ORDER BY s.updated_at DESC
                 LIMIT ?
                 """,
                 (int(limit),),
             ).fetchall()
 
-        return [
-            {
-                "session_id": row["session_id"],
-                "session_key": row["session_key"],
-                "provider": row["provider"],
-                "model": row["model"],
-                "account_id": row["account_id"],
-                "input_tokens": int(row["input_tokens"] or 0),
-                "output_tokens": int(row["output_tokens"] or 0),
-                "total_tokens": int(row["total_tokens"] or 0),
-                "context_tokens": int(row["context_tokens"] or 0),
-                "updated_at": int(row["updated_at"] or 0),
-                "raw_json": row["raw_json"],
-            }
-            for row in rows
-        ]
-
-    def insert_conversation_messages(self, messages: list[dict]) -> int:
-        filtered = [
-            message
-            for message in messages
-            if message.get("message_fingerprint") and message.get("event_ts")
-        ]
-
-        if not filtered:
-            return 0
-
-        with self._connect() as conn:
-            columns = {
-                row["name"]
-                for row in conn.execute("PRAGMA table_info(conversation_messages)").fetchall()
-            }
-
-            insert_columns = ["session_id", "role", "raw_json"]
-            if "event_ts" in columns:
-                insert_columns.append("event_ts")
-            if "message_ts" in columns:
-                insert_columns.append("message_ts")
-
-            if "content_text" in columns:
-                insert_columns.append("content_text")
-            if "text_content" in columns:
-                insert_columns.append("text_content")
-            if "content_json" in columns:
-                insert_columns.append("content_json")
-
-            if "message_type" in columns:
-                insert_columns.append("message_type")
-            if "provider" in columns:
-                insert_columns.append("provider")
-            if "model" in columns:
-                insert_columns.append("model")
-            if "source" in columns:
-                insert_columns.append("source")
-            if "source_path" in columns:
-                insert_columns.append("source_path")
-
-            if "message_fingerprint" in columns:
-                insert_columns.append("message_fingerprint")
-            if "event_fingerprint" in columns:
-                insert_columns.append("event_fingerprint")
-
-            if "turn_index" in columns:
-                insert_columns.append("turn_index")
-            if "agent_id" in columns:
-                insert_columns.append("agent_id")
-
-            rows: list[tuple] = []
-            for message in filtered:
-                session_id = str(message.get("session_id") or "unknown")
-                role = str(message.get("role") or "unknown")
-                event_ts = str(message.get("event_ts") or "")
-                content_text = str(message.get("content_text") or "")
-                raw_json = str(message.get("raw_json") or "")
-                message_fingerprint = str(message.get("message_fingerprint") or "")
-                source = str(message.get("source") or "transcript")
-                source_path = message.get("source_path")
-                message_type = message.get("message_type")
-                provider = message.get("provider")
-                model = message.get("model")
-                turn_index = int(message.get("turn_index") or 0)
-                content_json = str(message.get("content_json") or raw_json)
-
-                agent_id = None
-                if session_id.startswith("agent:"):
-                    parts = session_id.split(":")
-                    if len(parts) > 1:
-                        agent_id = parts[1]
-
-                value_by_column = {
-                    "session_id": session_id,
-                    "role": role,
-                    "raw_json": raw_json,
-                    "event_ts": event_ts,
-                    "message_ts": event_ts,
-                    "content_text": content_text,
-                    "text_content": content_text,
-                    "content_json": content_json,
-                    "message_type": message_type,
-                    "provider": provider,
-                    "model": model,
-                    "source": source,
-                    "source_path": source_path,
-                    "message_fingerprint": message_fingerprint,
-                    "event_fingerprint": message_fingerprint,
-                    "turn_index": turn_index,
-                    "agent_id": agent_id,
+        report = []
+        for row in rows:
+            snapshot_total = int(row["snapshot_total_tokens"] or 0)
+            snapshot_event_total = int(row["snapshot_event_total_tokens"] or 0)
+            total_delta = snapshot_total - snapshot_event_total
+            report.append(
+                {
+                    "session_id": row["session_id"],
+                    "provider": row["provider"],
+                    "model": row["model"],
+                    "snapshot_input_tokens": int(row["snapshot_input_tokens"] or 0),
+                    "snapshot_output_tokens": int(row["snapshot_output_tokens"] or 0),
+                    "snapshot_total_tokens": snapshot_total,
+                    "event_input_tokens": int(row["event_input_tokens"] or 0),
+                    "event_output_tokens": int(row["event_output_tokens"] or 0),
+                    "event_total_tokens": int(row["event_total_tokens"] or 0),
+                    "snapshot_event_total_tokens": snapshot_event_total,
+                    "snapshot_delta_tokens": total_delta,
+                    "snapshot_match": total_delta == 0,
+                    "updated_at": int(row["updated_at"] or 0),
                 }
-                rows.append(tuple(value_by_column.get(column) for column in insert_columns))
-
-            placeholders = ", ".join(["?"] * len(insert_columns))
-            column_names = ",\n                    ".join(insert_columns)
-            before = conn.total_changes
-            conn.executemany(
-                f"""
-                INSERT OR IGNORE INTO conversation_messages (
-                    {column_names}
-                ) VALUES ({placeholders})
-                """,
-                rows,
             )
-            inserted = conn.total_changes - before
-        return inserted
+        return report
+
+    # ══════════════════════════════════════════════════════════════════
+    # Conversation messages (dev chat browser)
+    # ══════════════════════════════════════════════════════════════════
 
     def get_chat_sessions(self, limit: int = 100, offset: int = 0) -> list[dict]:
         with self._connect() as conn:
@@ -1476,14 +1595,14 @@ class UsageRepository:
         session_rows: list[dict] = []
 
         for row in rows:
-            canonical_session_id = _canonical_session_id(
+            canonical_sid = _canonical_session_id(
                 session_id=str(row["session_id"] or "unknown"),
                 source_path=row["source_path"],
             )
 
             message_row = {
                 "id": int(row["id"]),
-                "session_id": canonical_session_id,
+                "session_id": canonical_sid,
                 "event_ts": row["event_ts"],
                 "role": row["role"],
                 "content_text": row["content_text"],
@@ -1495,11 +1614,11 @@ class UsageRepository:
             }
             result_rows.append(message_row)
 
-            if canonical_session_id not in sessions_seen:
-                sessions_seen.add(canonical_session_id)
+            if canonical_sid not in sessions_seen:
+                sessions_seen.add(canonical_sid)
                 session_rows.append(
                     {
-                        "session_id": canonical_session_id,
+                        "session_id": canonical_sid,
                         "provider": row["provider"],
                         "model": row["model"],
                         "last_event_ts": row["event_ts"],
@@ -1511,6 +1630,715 @@ class UsageRepository:
             "rows": result_rows,
             "sessions": session_rows,
         }
+
+    # ══════════════════════════════════════════════════════════════════
+    # Conversation messages (reasoning / transcript-based)
+    # ══════════════════════════════════════════════════════════════════
+
+    def get_message_count_for_session(self, session_id: str) -> int:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM conversation_messages WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+        return int(row["cnt"]) if row else 0
+
+    def insert_conversation_messages(self, messages):
+        """Unified dispatcher: accepts either list[ConversationMessage] or list[dict]."""
+        if not messages:
+            return [] if isinstance(messages, list) and len(messages) > 0 and hasattr(messages[0] if messages else None, 'session_id') else 0
+        if messages and hasattr(messages[0], 'session_id') and hasattr(messages[0], 'turn_index'):
+            return self._insert_conversation_messages_typed(messages)
+        return self._insert_conversation_messages_dict(messages)
+
+    def _insert_conversation_messages_typed(
+        self, messages: list[ConversationMessage]
+    ) -> list[int | None]:
+        """Insert ConversationMessage dataclass instances (reasoning branch)."""
+        if not messages:
+            return []
+
+        inserted_ids: list[int | None] = []
+        with self._connect() as conn:
+            for msg in messages:
+                try:
+                    cursor = conn.execute(
+                        """
+                        INSERT OR IGNORE INTO conversation_messages (
+                            session_id, agent_id, turn_index, role, message_ts, model,
+                            text_content, has_thinking, has_tool_use, has_tool_result,
+                            content_json, raw_json, event_fingerprint
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            msg.session_id,
+                            msg.agent_id,
+                            msg.turn_index,
+                            msg.role,
+                            msg.message_ts,
+                            msg.model,
+                            msg.text_content,
+                            int(msg.has_thinking),
+                            int(msg.has_tool_use),
+                            int(msg.has_tool_result),
+                            msg.content_json,
+                            msg.raw_json,
+                            msg.event_fingerprint,
+                        ),
+                    )
+                    if cursor.rowcount > 0:
+                        inserted_ids.append(cursor.lastrowid)
+                    else:
+                        inserted_ids.append(None)
+                except sqlite3.IntegrityError:
+                    inserted_ids.append(None)
+        return inserted_ids
+
+    def _insert_conversation_messages_dict(self, messages: list[dict]) -> int:
+        """Insert dict-based conversation messages (dev branch)."""
+        filtered = [
+            message
+            for message in messages
+            if message.get("message_fingerprint") and message.get("event_ts")
+        ]
+
+        if not filtered:
+            return 0
+
+        with self._connect() as conn:
+            columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(conversation_messages)").fetchall()
+            }
+
+            insert_columns = ["session_id", "role", "raw_json"]
+
+            if "event_ts" in columns:
+                insert_columns.append("event_ts")
+            if "message_ts" in columns:
+                insert_columns.append("message_ts")
+
+            if "content_text" in columns:
+                insert_columns.append("content_text")
+            if "text_content" in columns:
+                insert_columns.append("text_content")
+            if "content_json" in columns:
+                insert_columns.append("content_json")
+
+            if "message_type" in columns:
+                insert_columns.append("message_type")
+            if "provider" in columns:
+                insert_columns.append("provider")
+            if "model" in columns:
+                insert_columns.append("model")
+            if "source" in columns:
+                insert_columns.append("source")
+            if "source_path" in columns:
+                insert_columns.append("source_path")
+
+            if "message_fingerprint" in columns:
+                insert_columns.append("message_fingerprint")
+            if "event_fingerprint" in columns:
+                insert_columns.append("event_fingerprint")
+
+            if "turn_index" in columns:
+                insert_columns.append("turn_index")
+            if "agent_id" in columns:
+                insert_columns.append("agent_id")
+
+            rows: list[tuple] = []
+            for message in filtered:
+                session_id = str(message.get("session_id") or "unknown")
+                role = str(message.get("role") or "unknown")
+                event_ts = str(message.get("event_ts") or "")
+                content_text = str(message.get("content_text") or "")
+                raw_json = str(message.get("raw_json") or "")
+                message_fingerprint = str(message.get("message_fingerprint") or "")
+                source = str(message.get("source") or "transcript")
+                source_path = message.get("source_path")
+                message_type = message.get("message_type")
+                provider = message.get("provider")
+                model = message.get("model")
+                turn_index = int(message.get("turn_index") or 0)
+                content_json = str(message.get("content_json") or raw_json)
+
+                agent_id = None
+                if session_id.startswith("agent:"):
+                    parts = session_id.split(":")
+                    if len(parts) > 1:
+                        agent_id = parts[1]
+
+                value_by_column = {
+                    "session_id": session_id,
+                    "role": role,
+                    "raw_json": raw_json,
+                    "event_ts": event_ts,
+                    "message_ts": event_ts,
+                    "content_text": content_text,
+                    "text_content": content_text,
+                    "content_json": content_json,
+                    "message_type": message_type,
+                    "provider": provider,
+                    "model": model,
+                    "source": source,
+                    "source_path": source_path,
+                    "message_fingerprint": message_fingerprint,
+                    "event_fingerprint": message_fingerprint,
+                    "turn_index": turn_index,
+                    "agent_id": agent_id,
+                }
+                rows.append(tuple(value_by_column.get(column) for column in insert_columns))
+
+            placeholders = ", ".join(["?"] * len(insert_columns))
+            column_names = ",\n                    ".join(insert_columns)
+            before = conn.total_changes
+            conn.executemany(
+                f"""
+                INSERT OR IGNORE INTO conversation_messages (
+                    {column_names}
+                ) VALUES ({placeholders})
+                """,
+                rows,
+            )
+            inserted = conn.total_changes - before
+        return inserted
+
+    # ══════════════════════════════════════════════════════════════════
+    # Thinking blocks (reasoning)
+    # ══════════════════════════════════════════════════════════════════
+
+    def insert_thinking_blocks(self, blocks: list[ThinkingBlock]) -> int:
+        if not blocks:
+            return 0
+
+        rows = [
+            (
+                b.session_id,
+                b.agent_id,
+                b.message_id,
+                b.block_index,
+                b.thinking_text,
+                b.thinking_ts,
+                b.model,
+                b.preceding_user_text,
+                b.following_tool_names,
+            )
+            for b in blocks
+        ]
+
+        with self._connect() as conn:
+            conn.executemany(
+                """
+                INSERT INTO thinking_blocks (
+                    session_id, agent_id, message_id, block_index,
+                    thinking_text, thinking_ts, model, preceding_user_text,
+                    following_tool_names
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+        return len(rows)
+
+    def get_thinking_blocks(
+        self, session_id: str | None = None, limit: int = 100
+    ) -> list[dict]:
+        params: list[object] = []
+        where = ""
+        if session_id:
+            where = "WHERE t.session_id = ?"
+            params.append(session_id)
+        params.append(int(limit))
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT t.id, t.session_id, t.agent_id, t.block_index,
+                       t.thinking_text, t.thinking_ts, t.model,
+                       t.preceding_user_text, t.message_id,
+                       t.following_tool_names
+                FROM thinking_blocks t
+                {where}
+                ORDER BY t.thinking_ts DESC
+                LIMIT ?
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_session_thinking(self, session_id: str, limit: int = 100) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT t.id, t.session_id, t.block_index,
+                       t.thinking_text, t.thinking_ts, t.model,
+                       t.preceding_user_text, t.message_id,
+                       t.following_tool_names,
+                       c.turn_index
+                FROM thinking_blocks t
+                JOIN conversation_messages c ON c.id = t.message_id
+                WHERE t.session_id = ?
+                ORDER BY c.turn_index ASC, t.block_index ASC
+                LIMIT ?
+                """,
+                (session_id, int(limit)),
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_annotated_thinking(
+        self, session_id: str | None = None, limit: int = 100
+    ) -> list[dict]:
+        params: list[object] = []
+        where = ""
+        if session_id:
+            where = "WHERE t.session_id = ?"
+            params.append(session_id)
+        params.append(int(limit))
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT t.id, t.session_id, t.agent_id, t.block_index,
+                       t.thinking_text, t.thinking_ts, t.model,
+                       t.preceding_user_text, t.message_id,
+                       t.following_tool_names
+                FROM thinking_blocks t
+                {where}
+                ORDER BY t.thinking_ts DESC
+                LIMIT ?
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    # ══════════════════════════════════════════════════════════════════
+    # Tool invocations (reasoning)
+    # ══════════════════════════════════════════════════════════════════
+
+    def insert_tool_invocations(self, invocations: list[ToolInvocation]) -> int:
+        if not invocations:
+            return 0
+
+        rows = [
+            (
+                inv.session_id,
+                inv.agent_id,
+                inv.message_id,
+                inv.tool_use_id,
+                inv.tool_name,
+                inv.tool_input,
+                inv.tool_result,
+                inv.result_message_id,
+                inv.invocation_ts,
+                int(inv.is_error),
+                int(inv.is_subagent),
+            )
+            for inv in invocations
+        ]
+
+        with self._connect() as conn:
+            conn.executemany(
+                """
+                INSERT INTO tool_invocations (
+                    session_id, agent_id, message_id, tool_use_id, tool_name,
+                    tool_input, tool_result, result_message_id, invocation_ts, is_error,
+                    is_subagent
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+        return len(rows)
+
+    def update_tool_result(
+        self, tool_use_id: str, tool_result: str, result_message_id: int, is_error: bool
+    ) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE tool_invocations
+                SET tool_result = ?, result_message_id = ?, is_error = ?
+                WHERE tool_use_id = ? AND tool_result IS NULL
+                """,
+                (tool_result, result_message_id, int(is_error), tool_use_id),
+            )
+
+    def get_tool_invocations(
+        self,
+        session_id: str | None = None,
+        tool_name: str | None = None,
+        limit: int = 100,
+    ) -> list[dict]:
+        params: list[object] = []
+        where_parts = []
+        if session_id:
+            where_parts.append("session_id = ?")
+            params.append(session_id)
+        if tool_name:
+            where_parts.append("tool_name = ?")
+            params.append(tool_name)
+
+        where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+        params.append(int(limit))
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT id, session_id, agent_id, message_id, tool_use_id,
+                       tool_name, tool_input, tool_result, result_message_id,
+                       invocation_ts, is_error, is_subagent
+                FROM tool_invocations
+                {where}
+                ORDER BY invocation_ts DESC
+                LIMIT ?
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_tool_usage_summary(self, session_id: str | None = None) -> list[dict]:
+        params: list[object] = []
+        where = ""
+        if session_id:
+            where = "WHERE session_id = ?"
+            params.append(session_id)
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT tool_name,
+                       COUNT(*) AS invocation_count,
+                       SUM(is_error) AS error_count,
+                       SUM(is_subagent) AS subagent_count
+                FROM tool_invocations
+                {where}
+                GROUP BY tool_name
+                ORDER BY invocation_count DESC
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_tool_detail(self, tool_name: str, limit: int = 100) -> list[dict]:
+        """Get tool invocations joined with the thinking block from the same message."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT ti.id, ti.session_id, ti.agent_id, ti.message_id,
+                       ti.tool_use_id, ti.tool_name, ti.tool_input, ti.tool_result,
+                       ti.invocation_ts, ti.is_error, ti.is_subagent,
+                       tb.thinking_text AS reasoning,
+                       tb.preceding_user_text AS trigger_text,
+                       (SELECT SUBSTR(c2.text_content, 1, 120)
+                        FROM conversation_messages c2
+                        WHERE c2.session_id = ti.session_id
+                          AND c2.role = 'user'
+                          AND c2.text_content IS NOT NULL
+                          AND c2.text_content != ''
+                        ORDER BY c2.message_ts ASC
+                        LIMIT 1) AS session_title
+                FROM tool_invocations ti
+                LEFT JOIN thinking_blocks tb ON tb.message_id = ti.message_id
+                WHERE ti.tool_name = ?
+                GROUP BY ti.id
+                ORDER BY ti.invocation_ts DESC
+                LIMIT ?
+                """,
+                (tool_name, int(limit)),
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_distinct_tool_names(self) -> list[str]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT tool_name FROM tool_invocations ORDER BY tool_name"
+            ).fetchall()
+        return [row["tool_name"] for row in rows]
+
+    def get_sessions_filtered_by_tool(
+        self, tool_name: str, limit: int = 100, date: str | None = None,
+    ) -> list[dict]:
+        params: list[object] = [tool_name]
+        having = ""
+        if date:
+            having = "HAVING DATE(last_message_ts) = ?"
+            params.append(date)
+        params.append(int(limit))
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT
+                    cm.session_id,
+                    cm.agent_id,
+                    COUNT(DISTINCT cm.id) AS message_count,
+                    SUM(cm.has_thinking) AS thinking_count,
+                    SUM(cm.has_tool_use) AS tool_use_count,
+                    MIN(cm.message_ts) AS first_message_ts,
+                    MAX(cm.message_ts) AS last_message_ts,
+                    MAX(cm.model) AS model,
+                    (SELECT SUBSTR(c2.text_content, 1, 120)
+                     FROM conversation_messages c2
+                     WHERE c2.session_id = cm.session_id
+                       AND c2.role = 'user'
+                       AND c2.text_content IS NOT NULL
+                       AND c2.text_content != ''
+                     ORDER BY c2.message_ts ASC
+                     LIMIT 1) AS display_title,
+                    (SELECT SUBSTR(c3.text_content, 1, 120)
+                     FROM conversation_messages c3
+                     WHERE c3.session_id = cm.session_id
+                       AND c3.role = 'assistant'
+                       AND c3.text_content IS NOT NULL
+                       AND c3.text_content != ''
+                     ORDER BY c3.message_ts ASC
+                     LIMIT 1) AS assistant_title
+                FROM conversation_messages cm
+                WHERE cm.session_id IN (
+                    SELECT DISTINCT session_id FROM tool_invocations WHERE tool_name = ?
+                )
+                GROUP BY cm.session_id
+                {having}
+                ORDER BY last_message_ts DESC
+                LIMIT ?
+                """,
+                params,
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    # ══════════════════════════════════════════════════════════════════
+    # Model change events (reasoning)
+    # ══════════════════════════════════════════════════════════════════
+
+    def insert_model_change_events(self, events: list[ModelChangeEvent]) -> int:
+        if not events:
+            return 0
+
+        rows = [
+            (
+                e.session_id,
+                e.agent_id,
+                e.event_id,
+                e.timestamp,
+                e.provider,
+                e.model_id,
+                e.raw_json,
+                e.event_fingerprint,
+            )
+            for e in events
+        ]
+
+        with self._connect() as conn:
+            before = conn.total_changes
+            conn.executemany(
+                """
+                INSERT OR IGNORE INTO model_change_events (
+                    session_id, agent_id, event_id, timestamp, provider,
+                    model_id, raw_json, event_fingerprint
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+            return conn.total_changes - before
+
+    def get_model_changes(
+        self, session_id: str | None = None, limit: int = 100
+    ) -> list[dict]:
+        params: list[object] = []
+        where = ""
+        if session_id:
+            where = "WHERE session_id = ?"
+            params.append(session_id)
+        params.append(int(limit))
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT id, session_id, agent_id, event_id, timestamp,
+                       provider, model_id
+                FROM model_change_events
+                {where}
+                ORDER BY timestamp DESC
+                LIMIT ?
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_session_model_timeline(self, session_id: str) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT timestamp, provider, model_id
+                FROM model_change_events
+                WHERE session_id = ?
+                ORDER BY timestamp ASC
+                """,
+                (session_id,),
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    # ══════════════════════════════════════════════════════════════════
+    # Search (reasoning FTS5 + LIKE fallback)
+    # ══════════════════════════════════════════════════════════════════
+
+    def search_conversations(
+        self,
+        query: str,
+        session_id: str | None = None,
+        role: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict]:
+        if not query.strip() or not getattr(self, "_fts_available", False):
+            return self._search_conversations_like(query, session_id, role, limit, offset)
+
+        params: list[object] = [query]
+        where_parts = []
+        if session_id:
+            where_parts.append("c.session_id = ?")
+            params.append(session_id)
+        if role:
+            where_parts.append("c.role = ?")
+            params.append(role)
+
+        extra_where = (" AND " + " AND ".join(where_parts)) if where_parts else ""
+        params.extend([int(limit), int(offset)])
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT c.id, c.session_id, c.agent_id, c.turn_index, c.role,
+                       c.message_ts, c.model,
+                       highlight(conversation_messages_fts, 0, '<mark>', '</mark>') AS snippet,
+                       c.has_thinking, c.has_tool_use
+                FROM conversation_messages_fts fts
+                JOIN conversation_messages c ON c.id = fts.rowid
+                WHERE fts.text_content MATCH ?{extra_where}
+                ORDER BY fts.rank
+                LIMIT ? OFFSET ?
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def _search_conversations_like(
+        self,
+        query: str,
+        session_id: str | None,
+        role: str | None,
+        limit: int,
+        offset: int,
+    ) -> list[dict]:
+        params: list[object] = []
+        where_parts = []
+
+        if query.strip():
+            where_parts.append("text_content LIKE ?")
+            params.append(f"%{query}%")
+        if session_id:
+            where_parts.append("session_id = ?")
+            params.append(session_id)
+        if role:
+            where_parts.append("role = ?")
+            params.append(role)
+
+        where_clause = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+        params.extend([int(limit), int(offset)])
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT id, session_id, agent_id, turn_index, role,
+                       message_ts, model, text_content AS snippet,
+                       has_thinking, has_tool_use
+                FROM conversation_messages
+                {where_clause}
+                ORDER BY message_ts DESC
+                LIMIT ? OFFSET ?
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_session_conversation(self, session_id: str, limit: int = 200) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, session_id, agent_id, turn_index, role, message_ts, model,
+                       text_content, has_thinking, has_tool_use, has_tool_result,
+                       content_json
+                FROM conversation_messages
+                WHERE session_id = ?
+                ORDER BY turn_index ASC
+                LIMIT ?
+                """,
+                (session_id, int(limit)),
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_session_list_with_transcript_info(
+        self, limit: int = 100, date: str | None = None,
+    ) -> list[dict]:
+        params: list[object] = []
+        having = ""
+        if date:
+            having = "HAVING DATE(last_message_ts) = ?"
+            params.append(date)
+        params.append(int(limit))
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT
+                    session_id,
+                    agent_id,
+                    COUNT(*) AS message_count,
+                    SUM(has_thinking) AS thinking_count,
+                    SUM(has_tool_use) AS tool_use_count,
+                    MIN(message_ts) AS first_message_ts,
+                    MAX(message_ts) AS last_message_ts,
+                    MAX(model) AS model,
+                    (SELECT SUBSTR(c2.text_content, 1, 120)
+                     FROM conversation_messages c2
+                     WHERE c2.session_id = conversation_messages.session_id
+                       AND c2.role = 'user'
+                       AND c2.text_content IS NOT NULL
+                       AND c2.text_content != ''
+                     ORDER BY c2.message_ts ASC
+                     LIMIT 1) AS display_title,
+                    (SELECT SUBSTR(c3.text_content, 1, 120)
+                     FROM conversation_messages c3
+                     WHERE c3.session_id = conversation_messages.session_id
+                       AND c3.role = 'assistant'
+                       AND c3.text_content IS NOT NULL
+                       AND c3.text_content != ''
+                     ORDER BY c3.message_ts ASC
+                     LIMIT 1) AS assistant_title
+                FROM conversation_messages
+                GROUP BY session_id
+                {having}
+                ORDER BY last_message_ts DESC
+                LIMIT ?
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Module-level helpers (dev)
+# ══════════════════════════════════════════════════════════════════════
 
 
 def _canonical_session_id(session_id: str, source_path: object) -> str:
@@ -1571,7 +2399,7 @@ def _extract_tool_names_from_text(content_text: object) -> list[str]:
     matches: list[str] = []
 
     patterns = [
-        r"toolcall\s*[·:\-]\s*([A-Za-z0-9._/\-]+)",
+        r"toolcall\s*[\u00b7:\-]\s*([A-Za-z0-9._/\-]+)",
         r"tool\s*[.:]\s*([A-Za-z0-9._/\-]+)",
     ]
 
@@ -1582,90 +2410,3 @@ def _extract_tool_names_from_text(content_text: object) -> list[str]:
                 matches.append(clean_name)
 
     return matches
-
-    def get_checkpoints(self, limit: int = 500) -> list[dict]:
-        with self._connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT source_key, cursor, updated_at
-                FROM checkpoints
-                ORDER BY updated_at DESC
-                LIMIT ?
-                """,
-                (int(limit),),
-            ).fetchall()
-
-        checkpoints: list[dict] = []
-        for row in rows:
-            cursor_value: int | str = row["cursor"]
-            try:
-                cursor_value = int(row["cursor"])
-            except (TypeError, ValueError):
-                cursor_value = str(row["cursor"] or "")
-
-            checkpoints.append(
-                {
-                    "source_key": row["source_key"],
-                    "cursor": cursor_value,
-                    "updated_at": row["updated_at"],
-                }
-            )
-        return checkpoints
-
-    def get_token_accuracy(self, limit: int = 200) -> list[dict]:
-        with self._connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT
-                    s.session_id,
-                    s.provider,
-                    s.model,
-                    s.input_tokens AS snapshot_input_tokens,
-                    s.output_tokens AS snapshot_output_tokens,
-                    s.total_tokens AS snapshot_total_tokens,
-                    COALESCE(e.input_tokens, 0) AS event_input_tokens,
-                    COALESCE(e.output_tokens, 0) AS event_output_tokens,
-                    COALESCE(e.total_tokens, 0) AS event_total_tokens,
-                    COALESCE(e.snapshot_event_total_tokens, 0) AS snapshot_event_total_tokens,
-                    s.updated_at
-                FROM session_snapshots s
-                LEFT JOIN (
-                    SELECT
-                        session_id,
-                        SUM(input_tokens) AS input_tokens,
-                        SUM(output_tokens) AS output_tokens,
-                        SUM(total_tokens) AS total_tokens,
-                        SUM(CASE WHEN event_type = 'session.snapshot' THEN total_tokens ELSE 0 END) AS snapshot_event_total_tokens
-                    FROM usage_events
-                    WHERE session_id IS NOT NULL
-                    GROUP BY session_id
-                ) e ON e.session_id = s.session_id
-                ORDER BY s.updated_at DESC
-                LIMIT ?
-                """,
-                (int(limit),),
-            ).fetchall()
-
-        report = []
-        for row in rows:
-            snapshot_total = int(row["snapshot_total_tokens"] or 0)
-            snapshot_event_total = int(row["snapshot_event_total_tokens"] or 0)
-            total_delta = snapshot_total - snapshot_event_total
-            report.append(
-                {
-                    "session_id": row["session_id"],
-                    "provider": row["provider"],
-                    "model": row["model"],
-                    "snapshot_input_tokens": int(row["snapshot_input_tokens"] or 0),
-                    "snapshot_output_tokens": int(row["snapshot_output_tokens"] or 0),
-                    "snapshot_total_tokens": snapshot_total,
-                    "event_input_tokens": int(row["event_input_tokens"] or 0),
-                    "event_output_tokens": int(row["event_output_tokens"] or 0),
-                    "event_total_tokens": int(row["event_total_tokens"] or 0),
-                    "snapshot_event_total_tokens": snapshot_event_total,
-                    "snapshot_delta_tokens": total_delta,
-                    "snapshot_match": total_delta == 0,
-                    "updated_at": int(row["updated_at"] or 0),
-                }
-            )
-        return report

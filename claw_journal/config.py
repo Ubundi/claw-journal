@@ -47,6 +47,8 @@ class Settings:
     startup_healthcheck_enabled: bool
     startup_healthcheck_timeout_seconds: float
     db_path: Path
+    transcript_ingest_enabled: bool
+    transcript_poll_seconds: float
 
 
 def _parse_bool(value: str | None, default: bool) -> bool:
@@ -163,6 +165,16 @@ def load_settings() -> Settings:
     if session_sync_enabled and remote_enabled and not remote_ssh_host:
         raise ValueError("CJ_REMOTE_SSH_HOST is required when remote sync is enabled")
 
+    transcript_ingest_enabled = _parse_bool(os.getenv("CJ_TRANSCRIPT_INGEST_ENABLED"), True)
+    transcript_glob = os.getenv(
+        "CJ_TRANSCRIPT_GLOB",
+        str(Path("~/.openclaw/agents/*/sessions/*.jsonl").expanduser()),
+    )
+    transcript_poll_seconds = float(os.getenv("CJ_TRANSCRIPT_POLL_SECONDS", "5.0"))
+
+    if transcript_poll_seconds <= 0:
+        raise ValueError("CJ_TRANSCRIPT_POLL_SECONDS must be > 0")
+
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     return Settings(
@@ -200,4 +212,6 @@ def load_settings() -> Settings:
         startup_healthcheck_enabled=startup_healthcheck_enabled,
         startup_healthcheck_timeout_seconds=startup_healthcheck_timeout_seconds,
         db_path=db_path,
+        transcript_ingest_enabled=transcript_ingest_enabled,
+        transcript_poll_seconds=transcript_poll_seconds,
     )

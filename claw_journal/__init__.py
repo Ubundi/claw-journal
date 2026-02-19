@@ -10,4 +10,6 @@ __all__ = [
     "session_sync",
     "service",
     "storage",
+    "transcript_models",
+    "transcript_ingest",
 ]

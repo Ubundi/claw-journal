@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Tools - Claw Journal{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-xl font-bold text-white">Tools</h1>
+    <p class="text-[11px] mt-1 text-gray-500">All tools used by Rune across sessions.</p>
+</div>
+
+{% if summary %}
+<div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr))">
+    {% for s in summary %}
+    <a href="/view/tools/detail/{{ s.tool_name }}"
+       class="group bg-[#141414] border border-gray-900 p-3 rounded hover:border-orange-800/60 hover:bg-[#1a1a1a] transition no-underline text-inherit block">
+        <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-white">{{ s.tool_name }}</span>
+                {% if s.subagent_count and s.subagent_count > 0 %}
+                <span class="text-[10px] uppercase border rounded px-2 py-[1px] bg-purple-900/40 text-purple-300 border-purple-800">Subagent</span>
+                {% endif %}
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-700 group-hover:text-orange-400 transition shrink-0"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="flex items-baseline gap-2">
+            <span class="text-lg font-bold text-orange-500">{{ s.invocation_count }}</span>
+            <span class="text-[11px] text-gray-500">invocations</span>
+            {% if s.error_count and s.error_count > 0 %}
+            <span class="text-[11px] text-red-400">{{ s.error_count }} errors</span>
+            {% endif %}
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-xs text-gray-600 mt-4">No tool invocations found.</p>
+{% endif %}
+{% endblock %}

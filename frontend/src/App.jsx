@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Compass, Database, Feather, LineChart as LineChartIcon, Moon, RefreshCw, Sparkles, Sun } from 'lucide-react';
 
-// import ChatPage from './ChatPage';
 import Dashboard from './Dashboard';
 import MemoryPage from './MemoryPage';
+import SessionsPage from './SessionsPage';
+import ConversationPage from './ConversationPage';
+import ToolsPage from './ToolsPage';
+import ToolDetailPage from './ToolDetailPage';
 
 function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
@@ -81,10 +84,28 @@ function App() {
     };
   }, [fontSize]);
 
+  // Routing
   const isMemory = pathname.startsWith('/memory');
+  const isSessions = pathname.startsWith('/sessions');
+  const isTools = pathname.startsWith('/tools');
+  const isUsage = !isMemory && !isSessions && !isTools;
+
+  // Sub-routes within sessions
+  const conversationMatch = pathname.match(/^\/sessions\/conversation\/([^/]+)/);
+  const conversationSessionId = conversationMatch ? conversationMatch[1] : null;
+
+  // Sub-routes within tools
+  const toolDetailMatch = pathname.match(/^\/tools\/detail\/([^/]+)/);
+  const toolDetailName = toolDetailMatch ? decodeURIComponent(toolDetailMatch[1]) : null;
+
+  const navigateTo = (targetPath) => {
+    if (window.location.pathname === targetPath) return;
+    window.history.pushState({}, '', targetPath);
+    setPathname(targetPath);
+  };
 
   const shellClass = useMemo(
-    () => (theme === 'light' ? 'min-h-screen bg-white text-gray-900 font-mono' : 'min-h-screen bg-[#0a0a0a] text-gray-300 font-mono'),
+    () => (theme === 'light' ? 'min-h-screen flex flex-col bg-white text-gray-900 font-mono' : 'min-h-screen flex flex-col bg-[#0a0a0a] text-gray-300 font-mono'),
     [theme],
   );
 
@@ -104,12 +125,6 @@ function App() {
     () => (theme === 'light' ? 'bg-white text-gray-900 border-gray-300 hover:bg-gray-100' : 'bg-[#1a1a1a] text-white border-gray-800 hover:bg-gray-800'),
     [theme],
   );
-
-  const navigateTo = (targetPath) => {
-    if (window.location.pathname === targetPath) return;
-    window.history.pushState({}, '', targetPath);
-    setPathname(targetPath);
-  };
 
   const persistLastSyncAt = (timestamp) => {
     if (!timestamp) return;
@@ -170,6 +185,27 @@ function App() {
     return `Last sync: ${formatted}`;
   }, [lastSyncAt]);
 
+  // Determine which page content to render
+  const renderContent = () => {
+    if (isMemory) return <MemoryPage theme={theme} />;
+
+    if (isSessions) {
+      if (conversationSessionId) {
+        return <ConversationPage theme={theme} sessionId={conversationSessionId} />;
+      }
+      return <SessionsPage theme={theme} onNavigate={navigateTo} />;
+    }
+
+    if (isTools) {
+      if (toolDetailName) {
+        return <ToolDetailPage theme={theme} toolName={toolDetailName} onNavigate={navigateTo} />;
+      }
+      return <ToolsPage theme={theme} onNavigate={navigateTo} />;
+    }
+
+    return <Dashboard theme={theme} currency={currency} conversionRate={conversionRate} />;
+  };
+
   return (
     <div className={shellClass}>
       <div className="px-6 pt-6 pb-4 border-b border-gray-800/60">
@@ -182,7 +218,7 @@ function App() {
               <h1 className={`text-xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Claw Journal</h1>
               <p className={`text-[11px] mt-0.5 flex items-center gap-1.5 ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>
                 <Sparkles size={12} className={theme === 'light' ? 'text-orange-600' : 'text-orange-400'} />
-                OpenClaw observability dashboard
+                OpenClaw observability &middot; Agent reasoning
               </p>
             </div>
           </div>
@@ -204,15 +240,27 @@ function App() {
             </div>
             <button
               onClick={() => navigateTo('/')}
-              className={`px-3 py-1 text-xs rounded border transition ${isMemory ? inactiveTabClass : activeTabClass}`}
+              className={`px-3 py-1 text-xs rounded border transition ${isUsage ? activeTabClass : inactiveTabClass}`}
             >
               Usage
+            </button>
+            <button
+              onClick={() => navigateTo('/sessions')}
+              className={`px-3 py-1 text-xs rounded border transition ${isSessions ? activeTabClass : inactiveTabClass}`}
+            >
+              Sessions
+            </button>
+            <button
+              onClick={() => navigateTo('/tools')}
+              className={`px-3 py-1 text-xs rounded border transition ${isTools ? activeTabClass : inactiveTabClass}`}
+            >
+              Tools
             </button>
             <button
               onClick={() => navigateTo('/memory')}
               className={`px-3 py-1 text-xs rounded border transition ${isMemory ? activeTabClass : inactiveTabClass}`}
             >
-              Memory Explorer
+              Memory
             </button>
             <button
               onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
@@ -255,7 +303,9 @@ function App() {
         </div>
       )}
 
-      {isMemory ? <MemoryPage theme={theme} /> : <Dashboard theme={theme} currency={currency} conversionRate={conversionRate} />}
+      <div className="flex-1">
+        {renderContent()}
+      </div>
 
       <footer className={`mt-8 py-8 px-5 border rounded mx-6 ${theme === 'light' ? 'bg-gray-100 border-gray-300' : 'bg-[#141414] border-gray-900'}`}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -279,6 +329,8 @@ function App() {
             <p className={`text-xs uppercase mb-3 ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>Navigate</p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <a href="/" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Usage</a>
+              <a href="/sessions" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Sessions</a>
+              <a href="/tools" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Tools</a>
               <a href="/memory" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Memory Explorer</a>
             </div>
           </div>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Claw Journal{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'] }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="bg-[#0a0a0a] text-gray-300 font-mono min-h-screen flex flex-col">
+    <div class="px-6 pt-6 pb-4 border-b border-gray-800/60">
+        <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 border rounded-lg px-4 py-3 border-gray-900 bg-[#121212]/90">
+            <div class="flex items-start gap-3">
+                <div class="h-9 w-9 rounded border flex items-center justify-center border-orange-800/60 bg-orange-950/40">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-300"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>
+                </div>
+                <div>
+                    <a href="/view/" class="text-xl font-bold text-white hover:text-white no-underline">Claw Journal</a>
+                    <p class="text-[11px] mt-0.5 flex items-center gap-1.5 text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-400"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                        OpenClaw observability &middot; Agent reasoning
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+                {% set current_path = request.url.path if request else '/' %}
+                <a href="/view/"
+                   class="px-3 py-1 text-xs rounded border transition no-underline {{ 'bg-orange-900/40 text-orange-300 border-orange-800' if current_path == '/view/' or current_path.startswith('/view/search') else 'bg-[#1a1a1a] text-white border-gray-800 hover:bg-gray-800' }}">
+                    Sessions
+                </a>
+                <a href="/view/tools"
+                   class="px-3 py-1 text-xs rounded border transition no-underline {{ 'bg-orange-900/40 text-orange-300 border-orange-800' if current_path.startswith('/view/tools') else 'bg-[#1a1a1a] text-white border-gray-800 hover:bg-gray-800' }}">
+                    Tools
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <main class="px-6 py-6 max-w-7xl mx-auto flex-1 w-full">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="mt-auto py-8 px-5 border rounded mx-6 mb-6 bg-[#141414] border-gray-900">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <p class="text-sm font-semibold mb-2 text-white">Claw Journal</p>
+                <p class="text-xs leading-relaxed text-gray-500">
+                    Local observability for OpenClaw sessions. Track tool usage, thinking processes, and agent reasoning in one place.
+                </p>
+            </div>
+            <div>
+                <p class="text-xs uppercase mb-3 text-gray-500">Features</p>
+                <div class="space-y-2 text-xs text-gray-400">
+                    <p class="flex items-center gap-2"><span class="text-orange-400">&#9670;</span> Tool invocation tracking</p>
+                    <p class="flex items-center gap-2"><span class="text-orange-400">&#9670;</span> Thinking process annotation</p>
+                    <p class="flex items-center gap-2"><span class="text-orange-400">&#9670;</span> Conversation search &amp; replay</p>
+                </div>
+            </div>
+            <div>
+                <p class="text-xs uppercase mb-3 text-gray-500">Navigate</p>
+                <div class="space-y-2 text-xs">
+                    <a href="/view/" class="text-gray-400 hover:text-orange-400 underline underline-offset-2 decoration-gray-700 hover:decoration-orange-400 transition">Sessions</a>
+                    <br>
+                    <a href="/view/tools" class="text-gray-400 hover:text-orange-400 underline underline-offset-2 decoration-gray-700 hover:decoration-orange-400 transition">Tools</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
