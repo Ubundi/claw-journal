@@ -39,28 +39,17 @@ if not isinstance(agents, dict):
   payload["agents"] = agents
 
 defaults = agents.get("defaults")
-if not isinstance(defaults, dict):
+has_defaults_scope = isinstance(defaults, dict)
+if not has_defaults_scope:
   defaults = {}
   agents["defaults"] = defaults
+  has_defaults_scope = True
 
-context_pruning = defaults.get("contextPruning")
-target_scope = "agents.defaults"
-if not isinstance(context_pruning, dict):
-  context_pruning = payload.get("contextPruning")
-  target_scope = "top-level"
-
-if not isinstance(context_pruning, dict):
-  context_pruning = {}
+target_scope = "agents.defaults" if has_defaults_scope else "top-level"
 
 if target_scope == "agents.defaults":
-  defaults["contextPruning"] = context_pruning
+  compaction = defaults.get("compaction")
 else:
-  payload["contextPruning"] = context_pruning
-
-context_pruning["mode"] = "none"
-
-compaction = defaults.get("compaction")
-if not isinstance(compaction, dict):
   compaction = payload.get("compaction")
 if not isinstance(compaction, dict):
   compaction = {}
@@ -79,10 +68,10 @@ memory_flush["enabled"] = False
 config_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 print("Applied settings:")
-print("- contextPruning.mode = none")
 print("- compaction.memoryFlush.enabled = false")
 print("- target config scope =", target_scope)
 print("- compaction.mode =", compaction.get("mode"))
+print("- contextPruning unchanged (schema/version specific)")
 PY
 
 echo "✅ Retention-focused config update complete."
