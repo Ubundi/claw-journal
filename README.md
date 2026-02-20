@@ -24,6 +24,16 @@
 - **Audit agent behavior:** Session-level reasoning and tool invocation visibility.
 - **Stay local-first:** Data collection and storage run on your own machine.
 
+## 🧭 Recommended Architecture (Single Source of Truth)
+
+Run Claw Journal **on the OpenClaw host only**.
+
+- OpenClaw transcripts + logs live on that host.
+- Claw Journal DB lives on that host.
+- Any laptop/desktop views the dashboard through SSH tunneling.
+
+This avoids fragmented local caches across multiple viewer machines and ensures one consolidated history.
+
 ## ⚡ Quick Start
 
 ### Option A: Local (Same Machine)
@@ -40,34 +50,26 @@ If OpenClaw runs on this computer:
    ./scripts/start-dashboard.sh
    ```
 
-### Option B: Remote (Over SSH)
+### Option B: Host Run + SSH View (Recommended)
 
-If OpenClaw runs on a server/VM and you want the dashboard locally:
+If OpenClaw runs on a server/VM:
 
-1. **Check SSH:** Ensure you can connect without a password prompt.
+1. **SSH to the OpenClaw host and run Claw Journal there:**
    ```bash
-   ssh user@your-host "echo connected"
-   ```
-
-2. **Configure:** Create `.env` pointing to the remote host.
-   ```bash
-   # Create .env with remote settings
-   cat > .env <<EOF
-   CJ_REMOTE_ENABLED=true
-   CJ_REMOTE_SSH_HOST=user@your-host
-   CJ_REMOTE_INGEST_MODE=file
-   CJ_PORT=3000
-   CJ_FRONTEND_PORT=5173
-   EOF
-   ```
-
-3. **Run:**
-   ```bash
+   ssh user@your-host
+   cd ~/claw-journal
    ./scripts/start-dashboard.sh
+   ```
+
+2. **From your local machine, tunnel the dashboard ports:**
+   ```bash
+   ssh -L 5173:127.0.0.1:5173 -L 3000:127.0.0.1:3000 user@your-host
    ```
 
 - **Dashboard:** `http://localhost:5173`
 - **Chat History:** `http://localhost:5173/chat`
+
+> Advanced mode: running Claw Journal on a separate machine over SSH ingest is still possible, but host-run mode is recommended for a single persistent source of truth.
 
 ---
 
@@ -147,16 +149,16 @@ Planned repository docs:
 
 ## 📄 License
 
-This project is open source under the repository license.
+This project is open source under the MIT License.
 
 ## ✅ Maintainer Actions Needed
 
 These items require human action to fully complete the OSS/public repo refactor:
 
-2. Create `CONTRIBUTING.md` with PR workflow, development setup, and coding standards.
-3. Add `CODE_OF_CONDUCT.md` (GitHub Community Standards template is fine).
-4. Add `SECURITY.md` with private vulnerability disclosure instructions.
-5. Add your community URL (Discord/Slack) into the Community section.
+1. Create `CONTRIBUTING.md` with PR workflow, development setup, and coding standards.
+2. Add `CODE_OF_CONDUCT.md` (GitHub Community Standards template is fine).
+3. Add `SECURITY.md` with private vulnerability disclosure instructions.
+4. Add your community URL (Discord/Slack) into the Community section.
 
 ---
 *Created for the OpenClaw community.*
