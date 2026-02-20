@@ -171,8 +171,14 @@ def create_app(usage_service: UsageService) -> FastAPI:
 
     # ── Health ─────────────────────────────────────────────────────────
 
+    # ── SPA static file serving ───────────────────────────────────────
+    _FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+    _spa_enabled = _FRONTEND_DIST.is_dir() and (_FRONTEND_DIST / "index.html").exists()
+
     @app.get("/")
-    def root() -> dict[str, str]:
+    def root() -> HTMLResponse | dict[str, str]:
+        if _spa_enabled:
+            return HTMLResponse((_FRONTEND_DIST / "index.html").read_text())
         return {
             "name": "Claw Journal API",
             "dashboard": "Run the React dashboard from frontend/ (npm run dev)",
@@ -520,5 +526,18 @@ def create_app(usage_service: UsageService) -> FastAPI:
             "search.html",
             {"request": request, "query": q, "results": results, "session_id": session_id},
         )
+
+    # ── Serve React SPA (production build) ─────────────────────────────
+    if _spa_enabled:
+        # Mount built assets (JS, CSS, images) under /assets/
+        app.mount("/assets", StaticFiles(directory=str(_FRONTEND_DIST / "assets")), name="frontend-assets")
+        # Serve other static files from dist root (favicon, icons, etc.)
+        app.mount("/spa-static", StaticFiles(directory=str(_FRONTEND_DIST)), name="frontend-root")
+
+        # SPA catch-all: any non-API, non-view path falls through to index.html
+        @app.get("/{path:path}")
+        def spa_fallback(path: str) -> HTMLResponse:
+            # Let /api/, /view/, /health, /static paths be handled by their own routes
+            return HTMLResponse((_FRONTEND_DIST / "index.html").read_text())
 
     return app
