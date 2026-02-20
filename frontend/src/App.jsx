@@ -7,6 +7,7 @@ import SessionsPage from './SessionsPage';
 import ConversationPage from './ConversationPage';
 import ToolsPage from './ToolsPage';
 import ToolDetailPage from './ToolDetailPage';
+import TooTooPage from './TooTooPage';
 
 function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
@@ -109,7 +110,8 @@ function App() {
   const isMemory = pathname.startsWith('/memory');
   const isSessions = pathname.startsWith('/sessions');
   const isTools = pathname.startsWith('/tools');
-  const isUsage = !isMemory && !isSessions && !isTools;
+  const isTooToo = pathname.startsWith('/tootoo');
+  const isUsage = !isMemory && !isSessions && !isTools && !isTooToo;
 
   // Sub-routes within sessions
   const conversationMatch = pathname.match(/^\/sessions\/conversation\/([^/]+)/);
@@ -224,6 +226,8 @@ function App() {
       return <ToolsPage theme={theme} onNavigate={navigateTo} />;
     }
 
+    if (isTooToo) return <TooTooPage theme={theme} onNavigate={navigateTo} />;
+
     return <Dashboard theme={theme} currency={currency} conversionRate={conversionRate} />;
   };
 
@@ -282,6 +286,12 @@ function App() {
               className={`px-3 py-1 text-xs rounded border transition ${isMemory ? activeTabClass : inactiveTabClass}`}
             >
               Memory
+            </button>
+            <button
+              onClick={() => navigateTo('/tootoo')}
+              className={`px-3 py-1 text-xs rounded border transition ${isTooToo ? activeTabClass : inactiveTabClass}`}
+            >
+              TooToo
             </button>
             <button
               onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
@@ -364,6 +374,7 @@ function App() {
               <a href="/sessions" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Sessions</a>
               <a href="/tools" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Tools</a>
               <a href="/memory" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>Memory Explorer</a>
+              <a href="/tootoo" className={`${theme === 'light' ? 'text-gray-700 hover:text-orange-600' : 'text-gray-400 hover:text-orange-400'} transition`}>TooToo</a>
             </div>
           </div>
         </div>

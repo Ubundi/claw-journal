@@ -2308,6 +2308,7 @@ class UsageRepository:
                     MIN(message_ts) AS first_message_ts,
                     MAX(message_ts) AS last_message_ts,
                     MAX(model) AS model,
+                    MAX(source_path) AS source_path,
                     (SELECT SUBSTR(c2.text_content, 1, 120)
                      FROM conversation_messages c2
                      WHERE c2.session_id = conversation_messages.session_id
@@ -2331,6 +2332,29 @@ class UsageRepository:
                 LIMIT ?
                 """,
                 params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def get_tootoo_reviews(self, limit: int = 100) -> list[dict]:
+        """Return TooToo sessions with their alignment feedback content_json."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    cm.session_id,
+                    cm.message_ts,
+                    cm.model,
+                    cm.content_json,
+                    cm.source_path
+                FROM conversation_messages cm
+                WHERE cm.source_path LIKE '%/agents/tootoo/%'
+                  AND cm.role = 'assistant'
+                  AND cm.content_json LIKE '%alignment_score%'
+                ORDER BY cm.message_ts DESC
+                LIMIT ?
+                """,
+                (int(limit),),
             ).fetchall()
 
         return [dict(row) for row in rows]

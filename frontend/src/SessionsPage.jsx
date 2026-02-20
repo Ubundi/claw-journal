@@ -195,14 +195,26 @@ const SessionsPage = ({ theme = 'dark', onNavigate }) => {
               <div className={`divide-y ${isLight ? 'divide-gray-200' : 'divide-gray-900'}`}>
                 {sessions.map((s) => {
                   const title = cleanTitle(s.display_title) || cleanTitle(s.assistant_title) || (s.display_title ? 'Rune heartbeat check' : (s.session_id || '').slice(0, 8));
+                  const isTooToo = (s.source_path || '').includes('/agents/tootoo/');
+                  const agentName = isTooToo ? null : ((s.source_path || '').match(/\/agents\/([^/]+)\//) || [])[1];
                   return (
                     <button
                       key={s.session_id}
                       onClick={() => handleSessionClick(s.session_id)}
-                      className={`block w-full text-left px-4 py-3 transition ${isLight ? 'hover:bg-gray-100' : 'hover:bg-[#1a1a1a]'}`}
+                      className={`block w-full text-left px-4 py-3 transition ${isTooToo ? (isLight ? 'hover:bg-amber-50 border-l-2 border-l-amber-400' : 'hover:bg-amber-950/20 border-l-2 border-l-amber-600/50') : (isLight ? 'hover:bg-gray-100' : 'hover:bg-[#1a1a1a]')}`}
                     >
                       <div className="flex items-center gap-3 mb-1 min-w-0">
                         <span className={`text-xs truncate min-w-0 flex-1 ${isLight ? 'text-gray-900' : 'text-white'}`}>{title}</span>
+                        {isTooToo && (
+                          <span className={`text-[10px] uppercase px-2 py-[1px] rounded border shrink-0 ${isLight ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-amber-900/30 border-amber-800/50 text-amber-300'}`}>
+                            TooToo
+                          </span>
+                        )}
+                        {!isTooToo && agentName && agentName !== 'main' && (
+                          <span className={`text-[10px] uppercase px-2 py-[1px] rounded border shrink-0 ${isLight ? 'bg-purple-100 border-purple-300 text-purple-700' : 'bg-purple-900/30 border-purple-800/50 text-purple-300'}`}>
+                            {agentName}
+                          </span>
+                        )}
                         <span className="text-[11px] text-gray-600 shrink-0">{formatTs(s.last_message_ts)}</span>
                       </div>
                       <div className="flex items-center gap-3 text-[11px]">

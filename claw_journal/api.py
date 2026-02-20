@@ -345,6 +345,14 @@ def create_app(usage_service: UsageService) -> FastAPI:
     ) -> dict[str, object]:
         return {"rows": usage_service.sessions_with_transcripts(limit)}
 
+    # ── TooToo API ─────────────────────────────────────────────────────
+
+    @app.get("/api/tootoo/reviews")
+    def tootoo_reviews(
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> dict[str, object]:
+        return {"rows": usage_service.tootoo_reviews(limit)}
+
     # ── Thinking API (from reasoning) ──────────────────────────────────
 
     @app.get("/api/thinking")
