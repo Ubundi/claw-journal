@@ -195,8 +195,8 @@ const SessionsPage = ({ theme = 'dark', onNavigate }) => {
               <div className={`divide-y ${isLight ? 'divide-gray-200' : 'divide-gray-900'}`}>
                 {sessions.map((s) => {
                   const title = cleanTitle(s.display_title) || cleanTitle(s.assistant_title) || (s.display_title ? 'Rune heartbeat check' : (s.session_id || '').slice(0, 8));
-                  const isTooToo = (s.source_path || '').includes('/agents/tootoo/');
-                  const agentName = isTooToo ? null : ((s.source_path || '').match(/\/agents\/([^/]+)\//) || [])[1];
+                  const isTooToo = (s.source_path || '').includes('/agents/tootoo/') || (s.agent_id || '').toLowerCase() === 'tootoo';
+                  const agentName = isTooToo ? null : (((s.source_path || '').match(/\/agents\/([^/]+)\//) || [])[1] || s.agent_id || null);
                   return (
                     <button
                       key={s.session_id}
