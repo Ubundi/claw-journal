@@ -175,8 +175,8 @@ def create_app(usage_service: UsageService) -> FastAPI:
     _FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
     _spa_enabled = _FRONTEND_DIST.is_dir() and (_FRONTEND_DIST / "index.html").exists()
 
-    @app.get("/")
-    def root() -> HTMLResponse | dict[str, str]:
+    @app.get("/", response_model=None)
+    def root():
         if _spa_enabled:
             return HTMLResponse((_FRONTEND_DIST / "index.html").read_text())
         return {
