@@ -2348,8 +2348,7 @@ class UsageRepository:
                     cm.content_json,
                     cm.source_path
                 FROM conversation_messages cm
-                WHERE cm.source_path LIKE '%/agents/tootoo/%'
-                  AND cm.role = 'assistant'
+                WHERE cm.role = 'assistant'
                   AND cm.content_json LIKE '%alignment_score%'
                 ORDER BY cm.message_ts DESC
                 LIMIT ?
