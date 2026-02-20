@@ -18,6 +18,10 @@ if [[ -f ".env" ]]; then
   set +a
 fi
 
+if [[ "${CJ_REMOTE_ENABLED:-false}" == "true" && -z "${CJ_ENSURE_DURABLE_LOGS+x}" ]]; then
+  export CJ_ENSURE_DURABLE_LOGS=true
+fi
+
 backend_port="${CJ_PORT:-3000}"
 frontend_port="${CJ_FRONTEND_PORT:-5173}"
 port_search_limit="${CJ_PORT_SEARCH_LIMIT:-50}"

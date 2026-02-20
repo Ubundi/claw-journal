@@ -2,6 +2,19 @@
 
 Use this runbook on the OpenClaw host to verify where transcripts/logs are stored and to enable safer history retention settings.
 
+## Goal: Single Source of Truth on the OpenClaw Host
+
+For remote usage, treat the OpenClaw host as the canonical history source.
+
+- **Source of truth**: OpenClaw transcript files + durable OpenClaw logs on the host.
+- **Local Claw Journal DB**: cache/derived index only (`claw_journal.db` can be recreated).
+- **Expected outcome**: deleting/recloning Claw Journal on any remote client still backfills full history from the host.
+
+Claw Journal now supports enforcing this on remote runs:
+
+- `CJ_ENSURE_DURABLE_LOGS=true` (enabled by default by `scripts/start-dashboard.sh` when `CJ_REMOTE_ENABLED=true`)
+- startup fails fast if `CJ_OPENCLAW_LOG_GLOB` points at temporary paths like `/tmp/...`
+
 ## 1) Audit Current Storage and Config
 
 Run:
@@ -54,7 +67,30 @@ Set Claw Journal to use durable logs:
 CJ_OPENCLAW_LOG_GLOB=/Users/<user>/.openclaw/logs/history/openclaw-*.log
 ```
 
-## 4) Validate from Claw Journal
+And enforce durable path checks for remote mode:
+
+```bash
+CJ_ENSURE_DURABLE_LOGS=true
+```
+
+## 4) Clean Remote Setup Flow (Repeatable)
+
+Use this when onboarding a new machine or after deleting/recloning Claw Journal:
+
+1. On OpenClaw host, run audit:
+	- `./scripts/openclaw-history-audit.sh`
+2. Apply retention-focused compaction settings:
+	- `./scripts/openclaw-enable-history-retention.sh`
+3. Install durable log sync automation:
+	- `./scripts/install-openclaw-log-sync-launchd.sh`
+4. Ensure Claw Journal `.env` for remote mode includes:
+	- `CJ_REMOTE_ENABLED=true`
+	- `CJ_REMOTE_SSH_HOST=<host>`
+	- `CJ_OPENCLAW_LOG_GLOB=/Users/<user>/.openclaw/logs/history/openclaw-*.log`
+	- `CJ_ENSURE_DURABLE_LOGS=true`
+5. Start Claw Journal and allow initial backfill.
+
+## 5) Validate from Claw Journal
 
 After restarting OpenClaw and Claw Journal in remote mode, verify these endpoints populate historical data:
 - `/api/sessions/transcripts`

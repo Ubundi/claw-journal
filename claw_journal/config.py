@@ -18,6 +18,7 @@ class Settings:
     auto_port: bool
     port_search_limit: int
     openclaw_log_glob: str
+    ensure_durable_logs: bool
     poll_seconds: float
     remote_enabled: bool
     remote_gateway_url: str | None
@@ -82,6 +83,7 @@ def load_settings() -> Settings:
     auto_port = _parse_bool(os.getenv("CJ_AUTO_PORT"), True)
     port_search_limit = int(os.getenv("CJ_PORT_SEARCH_LIMIT", "50"))
     openclaw_log_glob = os.getenv("CJ_OPENCLAW_LOG_GLOB", "/tmp/openclaw/openclaw-*.log")
+    ensure_durable_logs = _parse_bool(os.getenv("CJ_ENSURE_DURABLE_LOGS"), False)
     poll_seconds = float(os.getenv("CJ_POLL_SECONDS", "1.0"))
     remote_enabled = _parse_bool(os.getenv("CJ_REMOTE_ENABLED"), False)
     remote_gateway_url = os.getenv("CJ_REMOTE_GATEWAY_URL") or None
@@ -165,6 +167,15 @@ def load_settings() -> Settings:
     if session_sync_enabled and remote_enabled and not remote_ssh_host:
         raise ValueError("CJ_REMOTE_SSH_HOST is required when remote sync is enabled")
 
+    if remote_enabled and ensure_durable_logs:
+        normalized_glob = str(openclaw_log_glob or "").strip()
+        if normalized_glob.startswith("/tmp/") or normalized_glob.startswith("/private/tmp/"):
+            raise ValueError(
+                "CJ_OPENCLAW_LOG_GLOB points to temporary storage while CJ_ENSURE_DURABLE_LOGS=true. "
+                "Use a durable path on the OpenClaw host (for example: "
+                "~/.openclaw/logs/history/openclaw-*.log)."
+            )
+
     transcript_ingest_enabled = _parse_bool(os.getenv("CJ_TRANSCRIPT_INGEST_ENABLED"), True)
     transcript_glob = os.getenv(
         "CJ_TRANSCRIPT_GLOB",
@@ -183,6 +194,7 @@ def load_settings() -> Settings:
         auto_port=auto_port,
         port_search_limit=port_search_limit,
         openclaw_log_glob=openclaw_log_glob,
+        ensure_durable_logs=ensure_durable_logs,
         poll_seconds=poll_seconds,
         remote_enabled=remote_enabled,
         remote_gateway_url=remote_gateway_url,
