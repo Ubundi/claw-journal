@@ -5,7 +5,7 @@
 > Local observability dashboard for OpenClaw — track tokens, costs, and agent reasoning without cloud dependencies.
 
 ![GitHub stars](https://img.shields.io/github/stars/Ubundi/claw-journal?style=social)
-![GitHub license](https://img.shields.io/github/license/Ubundi/claw-journal)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 ![GitHub issues](https://img.shields.io/github/issues/Ubundi/claw-journal)
 ![GitHub last commit](https://img.shields.io/github/last-commit/Ubundi/claw-journal)
 
@@ -54,11 +54,16 @@ If OpenClaw runs on this computer:
 
 If OpenClaw runs on a server/VM:
 
-1. **SSH to the OpenClaw host and run Claw Journal there:**
+1. **SSH to the OpenClaw host and run Claw Journal there (recommended single source of truth):**
    ```bash
    ssh user@your-host
    cd ~/claw-journal
    ./scripts/start-dashboard.sh
+   ```
+
+   If your non-interactive shell does not find `npm`, start with an explicit PATH:
+   ```bash
+   PATH=/opt/homebrew/bin:/usr/local/bin:$PATH ./scripts/start-dashboard.sh
    ```
 
 2. **From your local machine, tunnel the dashboard ports:**
