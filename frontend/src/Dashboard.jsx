@@ -10,6 +10,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
   const [connectionInfo, setConnectionInfo] = useState(null);
   const [pricingSortBy, setPricingSortBy] = useState('input_per_million');
   const [pricingSortDir, setPricingSortDir] = useState('desc');
+  const [pricingProviderScope, setPricingProviderScope] = useState('top_labs');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [explorerTab, setExplorerTab] = useState('raw-events');
@@ -179,10 +180,26 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
   const billingMode = profile.billing_mode || 'token';
   const showCostColumns = billingMode !== 'claude_max';
   const cardSurfaceClass = theme === 'light' ? 'bg-gray-100 border-gray-300' : 'bg-[#141414] border-gray-900';
+  const panelSurfaceClass = theme === 'light' ? 'bg-gray-50 border-gray-300' : 'bg-[#111111] border-gray-900';
+  const tableHeadClass = theme === 'light' ? 'bg-gray-100 text-gray-600 uppercase font-medium' : 'bg-[#1a1a1a] text-gray-500 uppercase font-medium';
+  const tableBodyClass = theme === 'light' ? 'divide-y divide-gray-200' : 'divide-y divide-gray-900';
+  const tableRowHoverClass = theme === 'light' ? 'hover:bg-gray-100 transition-colors' : 'hover:bg-[#1a1a1a] transition-colors';
+  const runtimePillBaseClass = 'text-[11px] border rounded px-2 py-[2px]';
+  const runtimePillClass = (lightClass, darkClass) => `${runtimePillBaseClass} ${theme === 'light' ? lightClass : darkClass}`;
   const sessionOptions = (legacyData?.reconciled || []).map((row) => row.session_id).filter(Boolean);
   const availableModels = Array.isArray(modelCatalog?.available_models) ? modelCatalog.available_models : [];
 
-  const sortedModels = [...availableModels].sort((left, right) => {
+  const topLabPrefixes = ['openai/', 'google/', 'meta-llama/', 'z-ai/', 'anthropic/'];
+  const isTopLabModel = (row) => {
+    const id = String(row?.id || row?.model || '').toLowerCase();
+    return topLabPrefixes.some((prefix) => id.startsWith(prefix));
+  };
+
+  const visibleModels = pricingProviderScope === 'top_labs'
+    ? availableModels.filter(isTopLabModel)
+    : availableModels;
+
+  const sortedModels = [...visibleModels].sort((left, right) => {
     if (pricingSortBy === 'model') {
       const leftValue = String(left.model || left.id || '').toLowerCase();
       const rightValue = String(right.model || right.id || '').toLowerCase();
@@ -387,29 +404,50 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
 
       <div className="relative z-10">
       <div id="overview" className={`${cardSurfaceClass} p-4 rounded border mb-6 scroll-mt-24 relative`}>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
           <p className={`text-sm font-semibold mr-1 whitespace-nowrap ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Runtime Mode</p>
-          <span className={`text-[11px] uppercase border rounded px-2 py-[2px] ${String(profile.auth_mode || 'unknown').toLowerCase() === 'oauth' ? 'bg-blue-900/40 text-blue-300 border-blue-800' : 'bg-orange-900/40 text-orange-300 border-orange-800'}`}>
+          <span className={runtimePillClass(
+            String(profile.auth_mode || 'unknown').toLowerCase() === 'oauth'
+              ? 'bg-blue-100 text-blue-800 border-blue-300'
+              : 'bg-orange-100 text-orange-800 border-orange-300',
+            String(profile.auth_mode || 'unknown').toLowerCase() === 'oauth'
+              ? 'bg-blue-900/40 text-blue-300 border-blue-800'
+              : 'bg-orange-900/40 text-orange-300 border-orange-800',
+          )}>
             auth: {profile.auth_mode || 'unknown'}
           </span>
-          <span className={`text-[11px] uppercase border rounded px-2 py-[2px] ${String(profile.billing_mode || 'unknown').toLowerCase() === 'claude_max' ? 'bg-purple-900/40 text-purple-300 border-purple-800' : 'bg-emerald-900/40 text-emerald-300 border-emerald-800'}`}>
+          <span className={runtimePillClass(
+            String(profile.billing_mode || 'unknown').toLowerCase() === 'claude_max'
+              ? 'bg-purple-100 text-purple-800 border-purple-300'
+              : 'bg-emerald-100 text-emerald-800 border-emerald-300',
+            String(profile.billing_mode || 'unknown').toLowerCase() === 'claude_max'
+              ? 'bg-purple-900/40 text-purple-300 border-purple-800'
+              : 'bg-emerald-900/40 text-emerald-300 border-emerald-800',
+          )}>
             billing: {profile.billing_mode || 'unknown'}
           </span>
           {billingMode === 'claude_max' && (
-            <span className="text-[11px] uppercase border rounded px-2 py-[2px] bg-purple-900/30 text-purple-300 border-purple-800">
+            <span className={runtimePillClass('bg-purple-100 text-purple-800 border-purple-300', 'bg-purple-900/30 text-purple-300 border-purple-800')}>
               plan: {formatMoney(profile.claude_max_monthly_usd || 0, 2, 2)}/mo
             </span>
           )}
-          <span className="text-[11px] border rounded px-2 py-[2px] bg-orange-900/30 text-orange-300 border-orange-800">
-            remote: {connectionInfo?.remote?.ssh_user ? `${connectionInfo.remote.ssh_user}@` : ''}{connectionInfo?.remote?.ssh_host || '-'}
+          <span className={runtimePillClass('bg-slate-100 text-slate-800 border-slate-300', 'bg-slate-900/40 text-slate-300 border-slate-800')}>
+            host: {connectionInfo?.local?.hostname || '-'}
           </span>
-          <span className="text-[11px] border rounded px-2 py-[2px] bg-sky-900/30 text-sky-300 border-sky-800">
-            ip: {connectionInfo?.remote?.ssh_host_ip || connectionInfo?.local?.ip || 'n/a'}
+          <span className={runtimePillClass('bg-cyan-100 text-cyan-800 border-cyan-300', 'bg-cyan-900/40 text-cyan-300 border-cyan-800')}>
+            source: {(connectionInfo?.remote?.enabled ?? false) ? 'remote-ingest' : 'single-host'}
           </span>
-          <span className={`text-[11px] border rounded px-2 py-[2px] ${(connectionInfo?.remote?.session_sync_enabled ?? false) ? 'bg-emerald-900/40 text-emerald-300 border-emerald-800' : 'bg-rose-900/40 text-rose-300 border-rose-800'}`}>
+          <span className={runtimePillClass(
+            (connectionInfo?.remote?.session_sync_enabled ?? false)
+              ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+              : 'bg-rose-100 text-rose-800 border-rose-300',
+            (connectionInfo?.remote?.session_sync_enabled ?? false)
+              ? 'bg-emerald-900/40 text-emerald-300 border-emerald-800'
+              : 'bg-rose-900/40 text-rose-300 border-rose-800',
+          )}>
             sync={String(connectionInfo?.remote?.session_sync_enabled ?? false)}
           </span>
-          <span className="text-[11px] border rounded px-2 py-[2px] bg-zinc-800/60 text-gray-300 border-gray-700">
+          <span className={runtimePillClass('bg-gray-100 text-gray-800 border-gray-300', 'bg-zinc-800/60 text-gray-300 border-gray-700')}>
             mode={connectionInfo?.remote?.ingest_mode || '-'}
           </span>
         </div>
@@ -427,13 +465,14 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
           </button>
           <button
             type="button"
-            className="text-[11px] border rounded px-2 py-[2px] bg-teal-900/30 text-teal-300 border-teal-800 hover:bg-teal-900/40"
+            className={`text-[11px] border rounded px-2 py-[2px] inline-flex items-center gap-1 ${theme === 'light' ? 'bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-200' : 'bg-teal-900/30 text-teal-300 border-teal-800 hover:bg-teal-900/40'}`}
             onMouseEnter={() => setActiveKpiTooltip('runtime:glossary')}
             onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:glossary' ? '' : prev))}
             onFocus={() => setActiveKpiTooltip('runtime:glossary')}
             onBlur={() => setActiveKpiTooltip((prev) => (prev === 'runtime:glossary' ? '' : prev))}
           >
             glossary
+            <HelpCircle size={12} />
           </button>
         </div>
         {activeKpiTooltip === 'runtime:token-counting' && (
@@ -596,12 +635,12 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
           <div className="space-y-6">
              <div>
                 <p className="text-xs text-gray-500 mb-1">TODAY</p>
-                  <p className="text-3xl text-white font-bold">{formatMoney(costTrendData.length > 0 ? costTrendData[costTrendData.length - 1].cost : 0, 2, 2)}</p>
+                  <p className={`text-3xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{formatMoney(costTrendData.length > 0 ? costTrendData[costTrendData.length - 1].cost : 0, 2, 2)}</p>
              </div>
              <div className="h-[2px] bg-gradient-to-r from-orange-500 to-transparent w-full opacity-50"></div>
              <div>
                 <p className="text-xs text-gray-500 mb-1">7D TOTAL</p>
-                 <p className="text-3xl text-white font-bold">{formatMoney(data?.summary?.totalSpend || 0, 2, 2)}</p>
+                  <p className={`text-3xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{formatMoney(data?.summary?.totalSpend || 0, 2, 2)}</p>
              </div>
           </div>
         </div>
@@ -646,8 +685,8 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             <h3 className="text-xs uppercase text-gray-500">Recent Sessions</h3>
         </div>
         <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-gray-400">
-                <thead className="bg-[#1a1a1a] text-gray-500 uppercase font-medium">
+            <table className={`w-full text-left text-xs ${theme === 'light' ? 'text-gray-700' : 'text-gray-400'}`}>
+              <thead className={tableHeadClass}>
                     <tr>
                         <th className="px-4 py-3">Agent</th>
                         <th className="px-4 py-3">Session Key</th>
@@ -657,10 +696,10 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                         <th className="px-4 py-3 text-right">Last Active</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-900">
+                <tbody className={tableBodyClass}>
                     {data.recentSessions && data.recentSessions.map((session, i) => (
-                        <tr key={i} className="hover:bg-[#1a1a1a] transition-colors">
-                            <td className="px-4 py-3 font-bold text-white">{session.agent}</td>
+                    <tr key={i} className={tableRowHoverClass}>
+                      <td className={`px-4 py-3 font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{session.agent}</td>
                             <td className="px-4 py-3 font-mono text-[10px] text-gray-500 truncate max-w-[200px]">{session.sessionKey}</td>
                             <td className="px-4 py-3 text-right">{session.msgs}</td>
                             <td className="px-4 py-3 text-right text-orange-500">{formatMoney(typeof session.cost === 'number' ? session.cost : 0, 2, 2)}</td>
@@ -687,8 +726,8 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             )}
           </div>
           <div className="overflow-auto flex-1">
-            <table className="w-full text-left text-xs text-gray-400">
-              <thead className="bg-[#1a1a1a] text-gray-500 uppercase font-medium">
+            <table className={`w-full text-left text-xs ${theme === 'light' ? 'text-gray-700' : 'text-gray-400'}`}>
+              <thead className={tableHeadClass}>
                 <tr>
                   <th className="px-4 py-3">Session</th>
                   <th className="px-4 py-3">Provider</th>
@@ -699,10 +738,10 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                   {showCostColumns && <th className="px-4 py-3 text-right">Total Cost</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-900">
+              <tbody className={tableBodyClass}>
                 {(legacyData?.sessions || []).map((row) => (
-                  <tr key={`${row.session_id}-${row.model || 'unknown'}`} className="hover:bg-[#1a1a1a] transition-colors">
-                    <td className="px-4 py-3 text-gray-300">{row.session_id || '-'}</td>
+                  <tr key={`${row.session_id}-${row.model || 'unknown'}`} className={tableRowHoverClass}>
+                    <td className={`px-4 py-3 ${theme === 'light' ? 'text-gray-800' : 'text-gray-300'}`}>{row.session_id || '-'}</td>
                     <td className="px-4 py-3">{row.provider || '-'}</td>
                     <td className="px-4 py-3">{row.model || '-'}</td>
                     <td className="px-4 py-3 text-right">{row.total_tokens || 0}</td>
@@ -721,8 +760,8 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             <h3 className="text-xs uppercase text-gray-500">Reconciled Sessions</h3>
           </div>
           <div className="overflow-auto flex-1">
-            <table className="w-full text-left text-xs text-gray-400">
-              <thead className="bg-[#1a1a1a] text-gray-500 uppercase font-medium">
+            <table className={`w-full text-left text-xs ${theme === 'light' ? 'text-gray-700' : 'text-gray-400'}`}>
+              <thead className={tableHeadClass}>
                 <tr>
                   <th className="px-4 py-3">Session</th>
                   <th className="px-4 py-3">Model</th>
@@ -730,10 +769,10 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                   <th className="px-4 py-3 text-right">Observed Cost</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-900">
+              <tbody className={tableBodyClass}>
                 {(legacyData?.reconciled || []).map((row) => (
-                  <tr key={`${row.session_id}-${row.model || 'unknown'}`} className="hover:bg-[#1a1a1a] transition-colors">
-                    <td className="px-4 py-3 text-gray-300">{row.session_id || '-'}</td>
+                  <tr key={`${row.session_id}-${row.model || 'unknown'}`} className={tableRowHoverClass}>
+                    <td className={`px-4 py-3 ${theme === 'light' ? 'text-gray-800' : 'text-gray-300'}`}>{row.session_id || '-'}</td>
                     <td className="px-4 py-3">{row.model || '-'}</td>
                     <td className="px-4 py-3 text-right">{row.total_tokens || 0}</td>
                     <td className="px-4 py-3 text-right text-orange-500">{formatMoney(row.observed_cost_usd, 6, 6)}</td>
@@ -782,13 +821,24 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 className="text-xs uppercase text-gray-500">OpenRouter Pricing Catalog</h3>
             <div className="flex items-center gap-2">
+              <label htmlFor="pricing-provider-filter" className="sr-only">Filter pricing providers</label>
+              <select
+                id="pricing-provider-filter"
+                name="pricing_provider_filter"
+                value={pricingProviderScope}
+                onChange={(event) => setPricingProviderScope(event.target.value)}
+                className={`${theme === 'light' ? 'bg-white border-gray-300 text-gray-800' : 'bg-[#1a1a1a] border-gray-800 text-gray-200'} border rounded px-2 py-1 text-xs`}
+              >
+                <option value="top_labs">Top Labs</option>
+                <option value="all">All Providers</option>
+              </select>
               <label htmlFor="pricing-sort-select" className="sr-only">Sort pricing models</label>
               <select
                 id="pricing-sort-select"
                 name="pricing_sort"
                 value={pricingSortBy}
                 onChange={(event) => setPricingSortBy(event.target.value)}
-                className="bg-[#1a1a1a] border border-gray-800 rounded px-2 py-1 text-xs text-gray-200"
+                className={`${theme === 'light' ? 'bg-white border-gray-300 text-gray-800' : 'bg-[#1a1a1a] border-gray-800 text-gray-200'} border rounded px-2 py-1 text-xs`}
               >
                 <option value="input_per_million">Sort: Input Price</option>
                 <option value="output_per_million">Sort: Output Price</option>
@@ -797,7 +847,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
               </select>
               <button
                 onClick={() => setPricingSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                className="bg-[#1a1a1a] border border-gray-800 px-2 py-1 rounded text-xs text-white hover:bg-gray-800 transition"
+                className={`${theme === 'light' ? 'bg-white border-gray-300 text-gray-800 hover:bg-gray-100' : 'bg-[#1a1a1a] border-gray-800 text-white hover:bg-gray-800'} border px-2 py-1 rounded text-xs transition`}
               >
                 {pricingSortDir === 'asc' ? 'Asc' : 'Desc'}
               </button>
@@ -805,13 +855,13 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
           </div>
 
           <p className="text-xs text-gray-500 mb-3">
-            Models from OpenRouter: {availableModels.length} · used on this instance: {availableModels.filter((row) => row.used_by_openclaw).length}
+            Models shown: {visibleModels.length} of {availableModels.length} · used on this instance: {visibleModels.filter((row) => row.used_by_openclaw).length}
           </p>
 
           {pricingScatterData.length > 0 && (
             <>
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
-                <div className="bg-[#111111] border border-gray-900 rounded p-3">
+                <div className={`${panelSurfaceClass} rounded p-3 border`}>
                   <p className="text-[11px] text-gray-500 mb-2 uppercase">Input vs Output Price</p>
                   <div className="h-56">
                     <ResponsiveContainer width="100%" height="100%">
@@ -826,7 +876,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                   </div>
                 </div>
 
-                <div className="bg-[#111111] border border-gray-900 rounded p-3">
+                <div className={`${panelSurfaceClass} rounded p-3 border`}>
                   <p className="text-[11px] text-gray-500 mb-1 uppercase">Cache vs Blended Rate</p>
                   <p className="text-[10px] text-gray-600 mb-2">Blended Rate = (0.75 × Input Price) + (0.25 × Output Price)</p>
                   <div className="h-56">
@@ -851,14 +901,14 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
 
           <div className="space-y-3 max-h-[34rem] overflow-y-auto pr-1">
             {providerGroups.map((group) => (
-              <details key={group.provider} open={group.usedCount > 0} className="bg-[#111111] border border-gray-900 rounded">
+              <details key={group.provider} open={group.usedCount > 0} className={`${panelSurfaceClass} rounded border`}>
                 <summary className="cursor-pointer px-3 py-2 text-xs text-gray-300 flex items-center justify-between gap-2">
-                  <span>{group.provider}</span>
+                  <span className={theme === 'light' ? 'text-gray-800' : ''}>{group.provider}</span>
                   <span className="text-gray-500">{group.rows.length} models · used {group.usedCount}</span>
                 </summary>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs text-gray-400">
-                    <thead className="bg-[#161616] text-gray-500 uppercase font-medium">
+                  <table className={`w-full text-left text-xs ${theme === 'light' ? 'text-gray-700' : 'text-gray-400'}`}>
+                    <thead className={theme === 'light' ? 'bg-gray-100 text-gray-600 uppercase font-medium' : 'bg-[#161616] text-gray-500 uppercase font-medium'}>
                       <tr>
                         <th className="px-3 py-2">Model</th>
                         <th className="px-3 py-2 text-right">Input / 1M</th>
@@ -867,13 +917,15 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                         <th className="px-3 py-2">Usage</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-900">
+                    <tbody className={tableBodyClass}>
                       {group.rows.map((row) => (
                         <tr
                           key={row.id || `${row.provider}/${row.model}`}
-                          className={row.used_by_openclaw ? 'bg-[#1f1608]' : 'hover:bg-[#1a1a1a]'}
+                          className={row.used_by_openclaw
+                            ? (theme === 'light' ? 'bg-orange-100' : 'bg-[#1f1608]')
+                            : (theme === 'light' ? 'hover:bg-gray-100' : 'hover:bg-[#1a1a1a]')}
                         >
-                          <td className="px-3 py-2 text-gray-300">{row.model || row.id || '-'}</td>
+                          <td className={`px-3 py-2 ${theme === 'light' ? 'text-gray-800' : 'text-gray-300'}`}>{row.model || row.id || '-'}</td>
                           <td className="px-3 py-2 text-right">{formatMoney(row.input_per_million || 0, 4, 4)}</td>
                           <td className="px-3 py-2 text-right">{formatMoney(row.output_per_million || 0, 4, 4)}</td>
                           <td className="px-3 py-2 text-right">{Number(row.context_length || 0).toLocaleString()}</td>
@@ -907,7 +959,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                   setLogsExplorerData(null);
                 }
               }}
-              className="bg-[#1a1a1a] border border-gray-800 px-3 py-1 rounded text-xs text-white hover:bg-gray-800 transition"
+              className={`${theme === 'light' ? 'bg-white border-gray-300 text-gray-800 hover:bg-gray-100' : 'bg-[#1a1a1a] border-gray-800 text-white hover:bg-gray-800'} border px-3 py-1 rounded text-xs transition`}
             >
               Refresh Tab
             </button>
@@ -925,8 +977,8 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                 onClick={() => setExplorerTab(tab.id)}
                 className={`px-3 py-1 rounded text-xs border transition ${
                   explorerTab === tab.id
-                    ? 'bg-[#1f1f1f] border-gray-700 text-orange-400'
-                    : 'bg-[#111111] border-gray-800 text-gray-400 hover:bg-[#1a1a1a]'
+                    ? (theme === 'light' ? 'bg-orange-100 border-orange-300 text-orange-700' : 'bg-[#1f1f1f] border-gray-700 text-orange-400')
+                    : (theme === 'light' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-[#111111] border-gray-800 text-gray-400 hover:bg-[#1a1a1a]')
                 }`}
               >
                 {tab.label}
@@ -943,7 +995,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                   name="raw_events_session"
                   value={selectedSessionId}
                   onChange={(event) => setSelectedSessionId(event.target.value)}
-                  className="bg-[#1a1a1a] border border-gray-800 rounded px-3 py-1 text-xs text-gray-200"
+                  className={`${theme === 'light' ? 'bg-white border-gray-300 text-gray-800' : 'bg-[#1a1a1a] border-gray-800 text-gray-200'} border rounded px-3 py-1 text-xs`}
                 >
                   {sessionOptions.length === 0 && <option value="">No reconciled sessions</option>}
                   {sessionOptions.map((sessionId) => (
@@ -958,7 +1010,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
               {!sessionEventsLoading && !sessionEventsError && (
                 <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
                   {(sessionEventsData.rows || []).map((row, index) => (
-                    <div key={`${row.event_ts || 'na'}-${index}`} className="bg-[#111111] border border-gray-900 rounded p-3">
+                    <div key={`${row.event_ts || 'na'}-${index}`} className={`${panelSurfaceClass} rounded p-3 border`}>
                       <p className="text-[11px] text-gray-500 mb-2">
                         {formatIsoOrDash(row.event_ts)} · {row.event_type || '-'} · tokens={row.total_tokens || 0} · source={row.cost_source || '-'}
                       </p>
@@ -980,8 +1032,8 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
 
               {!snapshotLoading && !snapshotError && (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs text-gray-400">
-                    <thead className="bg-[#1a1a1a] text-gray-500 uppercase font-medium">
+                  <table className={`w-full text-left text-xs ${theme === 'light' ? 'text-gray-700' : 'text-gray-400'}`}>
+                    <thead className={tableHeadClass}>
                       <tr>
                         <th className="px-3 py-2">Session</th>
                         <th className="px-3 py-2">Provider</th>
@@ -991,10 +1043,10 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                         <th className="px-3 py-2">Raw Snapshot</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-900">
+                    <tbody className={tableBodyClass}>
                       {(snapshotData.rows || []).map((row) => (
-                        <tr key={row.session_id} className="hover:bg-[#1a1a1a] transition-colors align-top">
-                          <td className="px-3 py-2 text-gray-300">{row.session_id || '-'}</td>
+                        <tr key={row.session_id} className={`${tableRowHoverClass} align-top`}>
+                          <td className={`px-3 py-2 ${theme === 'light' ? 'text-gray-800' : 'text-gray-300'}`}>{row.session_id || '-'}</td>
                           <td className="px-3 py-2">{row.provider || '-'}</td>
                           <td className="px-3 py-2">{row.model || '-'}</td>
                           <td className="px-3 py-2 text-right">{row.total_tokens || 0}</td>
@@ -1031,7 +1083,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                   </p>
                   <div className="space-y-4 max-h-[32rem] overflow-y-auto pr-1">
                     {(logsExplorerData.files || []).map((file) => (
-                      <div key={file.path} className="bg-[#111111] border border-gray-900 rounded p-3">
+                      <div key={file.path} className={`${panelSurfaceClass} rounded p-3 border`}>
                         <p className="text-[11px] text-gray-400 break-all">{file.path}</p>
                         <p className="text-[11px] text-gray-600 mt-1">
                           size={file.size_bytes} bytes · modified={formatIsoOrDash(file.modified_at)} · checkpoint={file.checkpoint?.cursor ?? 'none'}
@@ -1050,19 +1102,19 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
 
           {explorerTab === 'diagnostics' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-[#111111] border border-gray-900 rounded p-3">
+              <div className={`${panelSurfaceClass} rounded p-3 border`}>
                 <p className="text-xs text-gray-500 mb-2 uppercase">Data Status</p>
                 <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words">{JSON.stringify(profile.data_status || {}, null, 2)}</pre>
               </div>
-              <div className="bg-[#111111] border border-gray-900 rounded p-3">
+              <div className={`${panelSurfaceClass} rounded p-3 border`}>
                 <p className="text-xs text-gray-500 mb-2 uppercase">Cost Sources</p>
                 <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words">{JSON.stringify(costSources || {}, null, 2)}</pre>
               </div>
-              <div className="bg-[#111111] border border-gray-900 rounded p-3 md:col-span-2">
+              <div className={`${panelSurfaceClass} rounded p-3 border md:col-span-2`}>
                 <p className="text-xs text-gray-500 mb-2 uppercase">Connection</p>
                 <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words">{JSON.stringify(connectionInfo || {}, null, 2)}</pre>
               </div>
-              <div className="bg-[#111111] border border-gray-900 rounded p-3 md:col-span-2">
+              <div className={`${panelSurfaceClass} rounded p-3 border md:col-span-2`}>
                 <p className="text-xs text-gray-500 mb-2 uppercase">Ingest + File Diagnostics</p>
                 {logsExplorerLoading && <p className="text-xs text-gray-500">Loading diagnostics...</p>}
                 {logsExplorerError && <p className="text-xs text-red-400">{logsExplorerError}</p>}
