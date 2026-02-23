@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -171,8 +171,14 @@ def create_app(usage_service: UsageService) -> FastAPI:
 
     # ── Health ─────────────────────────────────────────────────────────
 
-    @app.get("/")
-    def root() -> dict[str, str]:
+    # ── SPA static file serving ───────────────────────────────────────
+    _FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+    _spa_enabled = _FRONTEND_DIST.is_dir() and (_FRONTEND_DIST / "index.html").exists()
+
+    @app.get("/", response_model=None)
+    def root():
+        if _spa_enabled:
+            return HTMLResponse((_FRONTEND_DIST / "index.html").read_text())
         return {
             "name": "Claw Journal API",
             "dashboard": "Run the React dashboard from frontend/ (npm run dev)",
@@ -345,6 +351,14 @@ def create_app(usage_service: UsageService) -> FastAPI:
     ) -> dict[str, object]:
         return {"rows": usage_service.sessions_with_transcripts(limit)}
 
+    # ── TooToo API ─────────────────────────────────────────────────────
+
+    @app.get("/api/tootoo/reviews")
+    def tootoo_reviews(
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> dict[str, object]:
+        return {"rows": usage_service.tootoo_reviews(limit)}
+
     # ── Thinking API (from reasoning) ──────────────────────────────────
 
     @app.get("/api/thinking")
@@ -512,5 +526,20 @@ def create_app(usage_service: UsageService) -> FastAPI:
             "search.html",
             {"request": request, "query": q, "results": results, "session_id": session_id},
         )
+
+    # ── Serve React SPA (production build) ─────────────────────────────
+    if _spa_enabled:
+        # Mount built assets (JS, CSS, images) under /assets/
+        app.mount("/assets", StaticFiles(directory=str(_FRONTEND_DIST / "assets")), name="frontend-assets")
+
+        # SPA catch-all: serve real files from dist/ if they exist, otherwise index.html
+        @app.get("/{path:path}")
+        def spa_fallback(path: str):
+            # Serve actual static files (favicon.svg, tootoo-icon.png, etc.)
+            candidate = _FRONTEND_DIST / path
+            if candidate.is_file() and _FRONTEND_DIST in candidate.resolve().parents:
+                return FileResponse(str(candidate))
+            # Everything else gets the SPA shell
+            return HTMLResponse((_FRONTEND_DIST / "index.html").read_text())
 
     return app

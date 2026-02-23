@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Bot, Settings, User, Wrench } from 'lucide-react';
+import { TooTooFeedbackCard, parseTooTooFeedback } from './TooTooComponents';
 
 const ConversationPage = ({ theme = 'dark', sessionId }) => {
   const [messages, setMessages] = useState([]);
@@ -104,11 +105,16 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
     if (!contentJson) return [];
     try {
       const parsed = JSON.parse(contentJson);
-      return Array.isArray(parsed) ? parsed : [];
+      if (Array.isArray(parsed)) return parsed;
+      // Handle JSONL nested structure: {type: "message", message: {content: [...]}}
+      const content = parsed?.message?.content;
+      if (Array.isArray(content)) return content;
+      return [];
     } catch {
       return [];
     }
   };
+
 
   const renderMessage = (msg, idx) => {
     const sender = parseSender(msg);
@@ -212,6 +218,10 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
     }
 
     if (block.type === 'text') {
+      const tootooData = parseTooTooFeedback(block.text);
+      if (tootooData) {
+        return wrapper(<TooTooFeedbackCard data={tootooData} isLight={isLight} />);
+      }
       return wrapper(
         <pre className={`text-[12px] whitespace-pre-wrap break-words mb-2 ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
           {block.text}
@@ -292,6 +302,20 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
           </div>
         </div>
       )}
+
+      {/* Pinned TooToo feedback (shown at top when present) */}
+      {!loading && !error && (() => {
+        for (const msg of messages) {
+          const blocks = parseContentBlocks(msg.content_json);
+          for (const block of blocks) {
+            if (block.type === 'text') {
+              const data = parseTooTooFeedback(block.text);
+              if (data) return <div className="mb-6"><TooTooFeedbackCard data={data} isLight={isLight} /></div>;
+            }
+          }
+        }
+        return null;
+      })()}
 
       {/* Messages */}
       {loading && <p className="text-xs text-gray-500">Loading conversation...</p>}

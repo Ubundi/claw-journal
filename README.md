@@ -137,10 +137,7 @@ Contributions are welcome.
 - For first contributions, look for the `good first issue` label.
 - Keep PRs focused and include setup/verification notes.
 
-Planned repository docs:
-- `CONTRIBUTING.md`
-- `CODE_OF_CONDUCT.md`
-- `SECURITY.md`
+Please review our [Contributing Guidelines](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), and [Security Policy](SECURITY.md) before participating.
 
 ## 🌍 Community
 
@@ -150,15 +147,6 @@ Planned repository docs:
 ## 📄 License
 
 This project is open source under the MIT License.
-
-## ✅ Maintainer Actions Needed
-
-These items require human action to fully complete the OSS/public repo refactor:
-
-1. Create `CONTRIBUTING.md` with PR workflow, development setup, and coding standards.
-2. Add `CODE_OF_CONDUCT.md` (GitHub Community Standards template is fine).
-3. Add `SECURITY.md` with private vulnerability disclosure instructions.
-4. Add your community URL (Discord/Slack) into the Community section.
 
 ---
 *Created for the OpenClaw community.*
