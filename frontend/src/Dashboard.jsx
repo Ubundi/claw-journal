@@ -450,8 +450,6 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
           <span className={runtimePillClass('bg-gray-100 text-gray-800 border-gray-300', 'bg-zinc-800/60 text-gray-300 border-gray-700')}>
             mode={connectionInfo?.remote?.ingest_mode || '-'}
           </span>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
             type="button"
             className={`text-[11px] border rounded px-2 py-[2px] inline-flex items-center gap-1 ${theme === 'light' ? 'bg-indigo-100 text-indigo-800 border-indigo-300 hover:bg-indigo-200' : 'bg-indigo-900/30 text-indigo-300 border-indigo-800 hover:bg-indigo-900/40'}`}
@@ -475,17 +473,29 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             <HelpCircle size={12} />
           </button>
         </div>
-        <div className="mt-2 text-[11px] leading-snug">
-          <p className={theme === 'light' ? 'text-gray-700' : 'text-gray-400'}>
-            session sync last success: {formatEpochMsOrDash(connectionInfo?.runtime?.session_sync_last_success_ms)}
-          </p>
-          <p className={theme === 'light' ? 'text-gray-700' : 'text-gray-400'}>
-            auto-sync last run: {formatIsoOrDash(connectionInfo?.runtime?.sync_last_run_at)}
+        <div className="mt-2 flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
+          <button
+            type="button"
+            className={`text-[11px] border rounded px-2 py-[2px] inline-flex items-center gap-1 ${theme === 'light' ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200' : 'bg-amber-900/30 text-amber-300 border-amber-800 hover:bg-amber-900/40'}`}
+            onMouseEnter={() => setActiveKpiTooltip('runtime:code-sync')}
+            onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:code-sync' ? '' : prev))}
+            onFocus={() => setActiveKpiTooltip('runtime:code-sync')}
+            onBlur={() => setActiveKpiTooltip((prev) => (prev === 'runtime:code-sync' ? '' : prev))}
+          >
+            Code sync from GitHub: {formatIsoOrDash(connectionInfo?.runtime?.sync_last_run_at)}
             {connectionInfo?.runtime?.sync_last_run_message ? ` · ${connectionInfo.runtime.sync_last_run_message}` : ''}
-          </p>
-          <p className={theme === 'light' ? 'text-gray-700' : 'text-gray-400'}>
+            <HelpCircle size={12} />
+          </button>
+          <span className={runtimePillClass(
+            connectionInfo?.runtime?.sync_lock_active
+              ? 'bg-rose-100 text-rose-800 border-rose-300'
+              : 'bg-emerald-100 text-emerald-800 border-emerald-300',
+            connectionInfo?.runtime?.sync_lock_active
+              ? 'bg-rose-900/40 text-rose-300 border-rose-800'
+              : 'bg-emerald-900/40 text-emerald-300 border-emerald-800',
+          )}>
             auto-sync lock: {connectionInfo?.runtime?.sync_lock_active ? `active (${connectionInfo?.runtime?.sync_lock_age_seconds ?? 0}s)` : 'not active'}
-          </p>
+          </span>
         </div>
         {activeKpiTooltip === 'runtime:token-counting' && (
           <div className="absolute left-4 top-[4.9rem] z-20 max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">
@@ -499,6 +509,11 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             <p><strong>Session:</strong> A unique `session_id` timeline.</p>
             <p><strong>Message:</strong> One transcript event row (`user`, `assistant`, `tool`, or `system`).</p>
             <p><strong>Token:</strong> Provider-reported model usage unit, usually split into input and output tokens.</p>
+          </div>
+        )}
+        {activeKpiTooltip === 'runtime:code-sync' && (
+          <div className="absolute left-4 top-[6.9rem] z-20 max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">
+            Code sync reflects the latest run of the host cron deploy task (`sync-claw-journal.sh`). It checks `origin/main`, pulls new commits when present, restarts services if needed, and logs whether it deployed, skipped, or recovered from lock contention.
           </div>
         )}
       </div>
