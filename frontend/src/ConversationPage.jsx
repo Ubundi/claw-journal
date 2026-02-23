@@ -120,6 +120,15 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
     const sender = parseSender(msg);
     const blocks = parseContentBlocks(msg.content_json);
 
+    // Skip messages with no visible content
+    const isNoise = (t) => { const s = (t || '').trim(); return !s || /^\[?\s*\]?$/.test(s); };
+    const hasVisibleBlocks = blocks.some((b) =>
+      b.type === 'thinking' ? !isNoise(b.thinking || b.text) :
+      b.type === 'text' ? !isNoise(b.text) :
+      ['tool_use', 'toolCall', 'tool_result', 'toolResult'].includes(b.type)
+    );
+    if (!hasVisibleBlocks && isNoise(msg.text_content)) return null;
+
     // Count reasoning chain steps
     let chainCount = 0;
     if (sender.label === 'Rune') {
