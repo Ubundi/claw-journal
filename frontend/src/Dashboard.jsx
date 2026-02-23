@@ -404,7 +404,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
 
       <div className="relative z-10">
       <div id="overview" className={`${cardSurfaceClass} p-4 rounded border mb-6 scroll-mt-24 relative`}>
-        <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
+        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
           <p className={`text-sm font-semibold mr-1 whitespace-nowrap ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Runtime Mode</p>
           <span className={runtimePillClass(
             String(profile.auth_mode || 'unknown').toLowerCase() === 'oauth'
@@ -454,7 +454,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className="text-[11px] border rounded px-2 py-[2px] bg-indigo-900/30 text-indigo-300 border-indigo-800 hover:bg-indigo-900/40 inline-flex items-center gap-1"
+            className={`text-[11px] border rounded px-2 py-[2px] inline-flex items-center gap-1 ${theme === 'light' ? 'bg-indigo-100 text-indigo-800 border-indigo-300 hover:bg-indigo-200' : 'bg-indigo-900/30 text-indigo-300 border-indigo-800 hover:bg-indigo-900/40'}`}
             onMouseEnter={() => setActiveKpiTooltip('runtime:token-counting')}
             onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:token-counting' ? '' : prev))}
             onFocus={() => setActiveKpiTooltip('runtime:token-counting')}
@@ -474,6 +474,18 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             glossary
             <HelpCircle size={12} />
           </button>
+        </div>
+        <div className="mt-2 text-[11px] leading-snug">
+          <p className={theme === 'light' ? 'text-gray-700' : 'text-gray-400'}>
+            session sync last success: {formatEpochMsOrDash(connectionInfo?.runtime?.session_sync_last_success_ms)}
+          </p>
+          <p className={theme === 'light' ? 'text-gray-700' : 'text-gray-400'}>
+            auto-sync last run: {formatIsoOrDash(connectionInfo?.runtime?.sync_last_run_at)}
+            {connectionInfo?.runtime?.sync_last_run_message ? ` · ${connectionInfo.runtime.sync_last_run_message}` : ''}
+          </p>
+          <p className={theme === 'light' ? 'text-gray-700' : 'text-gray-400'}>
+            auto-sync lock: {connectionInfo?.runtime?.sync_lock_active ? `active (${connectionInfo?.runtime?.sync_lock_age_seconds ?? 0}s)` : 'not active'}
+          </p>
         </div>
         {activeKpiTooltip === 'runtime:token-counting' && (
           <div className="absolute left-4 top-[4.9rem] z-20 max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">

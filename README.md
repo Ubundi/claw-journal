@@ -54,9 +54,21 @@ If OpenClaw runs on this computer:
 
 If OpenClaw runs on a server/VM:
 
-1. **SSH to the OpenClaw host and run Claw Journal there (recommended single source of truth):**
+1. **Install Claw Journal on the OpenClaw host (first time only):**
    ```bash
    ssh user@your-host
+   cd ~
+   git clone https://github.com/Ubundi/claw-journal.git
+   cd claw-journal
+   uv venv
+   source .venv/bin/activate
+   uv pip install -r requirements.txt
+   cd frontend && npm install && cd ..
+   cp .env.example .env
+   ```
+
+2. **Run Claw Journal on the host (single source of truth):**
+   ```bash
    cd ~/claw-journal
    ./scripts/start-dashboard.sh
    ```
@@ -66,13 +78,17 @@ If OpenClaw runs on a server/VM:
    PATH=/opt/homebrew/bin:/usr/local/bin:$PATH ./scripts/start-dashboard.sh
    ```
 
-2. **From your local machine, tunnel the dashboard ports:**
+3. **View directly on the host machine/browser:**
+   - Dashboard: `http://127.0.0.1:5173`
+   - API health: `http://127.0.0.1:3000/health`
+
+4. **View from your laptop via SSH tunnel:**
    ```bash
    ssh -L 5173:127.0.0.1:5173 -L 3000:127.0.0.1:3000 user@your-host
    ```
 
-- **Dashboard:** `http://localhost:5173`
-- **Chat History:** `http://localhost:5173/chat`
+- **Dashboard (local browser):** `http://127.0.0.1:5173`
+- **API health (local browser):** `http://127.0.0.1:3000/health`
 
 > Advanced mode: running Claw Journal on a separate machine over SSH ingest is still possible, but host-run mode is recommended for a single persistent source of truth.
 

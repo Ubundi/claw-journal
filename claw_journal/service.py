@@ -484,6 +484,9 @@ with open(path, 'r', encoding='utf-8', errors='replace') as handle:
 
         local_hostname = socket.gethostname()
         session_sync_last_success_ms = self._repository.get_checkpoint(SESSION_SYNC_LAST_SUCCESS_KEY)
+        sync_log_path = Path.home() / "claw-journal-sync.log"
+        sync_last_run_at, sync_last_run_message = _read_last_sync_log_entry(sync_log_path)
+        sync_lock_age_seconds = _lock_age_seconds(Path("/tmp/claw-journal-sync.lock"))
 
         return {
             "local": {
@@ -506,6 +509,12 @@ with open(path, 'r', encoding='utf-8', errors='replace') as handle:
                 "api_port": self._settings.port,
                 "log_glob": self._settings.openclaw_log_glob,
                 "session_sync_last_success_ms": session_sync_last_success_ms or 0,
+                "session_sync_last_success_iso": _epoch_ms_to_iso(session_sync_last_success_ms),
+                "sync_log_path": str(sync_log_path),
+                "sync_last_run_at": sync_last_run_at,
+                "sync_last_run_message": sync_last_run_message,
+                "sync_lock_active": sync_lock_age_seconds is not None,
+                "sync_lock_age_seconds": sync_lock_age_seconds,
             },
         }
 
@@ -574,6 +583,59 @@ def _resolve_host_ip(host: str) -> str | None:
         return socket.gethostbyname(host)
     except OSError:
         return None
+
+
+def _epoch_ms_to_iso(value: int | None) -> str | None:
+    if not value:
+        return None
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    if number <= 0:
+        return None
+    return datetime.fromtimestamp(number / 1000, tz=timezone.utc).isoformat()
+
+
+def _read_last_sync_log_entry(path: Path) -> tuple[str | None, str | None]:
+    if not path.exists() or not path.is_file():
+        return None, None
+
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return None, None
+
+    for line in reversed(lines):
+        text = line.strip()
+        if not text:
+            continue
+
+        if len(text) >= 20 and text[4] == "-" and text[7] == "-" and text[10] == " ":
+            stamp = text[:19]
+            message = text[20:].strip() if len(text) > 20 else ""
+            try:
+                parsed = datetime.strptime(stamp, "%Y-%m-%d %H:%M:%S")
+                iso = parsed.replace(tzinfo=timezone.utc).isoformat()
+            except ValueError:
+                iso = None
+            return iso, message or text
+
+        return None, text
+
+    return None, None
+
+
+def _lock_age_seconds(path: Path) -> int | None:
+    if not path.exists():
+        return None
+    try:
+        mtime = float(path.stat().st_mtime)
+    except OSError:
+        return None
+    now = datetime.now(tz=timezone.utc).timestamp()
+    age = int(now - mtime)
+    return max(age, 0)
 
 
 def _fill_recent_days(rows: list[dict], days: int) -> list[dict[str, int | str]]:
