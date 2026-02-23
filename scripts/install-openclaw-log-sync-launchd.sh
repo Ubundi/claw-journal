@@ -2,7 +2,21 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SYNC_SCRIPT="$SCRIPT_DIR/openclaw-sync-tmp-logs.sh"
+
+if [[ -f "$ROOT_DIR/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$ROOT_DIR/.env"
+  set +a
+fi
+
+SYNC_INTERVAL="${CJ_LOG_SYNC_INTERVAL:-120}"
+if ! [[ "$SYNC_INTERVAL" =~ ^[0-9]+$ ]] || [[ "$SYNC_INTERVAL" -le 0 ]]; then
+  echo "Invalid CJ_LOG_SYNC_INTERVAL='$SYNC_INTERVAL' (must be a positive integer)."
+  exit 1
+fi
 
 if [[ ! -x "$SYNC_SCRIPT" ]]; then
   chmod +x "$SYNC_SCRIPT"
@@ -27,7 +41,7 @@ cat > "$PLIST_PATH" <<PLIST
     </array>
 
     <key>StartInterval</key>
-    <integer>120</integer>
+    <integer>$SYNC_INTERVAL</integer>
 
     <key>RunAtLoad</key>
     <true/>
@@ -56,4 +70,5 @@ launchctl start io.ubundi.openclaw-log-sync || true
 
 echo "Installed launchd agent: $PLIST_PATH"
 echo "Sync script: $SYNC_SCRIPT"
+echo "Sync interval: ${SYNC_INTERVAL}s"
 echo "Persistent logs: $HOME/.openclaw/logs/history"
