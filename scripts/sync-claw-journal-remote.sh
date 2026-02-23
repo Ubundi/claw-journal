@@ -7,6 +7,8 @@ export GIT_TERMINAL_PROMPT=0
 export GIT_ASKPASS=/usr/bin/false
 
 LOCKDIR=/tmp/claw-journal-sync.lock
+LOCK_PID_FILE="$LOCKDIR/pid"
+LOCK_MAX_AGE_SECONDS="${CJ_SYNC_LOCK_MAX_AGE_SECONDS:-300}"
 REPO=/Users/rune/Documents/GitHub/claw-journal
 SYNC_LOG=/Users/rune/claw-journal-sync.log
 START_LOG=/tmp/claw-journal-start.log
@@ -15,11 +17,55 @@ log() {
   echo "$(date +"%Y-%m-%d %H:%M:%S") $*" >> "$SYNC_LOG"
 }
 
-if ! mkdir "$LOCKDIR" 2>/dev/null; then
-  log "sync skipped: previous run still active"
+if ! [[ "$LOCK_MAX_AGE_SECONDS" =~ ^[0-9]+$ ]] || [[ "$LOCK_MAX_AGE_SECONDS" -le 0 ]]; then
+  LOCK_MAX_AGE_SECONDS=300
+fi
+
+acquire_lock() {
+  if mkdir "$LOCKDIR" 2>/dev/null; then
+    echo "$$" > "$LOCK_PID_FILE"
+    return 0
+  fi
+
+  local lock_pid=""
+  if [[ -f "$LOCK_PID_FILE" ]]; then
+    lock_pid="$(cat "$LOCK_PID_FILE" 2>/dev/null || true)"
+  fi
+
+  if [[ -n "$lock_pid" ]] && kill -0 "$lock_pid" >/dev/null 2>&1; then
+    log "sync skipped: previous run still active (pid=$lock_pid)"
+    return 1
+  fi
+
+  local lock_mtime
+  lock_mtime="$(stat -f %m "$LOCKDIR" 2>/dev/null || echo 0)"
+  local now
+  now="$(date +%s)"
+  local age=$((now - lock_mtime))
+
+  if [[ "$age" -ge "$LOCK_MAX_AGE_SECONDS" ]]; then
+    rm -rf "$LOCKDIR" >/dev/null 2>&1 || true
+    if mkdir "$LOCKDIR" 2>/dev/null; then
+      echo "$$" > "$LOCK_PID_FILE"
+      log "cleared stale lock (age=${age}s) and continued"
+      return 0
+    fi
+  fi
+
+  log "sync skipped: lock present (age=${age}s)"
+  return 1
+}
+
+cleanup_lock() {
+  if [[ -f "$LOCK_PID_FILE" ]] && [[ "$(cat "$LOCK_PID_FILE" 2>/dev/null || true)" == "$$" ]]; then
+    rm -rf "$LOCKDIR" >/dev/null 2>&1 || true
+  fi
+}
+
+if ! acquire_lock; then
   exit 0
 fi
-trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
+trap cleanup_lock EXIT
 
 if [ ! -d "$REPO/.git" ]; then
   log "repo missing: $REPO"

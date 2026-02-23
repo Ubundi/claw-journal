@@ -4,6 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SYNC_SCRIPT="$SCRIPT_DIR/openclaw-sync-tmp-logs.sh"
+RUNTIME_DIR="$HOME/.openclaw/bin"
+RUNTIME_SYNC_SCRIPT="$RUNTIME_DIR/openclaw-sync-tmp-logs.sh"
 
 if [[ -f "$ROOT_DIR/.env" ]]; then
   set -a
@@ -22,6 +24,10 @@ if [[ ! -x "$SYNC_SCRIPT" ]]; then
   chmod +x "$SYNC_SCRIPT"
 fi
 
+mkdir -p "$RUNTIME_DIR"
+cp "$SYNC_SCRIPT" "$RUNTIME_SYNC_SCRIPT"
+chmod +x "$RUNTIME_SYNC_SCRIPT"
+
 PLIST_DIR="$HOME/Library/LaunchAgents"
 PLIST_PATH="$PLIST_DIR/io.ubundi.openclaw-log-sync.plist"
 mkdir -p "$PLIST_DIR"
@@ -37,7 +43,7 @@ cat > "$PLIST_PATH" <<PLIST
     <key>ProgramArguments</key>
     <array>
       <string>/bin/bash</string>
-      <string>$SYNC_SCRIPT</string>
+      <string>$RUNTIME_SYNC_SCRIPT</string>
     </array>
 
     <key>StartInterval</key>
@@ -69,6 +75,7 @@ launchctl load "$PLIST_PATH"
 launchctl start io.ubundi.openclaw-log-sync || true
 
 echo "Installed launchd agent: $PLIST_PATH"
-echo "Sync script: $SYNC_SCRIPT"
+echo "Sync script source: $SYNC_SCRIPT"
+echo "Sync script runtime: $RUNTIME_SYNC_SCRIPT"
 echo "Sync interval: ${SYNC_INTERVAL}s"
 echo "Persistent logs: $HOME/.openclaw/logs/history"
