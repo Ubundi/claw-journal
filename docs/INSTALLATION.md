@@ -70,6 +70,7 @@ Claw Journal uses a `.env` file for configuration.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CJ_OPENCLAW_LOG_GLOB` | `/tmp/openclaw/openclaw-*.log` | Path to OpenClaw logs. |
+| `CJ_LOG_SYNC_INTERVAL` | `120` | Background durable log sync interval in seconds (used by launchd helper script). |
 | `CJ_DB_PATH` | `./data/claw_journal.db` | SQLite database path. |
 | `CJ_REMOTE_ENABLED` | `false` | Enable remote-mode config validation. |
 | `CJ_REMOTE_SSH_HOST` | - | SSH target (e.g., `user@host`) for remote sync. |

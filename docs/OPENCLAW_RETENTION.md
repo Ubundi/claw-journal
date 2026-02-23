@@ -61,6 +61,12 @@ This installs:
 - launchd agent: `~/Library/LaunchAgents/io.ubundi.openclaw-log-sync.plist`
 - destination: `~/.openclaw/logs/history/openclaw-*.log`
 
+Set optional sync cadence before install (seconds):
+
+```bash
+export CJ_LOG_SYNC_INTERVAL=120
+```
+
 Set Claw Journal to use durable logs:
 
 ```bash
