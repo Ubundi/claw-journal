@@ -233,7 +233,7 @@ Contributions are welcome.
 - For first contributions, look for the `good first issue` label.
 - Keep PRs focused and include setup/verification notes.
 
-Please review our [Contributing Guidelines](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), and [Security Policy](SECURITY.md) before participating.
+Please review our [Contributing Guidelines](./docs/CONTRIBUTING.md), [Code of Conduct](./docs/CODE_OF_CONDUCT.md), and [Security Policy](./docs/SECURITY.md) before participating.
 
 ## 🌍 Community
 
