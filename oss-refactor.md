@@ -122,7 +122,7 @@ Based on research from GitHub Docs, ToolJet (25K+ stars), and multiple successfu
 
 [badges here]
 
-![Dashboard Demo](./docs/demo.gif)
+![Dashboard Demo](./docs/assets/videodemo.jpeg)
 
 ## Why Claw Journal?
 

@@ -1,6 +1,8 @@
-<img src="docs/assets/logo_1.png" alt="Claw Journal logo" width="64" style="float:left; margin-right:12px;" />
+<img width="1268" height="412" alt="image" src="https://github.com/user-attachments/assets/84178bb1-d900-4885-bce7-f4bbe5e3b443" />
 
-# Claw Journal 🦞
+
+
+# Claw Journal 
 
 > Local observability dashboard for OpenClaw — track tokens, costs, and agent reasoning without cloud dependencies.
 
@@ -10,7 +12,7 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/Ubundi/claw-journal)
 
 <p align="center">
-   <img src="docs/assets/demo.gif" alt="Claw Journal Demo" />
+   <img src="docs/assets/videodemo.jpeg" alt="Claw Journal Demo" />
 </p>
 
 **Claw Journal** is an advanced observability and analytics skill for OpenClaw. It provides a dedicated web dashboard to track, visualize, and audit your OpenClaw usage with local-first data collection.
@@ -24,7 +26,7 @@
 - **Audit agent behavior:** Session-level reasoning and tool invocation visibility.
 - **Stay local-first:** Data collection and storage run on your own machine.
 
-## 🧭 Recommended Architecture (Single Source of Truth)
+## Recommended Architecture (Single Source of Truth)
 
 Run Claw Journal **on the OpenClaw host only**.
 
@@ -38,7 +40,7 @@ Default persistent storage on the host:
 
 This avoids fragmented local caches across multiple viewer machines and ensures one consolidated history.
 
-## ⚡ Quick Start
+## Quick Start
 
 ### Option A: Local (Same Machine)
 
@@ -148,19 +150,38 @@ Notes:
 
 ---
 
-## 🚀 Features
+## Features
 
 Claw Journal runs as a local service alongside your OpenClaw instance to capture and display:
 
-### 📊 Comprehensive Usage Analytics
+
+<img width="1268" height="412" alt="image" src="https://github.com/user-attachments/assets/262f115a-28d9-4767-9b65-30514a41ba6c" />
+
+
+
+### Session Logs
+- **Conversation Archive:** Searchable history of all your OpenClaw interactions.
+- **Transcript Sync:** Ingest JSONL transcripts from local filesystem or remote hosts via SSH.
+
+### Reasoning Chains
+- **Thinking Process Annotation:** Visualize "Wait... thinking" blocks and internal reasoning steps.
+- **Sub-Agent Tracking:** See when specific sub-agents or tools were invoked.
+
+### Cost Tracking
 - **Token Tracking:** Real-time breakdown of input/output tokens parsed directly from OpenClaw session logs.
 - **Cost Observability:** Accurate cost estimation even for OAuth providers where API cost data is hidden.
 - **Visual Graphs:** Interactive charts showing usage trends over time.
 
-### 🧠 Agent Logic & Reasoning
-- **Conversation Logs:** Searchable archive of your interactions.
-- **Thinking Process Annotation:** Visualize "Wait... thinking" blocks and internal reasoning steps.
-- **Sub-Agent Tracking:** See when specific sub-agents or tools were invoked.
+### Tool Review
+- **Tool Usage Summary:** Invocation counts and success rates across all tools.
+- **Agent Behavior Audit:** Review how agents selected and used tools within sessions.
+
+---
+## Architecture 
+
+<img width="1008" height="255" alt="image" src="https://github.com/user-attachments/assets/d073df13-569a-4a05-a5d7-118736ccce83" />
+
+Claw Journal ingests JSONL logs from your OpenClaw agent (locally or via SSH), stores them in SQLite, and serves a React dashboard through a FastAPI backend.
 
 ---
 
@@ -192,19 +213,19 @@ Common issues with ports, blank dashboards, and connectivity.
 
 ---
 
-## 📌 Current Status
+##  Current Status
 
 - ✅ Analytics backend MVP scaffolded (ingest, normalize, persist, query API)
 - ✅ React graph dashboard available in `frontend/`
 - ✅ Remote OpenClaw config contract added for hybrid integration
 - ⏳ Alerts and forecasting are planned next phases
 
-## 🗺️ Roadmap
+## Roadmap
 
 - Track progress and upcoming milestones in GitHub Projects:
    - https://github.com/orgs/Ubundi/projects/1/views/1
 
-## 🤝 Contributing
+##  Contributing
 
 Contributions are welcome.
 
@@ -212,7 +233,7 @@ Contributions are welcome.
 - For first contributions, look for the `good first issue` label.
 - Keep PRs focused and include setup/verification notes.
 
-Please review our [Contributing Guidelines](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), and [Security Policy](SECURITY.md) before participating.
+Please review our [Contributing Guidelines](./docs/CONTRIBUTING.md), [Code of Conduct](./docs/CODE_OF_CONDUCT.md), and [Security Policy](./docs/SECURITY.md) before participating.
 
 ## 🌍 Community
 
