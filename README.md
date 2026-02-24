@@ -12,7 +12,7 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/Ubundi/claw-journal)
 
 <p align="center">
-   <img src="docs/assets/demo.gif" alt="Claw Journal Demo" />
+  <video src="https://github.com/user-attachments/assets/d504a180-aca8-4f8a-a567-2059f6371eb3" controls width="700"></video>
 </p>
 
 **Claw Journal** is an advanced observability and analytics skill for OpenClaw. It provides a dedicated web dashboard to track, visualize, and audit your OpenClaw usage with local-first data collection.
