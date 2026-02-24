@@ -7,6 +7,8 @@ cd "$ROOT_DIR"
 export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH}"
 
 RUN_STATE_FILE="${ROOT_DIR}/.claw-journal-run.env"
+BACKEND_LOG_FILE="${CJ_BACKEND_LOG_FILE:-/tmp/claw-journal-backend.log}"
+FRONTEND_LOG_FILE="${CJ_FRONTEND_LOG_FILE:-/tmp/claw-journal-frontend.log}"
 
 if [[ ! -d ".venv" ]]; then
   echo "Missing .venv. Run: uv venv && source .venv/bin/activate && uv pip install -r requirements.txt"
@@ -92,7 +94,7 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 1
 fi
 
-python main.py >/tmp/claw-journal-backend.log 2>&1 &
+nohup python main.py >"$BACKEND_LOG_FILE" 2>&1 < /dev/null &
 backend_pid=$!
 
 cat > "$RUN_STATE_FILE" <<EOF
@@ -117,7 +119,7 @@ for _ in {1..40}; do
 done
 
 if ! curl -sS "http://127.0.0.1:${backend_port}/health" >/dev/null 2>&1; then
-  echo "Backend failed to start. See /tmp/claw-journal-backend.log"
+  echo "Backend failed to start. See ${BACKEND_LOG_FILE}"
   exit 1
 fi
 
@@ -127,4 +129,17 @@ echo "(Vite proxy -> ${CJ_API_TARGET})"
 echo "Stop:     ./scripts/stop-dashboard.sh"
 
 cd frontend
+
+if [[ "${CJ_DETACH:-false}" == "true" ]]; then
+  nohup npm run dev -- --host 127.0.0.1 --port "$frontend_port" >"$FRONTEND_LOG_FILE" 2>&1 < /dev/null &
+  frontend_pid=$!
+  echo "CJ_EFFECTIVE_FRONTEND_PID=${frontend_pid}" >> "$RUN_STATE_FILE"
+  disown || true
+  trap - EXIT INT TERM
+  echo "Detached mode enabled."
+  echo "Backend log:  ${BACKEND_LOG_FILE}"
+  echo "Frontend log: ${FRONTEND_LOG_FILE}"
+  exit 0
+fi
+
 npm run dev -- --host 127.0.0.1 --port "$frontend_port"

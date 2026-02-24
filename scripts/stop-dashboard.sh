@@ -16,6 +16,7 @@ fi
 backend_port="${CJ_PORT:-3000}"
 frontend_port="${CJ_FRONTEND_PORT:-5173}"
 backend_pid=""
+frontend_pid=""
 
 if [[ -f "$RUN_STATE_FILE" ]]; then
   set -a
@@ -25,6 +26,7 @@ if [[ -f "$RUN_STATE_FILE" ]]; then
   backend_port="${CJ_EFFECTIVE_BACKEND_PORT:-$backend_port}"
   frontend_port="${CJ_EFFECTIVE_FRONTEND_PORT:-$frontend_port}"
   backend_pid="${CJ_EFFECTIVE_BACKEND_PID:-}"
+  frontend_pid="${CJ_EFFECTIVE_FRONTEND_PID:-}"
 fi
 
 kill_port_listeners() {
@@ -43,6 +45,10 @@ kill_port_listeners() {
 
 if [[ -n "$backend_pid" ]] && kill -0 "$backend_pid" >/dev/null 2>&1; then
   kill "$backend_pid" >/dev/null 2>&1 || true
+fi
+
+if [[ -n "$frontend_pid" ]] && kill -0 "$frontend_pid" >/dev/null 2>&1; then
+  kill "$frontend_pid" >/dev/null 2>&1 || true
 fi
 
 kill_port_listeners "$backend_port"
