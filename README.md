@@ -155,8 +155,7 @@ Notes:
 Claw Journal runs as a local service alongside your OpenClaw instance to capture and display:
 
 
-<img width="1268" height="412" alt="image" src="https://github.com/user-attachments/assets/eb64f024-fea4-4f02-8e9f-711862e62a19" />
-
+<img width="1268" height="412" alt="image" src="https://github.com/user-attachments/assets/262f115a-28d9-4767-9b65-30514a41ba6c" />
 
 
 
