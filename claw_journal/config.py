@@ -176,6 +176,29 @@ def load_settings() -> Settings:
                 "~/.openclaw/logs/history/openclaw-*.log)."
             )
 
+        transcript_glob_expanded = str(Path(transcript_glob).expanduser()).strip()
+        if transcript_glob_expanded.startswith("/tmp/") or transcript_glob_expanded.startswith("/private/tmp/"):
+            raise ValueError(
+                "CJ_TRANSCRIPT_GLOB points to temporary storage while CJ_ENSURE_DURABLE_LOGS=true. "
+                "Use a durable path on the OpenClaw host (for example: "
+                "~/.openclaw/agents/*/sessions/*.jsonl)."
+            )
+
+        remote_transcript_glob_expanded = str(Path(remote_transcript_glob).expanduser()).strip()
+        if remote_transcript_glob_expanded.startswith("/tmp/") or remote_transcript_glob_expanded.startswith("/private/tmp/"):
+            raise ValueError(
+                "CJ_REMOTE_TRANSCRIPT_GLOB points to temporary storage while CJ_ENSURE_DURABLE_LOGS=true. "
+                "Use a durable path on the OpenClaw host (for example: "
+                "~/.openclaw/agents/*/sessions/*.jsonl)."
+            )
+
+        normalized_db_path = str(db_path).strip()
+        if normalized_db_path.startswith("/tmp/") or normalized_db_path.startswith("/private/tmp/"):
+            raise ValueError(
+                "CJ_DB_PATH points to temporary storage while CJ_ENSURE_DURABLE_LOGS=true. "
+                "Use a durable path on the OpenClaw host (for example: ./data/claw_journal.db)."
+            )
+
     transcript_ingest_enabled = _parse_bool(os.getenv("CJ_TRANSCRIPT_INGEST_ENABLED"), True)
     transcript_glob = os.getenv(
         "CJ_TRANSCRIPT_GLOB",

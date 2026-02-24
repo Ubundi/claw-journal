@@ -11,7 +11,16 @@ LOCK_PID_FILE="$LOCKDIR/pid"
 LOCK_MAX_AGE_SECONDS="${CJ_SYNC_LOCK_MAX_AGE_SECONDS:-300}"
 REPO=/Users/rune/Documents/GitHub/claw-journal
 SYNC_LOG=/Users/rune/claw-journal-sync.log
-START_LOG=/tmp/claw-journal-start.log
+PERSIST_LOG_DIR="$REPO/data/logs"
+START_LOG="$PERSIST_LOG_DIR/claw-journal-start.log"
+ENSUREPIP_LOG="$PERSIST_LOG_DIR/claw-journal-ensurepip.log"
+PIP_UPGRADE_LOG="$PERSIST_LOG_DIR/claw-journal-pip-upgrade.log"
+PIP_INSTALL_LOG="$PERSIST_LOG_DIR/claw-journal-pip-install.log"
+NPM_INSTALL_LOG="$PERSIST_LOG_DIR/claw-journal-npm-install.log"
+
+mkdir -p "$PERSIST_LOG_DIR"
+chmod 700 "$PERSIST_LOG_DIR" >/dev/null 2>&1 || true
+umask 077
 
 log() {
   echo "$(date +"%Y-%m-%d %H:%M:%S") $*" >> "$SYNC_LOG"
@@ -81,12 +90,12 @@ ensure_venv_pip() {
     }
   fi
   . .venv/bin/activate
-  python -m ensurepip --upgrade >/tmp/claw-journal-ensurepip.log 2>&1 || true
+  python -m ensurepip --upgrade >"$ENSUREPIP_LOG" 2>&1 || true
   python -m pip --version >/dev/null 2>&1 || {
     log "pip unavailable in venv"
     return 1
   }
-  python -m pip install --upgrade pip >/tmp/claw-journal-pip-upgrade.log 2>&1 || true
+  python -m pip install --upgrade pip >"$PIP_UPGRADE_LOG" 2>&1 || true
 }
 
 restart_stack() {
@@ -123,12 +132,12 @@ if [ "$local_sha" != "$remote_sha" ]; then
   git reset --hard origin/main >/dev/null
 
   if ensure_venv_pip; then
-    python -m pip install -r requirements.txt >/tmp/claw-journal-pip-install.log 2>&1 || log "pip install failed (continuing)"
+    python -m pip install -r requirements.txt >"$PIP_INSTALL_LOG" 2>&1 || log "pip install failed (continuing)"
   else
     log "venv/pip setup failed; skipping pip install"
   fi
 
-  npm --prefix frontend install --no-audit --no-fund >/tmp/claw-journal-npm-install.log 2>&1 || log "npm install failed (continuing)"
+  npm --prefix frontend install --no-audit --no-fund >"$NPM_INSTALL_LOG" 2>&1 || log "npm install failed (continuing)"
 
   restart_stack
   if ensure_healthy; then

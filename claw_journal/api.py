@@ -355,7 +355,7 @@ def create_app(usage_service: UsageService) -> FastAPI:
 
     @app.get("/api/tootoo/reviews")
     def tootoo_reviews(
-        limit: int = Query(default=100, ge=1, le=500),
+        limit: int = Query(default=1000, ge=1, le=5000),
     ) -> dict[str, object]:
         return {"rows": usage_service.tootoo_reviews(limit)}
 

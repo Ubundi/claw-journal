@@ -2336,7 +2336,7 @@ class UsageRepository:
 
         return [dict(row) for row in rows]
 
-    def get_tootoo_reviews(self, limit: int = 100) -> list[dict]:
+    def get_tootoo_reviews(self, limit: int = 1000) -> list[dict]:
         """Return TooToo sessions with their alignment feedback content_json."""
         with self._connect() as conn:
             rows = conn.execute(
@@ -2349,6 +2349,10 @@ class UsageRepository:
                     cm.source_path
                 FROM conversation_messages cm
                 WHERE cm.role = 'assistant'
+                                    AND (
+                                        LOWER(COALESCE(cm.agent_id, '')) = 'tootoo'
+                                        OR cm.source_path LIKE '%/agents/tootoo/%'
+                                    )
                   AND cm.content_json LIKE '%alignment_score%'
                 ORDER BY cm.message_ts DESC
                 LIMIT ?

@@ -7,8 +7,13 @@ cd "$ROOT_DIR"
 export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH}"
 
 RUN_STATE_FILE="${ROOT_DIR}/.claw-journal-run.env"
-BACKEND_LOG_FILE="${CJ_BACKEND_LOG_FILE:-/tmp/claw-journal-backend.log}"
-FRONTEND_LOG_FILE="${CJ_FRONTEND_LOG_FILE:-/tmp/claw-journal-frontend.log}"
+LOG_DIR="${CJ_LOG_DIR:-${ROOT_DIR}/data/logs}"
+BACKEND_LOG_FILE="${CJ_BACKEND_LOG_FILE:-${LOG_DIR}/claw-journal-backend.log}"
+FRONTEND_LOG_FILE="${CJ_FRONTEND_LOG_FILE:-${LOG_DIR}/claw-journal-frontend.log}"
+
+umask 077
+mkdir -p "$LOG_DIR"
+chmod 700 "$LOG_DIR" >/dev/null 2>&1 || true
 
 if [[ ! -d ".venv" ]]; then
   echo "Missing .venv. Run: uv venv && source .venv/bin/activate && uv pip install -r requirements.txt"

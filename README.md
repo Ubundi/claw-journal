@@ -32,6 +32,10 @@ Run Claw Journal **on the OpenClaw host only**.
 - Claw Journal DB lives on that host.
 - Any laptop/desktop views the dashboard through SSH tunneling.
 
+Default persistent storage on the host:
+- DB: `./data/claw_journal.db`
+- Runtime logs: `./data/logs/claw-journal-backend.log` and `./data/logs/claw-journal-frontend.log`
+
 This avoids fragmented local caches across multiple viewer machines and ensures one consolidated history.
 
 ## ⚡ Quick Start
@@ -106,9 +110,9 @@ listening on that port on the remote host.
    ssh rune 'cd ~/claw-journal && ./scripts/start-dashboard.sh'
    ```
 
-    If startup prints `Backend failed to start. See /tmp/claw-journal-backend.log`, inspect:
+   If startup prints `Backend failed to start`, inspect backend logs:
     ```bash
-    ssh rune 'tail -n 120 /tmp/claw-journal-backend.log'
+   ssh rune 'tail -n 120 ~/claw-journal/data/logs/claw-journal-backend.log'
     ```
     Common fixes:
     - `Too many open files`: run with a higher fd limit (or set `CJ_OPEN_FILES_LIMIT`):

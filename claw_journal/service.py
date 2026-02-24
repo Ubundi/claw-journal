@@ -315,7 +315,7 @@ class UsageService:
     def distinct_tool_names(self) -> list[str]:
         return self._repository.get_distinct_tool_names()
 
-    def tootoo_reviews(self, limit: int = 100) -> list[dict]:
+    def tootoo_reviews(self, limit: int = 1000) -> list[dict]:
         return self._repository.get_tootoo_reviews(limit)
 
     # ── Thinking blocks (from reasoning) ───────────────────────────────
