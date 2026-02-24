@@ -90,6 +90,56 @@ If OpenClaw runs on a server/VM:
 - **Dashboard (local browser):** `http://127.0.0.1:5173`
 - **API health (local browser):** `http://127.0.0.1:3000/health`
 
+<details>
+<summary><strong>SSH Tunnel Troubleshooting</strong></summary>
+
+If your tunnel connects but `http://127.0.0.1:5173` says "site can't be reached" and SSH prints
+`channel X: open failed: connect failed: Connection refused`, SSH is working but nothing is
+listening on that port on the remote host.
+
+1. Confirm remote listeners:
+   ```bash
+   ssh rune 'lsof -nP -iTCP -sTCP:LISTEN | egrep ":5173|:3000" || true'
+   ```
+   If this prints nothing, start Claw Journal on the remote host:
+   ```bash
+   ssh rune 'cd ~/claw-journal && ./scripts/start-dashboard.sh'
+   ```
+
+    If startup prints `Backend failed to start. See /tmp/claw-journal-backend.log`, inspect:
+    ```bash
+    ssh rune 'tail -n 120 /tmp/claw-journal-backend.log'
+    ```
+    Common fixes:
+    - `Too many open files`: run with a higher fd limit (or set `CJ_OPEN_FILES_LIMIT`):
+       ```bash
+       ssh rune 'ulimit -n 65536; cd ~/claw-journal && ./scripts/start-dashboard.sh'
+       ```
+    - `npm: command not found` in non-interactive shells:
+       ```bash
+       ssh rune 'export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH; cd ~/claw-journal && ./scripts/start-dashboard.sh'
+       ```
+
+2. Open a tunnel that fails fast if forwarding is invalid:
+   ```bash
+   ssh -N -o ExitOnForwardFailure=yes -L 5173:127.0.0.1:5173 -L 3000:127.0.0.1:3000 rune
+   ```
+
+3. Verify locally:
+   - Dashboard: `http://127.0.0.1:5173`
+   - API health: `http://127.0.0.1:3000/health`
+
+Notes:
+- `ssh rune && pwd` only validates login; it does not prove forwarded ports are backed by running services.
+- If your service runs on different remote ports, update the `-L local:host:remote` mappings accordingly.
+- If tunnel setup says `Address already in use`, a local process already owns `5173`/`3000`:
+   ```bash
+   lsof -nP -iTCP:5173 -sTCP:LISTEN
+   lsof -nP -iTCP:3000 -sTCP:LISTEN
+   ```
+
+</details>
+
 > Advanced mode: running Claw Journal on a separate machine over SSH ingest is still possible, but host-run mode is recommended for a single persistent source of truth.
 
 ---

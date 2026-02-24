@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH}"
+
 RUN_STATE_FILE="${ROOT_DIR}/.claw-journal-run.env"
 
 if [[ ! -d ".venv" ]]; then
@@ -20,6 +22,29 @@ fi
 
 if [[ "${CJ_REMOTE_ENABLED:-false}" == "true" && -z "${CJ_ENSURE_DURABLE_LOGS+x}" ]]; then
   export CJ_ENSURE_DURABLE_LOGS=true
+fi
+
+fd_target="${CJ_OPEN_FILES_LIMIT:-8192}"
+current_fd="$(ulimit -n 2>/dev/null || echo '')"
+if [[ "$fd_target" =~ ^[0-9]+$ ]] && [[ "$current_fd" =~ ^[0-9]+$ ]] && (( current_fd < fd_target )); then
+  if ulimit -n "$fd_target" 2>/dev/null; then
+    echo "Raised open-file soft limit: ${current_fd} -> ${fd_target}"
+  else
+    hard_fd="$(ulimit -Hn 2>/dev/null || echo '')"
+    if [[ "$hard_fd" =~ ^[0-9]+$ ]] && (( current_fd < hard_fd )); then
+      desired_fd="$fd_target"
+      if (( desired_fd > hard_fd )); then
+        desired_fd="$hard_fd"
+      fi
+      if ulimit -n "$desired_fd" 2>/dev/null; then
+        echo "Raised open-file soft limit: ${current_fd} -> ${desired_fd}"
+      else
+        echo "Warning: could not raise open-file soft limit (current ${current_fd})."
+      fi
+    else
+      echo "Warning: open-file soft limit is ${current_fd}; consider increasing it if startup hits 'Too many open files'."
+    fi
+  fi
 fi
 
 backend_port="${CJ_PORT:-3000}"
@@ -61,6 +86,11 @@ export CJ_PORT="$backend_port"
 export CJ_API_TARGET="http://127.0.0.1:${backend_port}"
 
 source .venv/bin/activate
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm not found in PATH. Install Node.js/npm, or run with PATH set (example: PATH=/opt/homebrew/bin:/usr/local/bin:\$PATH ./scripts/start-dashboard.sh)."
+  exit 1
+fi
 
 python main.py >/tmp/claw-journal-backend.log 2>&1 &
 backend_pid=$!
