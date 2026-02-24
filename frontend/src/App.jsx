@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Compass, Database, Feather, LineChart as LineChartIcon, Moon, RefreshCw, Sparkles, Sun } from 'lucide-react';
+import { Compass, Database, LineChart as LineChartIcon, Moon, RefreshCw, Sparkles, Sun } from 'lucide-react';
 
 import Dashboard from './Dashboard';
 import MemoryPage from './MemoryPage';
@@ -236,9 +236,7 @@ function App() {
       <div className="px-6 pt-6 pb-4 border-b border-gray-800/60">
         <div className={`flex flex-col md:flex-row md:justify-between md:items-center gap-4 border rounded-lg px-4 py-3 ${theme === 'light' ? 'border-gray-300 bg-gray-50' : 'border-gray-900 bg-[#121212]/90'}`}>
           <div className="flex items-start gap-3">
-            <div className={`h-9 w-9 rounded border flex items-center justify-center ${theme === 'light' ? 'border-orange-300 bg-orange-100' : 'border-orange-800/60 bg-orange-950/40'}`}>
-              <Feather size={16} className={theme === 'light' ? 'text-orange-700' : 'text-orange-300'} />
-            </div>
+            <img src="/clawjournalicon.png" alt="Claw Journal" className="h-9 w-9 rounded" />
             <div>
               <h1 className={`text-xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Claw Journal</h1>
               <p className={`text-[11px] mt-0.5 flex items-center gap-1.5 ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>

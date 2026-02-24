@@ -535,7 +535,7 @@ def create_app(usage_service: UsageService) -> FastAPI:
         # SPA catch-all: serve real files from dist/ if they exist, otherwise index.html
         @app.get("/{path:path}")
         def spa_fallback(path: str):
-            # Serve actual static files (favicon.svg, tootoo-icon.png, etc.)
+            # Serve actual static files (clawjournalicon.png, tootoo-icon.png, etc.)
             candidate = _FRONTEND_DIST / path
             if candidate.is_file() and _FRONTEND_DIST in candidate.resolve().parents:
                 return FileResponse(str(candidate))
