@@ -154,7 +154,7 @@ Notes:
 Claw Journal runs as a local service alongside your OpenClaw instance to capture and display:
 
 
-<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/63636a97-f752-4d6e-9249-2d450398a9ee" />
+<img width="1018" height="180" alt="image" src="https://github.com/user-attachments/assets/bbdfe821-c6b9-4bd4-bf81-1f17eb292cf9" />
 
 
 
@@ -174,6 +174,13 @@ Claw Journal runs as a local service alongside your OpenClaw instance to capture
 ### Tool Review
 - **Tool Usage Summary:** Invocation counts and success rates across all tools.
 - **Agent Behavior Audit:** Review how agents selected and used tools within sessions.
+
+---
+## Architecture 
+
+<img width="1008" height="255" alt="image" src="https://github.com/user-attachments/assets/d073df13-569a-4a05-a5d7-118736ccce83" />
+
+Claw Journal ingests JSONL logs from your OpenClaw agent (locally or via SSH), stores them in SQLite, and serves a React dashboard through a FastAPI backend.
 
 ---
 
@@ -212,7 +219,7 @@ Common issues with ports, blank dashboards, and connectivity.
 - ✅ Remote OpenClaw config contract added for hybrid integration
 - ⏳ Alerts and forecasting are planned next phases
 
-## 🗺️ Roadmap
+## Roadmap
 
 - Track progress and upcoming milestones in GitHub Projects:
    - https://github.com/orgs/Ubundi/projects/1/views/1
