@@ -27,12 +27,40 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
     }
   };
 
+  const parseContentBlocks = (contentJson) => {
+    if (!contentJson) return [];
+    try {
+      const parsed = JSON.parse(contentJson);
+      if (Array.isArray(parsed)) return parsed;
+      // Handle JSONL nested structure: {type: "message", message: {content: [...]}}
+      const content = parsed?.message?.content;
+      if (Array.isArray(content)) return content;
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  const isToolResultMessage = (msg) => {
+    if (msg.has_tool_result) return true;
+    if (!msg.content_json) return false;
+    try {
+      const parsed = JSON.parse(msg.content_json);
+      // Rune envelope: {"type":"message","message":{"role":"toolResult",...}}
+      if (parsed?.message?.role === 'toolResult') return true;
+      // Check content blocks for tool_result type
+      const blocks = Array.isArray(parsed) ? parsed : (parsed?.message?.content || []);
+      return blocks.some(b => ['tool_result', 'toolResult'].includes(b.type));
+    } catch {
+      return false;
+    }
+  };
+
   const parseSender = (msg) => {
     const role = msg.role || '';
     if (role === 'assistant') return { label: 'Rune', channel: '', color: 'orange' };
     const text = msg.text_content || '';
-    const hasToolResult = msg.has_tool_result;
-    if (hasToolResult && role === 'user') {
+    if (isToolResultMessage(msg) && role !== 'assistant') {
       if (/^🦞\s*OpenClaw\s/.test(text)) return { label: 'System', channel: 'OpenClaw', color: 'gray' };
       return { label: 'Tool Result', channel: '', color: 'emerald' };
     }
@@ -101,21 +129,6 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
     return () => { cancelled = true; };
   }, [sessionId]);
 
-  const parseContentBlocks = (contentJson) => {
-    if (!contentJson) return [];
-    try {
-      const parsed = JSON.parse(contentJson);
-      if (Array.isArray(parsed)) return parsed;
-      // Handle JSONL nested structure: {type: "message", message: {content: [...]}}
-      const content = parsed?.message?.content;
-      if (Array.isArray(content)) return content;
-      return [];
-    } catch {
-      return [];
-    }
-  };
-
-
   const renderMessage = (msg, idx) => {
     const sender = parseSender(msg);
     const blocks = parseContentBlocks(msg.content_json);
@@ -166,7 +179,22 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
             )}
 
             {/* Content blocks with optional chain timeline */}
-            {chainCount > 1 ? (
+            {sender.label === 'Tool Result' ? (
+              <details>
+                <summary className={`text-[11px] cursor-pointer ${isLight ? 'text-emerald-700 hover:text-emerald-900' : 'text-emerald-300 hover:text-emerald-100'}`}>
+                  Show output{msg.text_content ? ` (${Math.min(msg.text_content.length, 9999).toLocaleString()}+ chars)` : ''}
+                </summary>
+                <div className="mt-2 max-h-96 overflow-y-auto">
+                  {blocks.length > 0 ? (
+                    blocks.map((block, bi) => renderBlock(block, bi, blocks, false))
+                  ) : msg.text_content ? (
+                    <pre className={`text-[12px] whitespace-pre-wrap break-words ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
+                      {msg.text_content}
+                    </pre>
+                  ) : null}
+                </div>
+              </details>
+            ) : chainCount > 1 ? (
               <div className="relative pl-5 ml-1">
                 <div className="absolute left-[4px] top-1 bottom-1 w-px bg-gradient-to-b from-blue-700/40 via-emerald-700/40 to-orange-700/30" />
                 {blocks.map((block, bi) => renderBlock(block, bi, blocks, true))}
@@ -176,7 +204,7 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
             )}
 
             {/* Fallback text if no content blocks */}
-            {blocks.length === 0 && msg.text_content && (
+            {sender.label !== 'Tool Result' && blocks.length === 0 && msg.text_content && (
               <pre className={`text-[12px] whitespace-pre-wrap break-words ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
                 {msg.text_content}
               </pre>
@@ -239,18 +267,21 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
     }
 
     if (['tool_use', 'toolCall'].includes(block.type)) {
+      const toolInput = block.input || block.arguments;
       return wrapper(
         <div className={`${isLight ? 'bg-gray-100 border border-gray-200' : 'bg-[#191919] border border-gray-800'} rounded p-2 mb-2`}>
           <div className="flex items-start gap-2">
             <Wrench size={14} className="text-emerald-300 mt-0.5 flex-shrink-0" />
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] text-emerald-300 mb-1">toolCall &middot; {block.name || block.toolName}</p>
-              <details>
-                <summary className={`text-[11px] cursor-pointer ${isLight ? 'text-gray-500 hover:text-gray-700' : 'text-gray-400 hover:text-gray-200'}`}>Input</summary>
-                <pre className={`text-[12px] mt-1 max-h-72 overflow-y-auto ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
-                  {block.input ? JSON.stringify(block.input, null, 2) : ''}
-                </pre>
-              </details>
+              <p className="text-[11px] text-emerald-300">toolCall &middot; {block.name || block.toolName}</p>
+              {toolInput && (
+                <details className="mt-1">
+                  <summary className={`text-[11px] cursor-pointer ${isLight ? 'text-gray-500 hover:text-gray-700' : 'text-gray-400 hover:text-gray-200'}`}>Input</summary>
+                  <pre className={`text-[12px] mt-1 max-h-72 overflow-y-auto ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
+                    {typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput, null, 2)}
+                  </pre>
+                </details>
+              )}
             </div>
           </div>
         </div>
