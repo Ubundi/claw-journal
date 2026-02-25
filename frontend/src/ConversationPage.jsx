@@ -196,6 +196,24 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
                   ) : null}
                 </div>
               </details>
+            ) : sender.label === 'System' && (msg.text_content || '').split('\n').length > 5 ? (
+              <details>
+                <summary className={`text-[11px] cursor-pointer ${isLight ? 'text-gray-500 hover:text-gray-700' : 'text-gray-400 hover:text-gray-200'}`}>
+                  <pre className={`inline text-[12px] whitespace-pre-wrap break-words ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
+                    {(msg.text_content || '').split('\n').slice(0, 3).join('\n')}
+                  </pre>
+                  <span className="ml-1">({(msg.text_content || '').split('\n').length - 3} more lines)</span>
+                </summary>
+                <div className="mt-2 max-h-96 overflow-y-auto">
+                  {blocks.length > 0 ? (
+                    blocks.map((block, bi) => renderBlock(block, bi, blocks, false))
+                  ) : (
+                    <pre className={`text-[12px] whitespace-pre-wrap break-words ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
+                      {msg.text_content}
+                    </pre>
+                  )}
+                </div>
+              </details>
             ) : chainCount > 1 ? (
               <div className="relative pl-5 ml-1">
                 <div className="absolute left-[4px] top-1 bottom-1 w-px bg-gradient-to-b from-blue-700/40 via-emerald-700/40 to-orange-700/30" />
@@ -206,7 +224,7 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
             )}
 
             {/* Fallback text if no content blocks */}
-            {sender.label !== 'Tool Result' && blocks.length === 0 && msg.text_content && (
+            {!['Tool Result', 'System'].includes(sender.label) && blocks.length === 0 && msg.text_content && (
               <pre className={`text-[12px] whitespace-pre-wrap break-words ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
                 {msg.text_content}
               </pre>
