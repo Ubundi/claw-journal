@@ -69,6 +69,8 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
     if (/^System:\s/i.test(text)) return { label: 'System', channel: '', color: 'gray' };
     if (/^Read HEARTBEAT\.md/i.test(text)) return { label: 'System', channel: 'Heartbeat', color: 'gray' };
     if (/^🦞\s*OpenClaw\s/.test(text)) return { label: 'System', channel: 'OpenClaw', color: 'gray' };
+    if (/A background task .+ just completed/i.test(text)) return { label: 'System', channel: 'Background Task', color: 'gray' };
+    if (/Summarize this naturally for the user/i.test(text)) return { label: 'System', channel: '', color: 'gray' };
     return { label: 'Adii', channel: '', color: 'cyan' };
   };
 
