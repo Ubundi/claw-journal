@@ -159,11 +159,15 @@ ensure_healthy() {
 cd "$REPO"
 if ! run_with_timeout "$FETCH_TIMEOUT_SECONDS" git fetch --quiet origin main; then
   log "fetch failed"
-  restart_stack
   if ensure_healthy; then
-    log "recover restart ok after fetch failure"
+    log "fetch failed but services are healthy; skipped restart"
   else
-    log "recover restart failed after fetch failure"
+    restart_stack
+    if ensure_healthy; then
+      log "recover restart ok after fetch failure"
+    else
+      log "recover restart failed after fetch failure"
+    fi
   fi
   exit 0
 fi
