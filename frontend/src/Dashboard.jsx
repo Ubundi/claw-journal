@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LineChart, Line, Area, BarChart, Bar, ScatterChart, Scatter, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, ScatterChart, Scatter, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { HelpCircle } from 'lucide-react';
 import axios from 'axios';
 
@@ -184,8 +184,10 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
   const tableHeadClass = theme === 'light' ? 'bg-gray-100 text-gray-600 uppercase font-medium' : 'bg-[#1a1a1a] text-gray-500 uppercase font-medium';
   const tableBodyClass = theme === 'light' ? 'divide-y divide-gray-200' : 'divide-y divide-gray-900';
   const tableRowHoverClass = theme === 'light' ? 'hover:bg-gray-100 transition-colors' : 'hover:bg-[#1a1a1a] transition-colors';
-  const runtimePillBaseClass = 'text-[11px] border rounded px-2 py-[2px]';
-  const runtimePillClass = (lightClass, darkClass) => `${runtimePillBaseClass} ${theme === 'light' ? lightClass : darkClass}`;
+  const runtimePillClass = theme === 'light'
+    ? 'text-[11px] border rounded px-2 py-[2px] bg-orange-100 text-orange-900 border-orange-300'
+    : 'text-[11px] border rounded px-2 py-[2px] bg-orange-900/30 text-orange-200 border-orange-700';
+  const runtimeDropdownClass = `${runtimePillClass} inline-flex items-center gap-1`;
   const sessionOptions = (legacyData?.reconciled || []).map((row) => row.session_id).filter(Boolean);
   const availableModels = Array.isArray(modelCatalog?.available_models) ? modelCatalog.available_models : [];
 
@@ -406,116 +408,136 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
       <div id="overview" className={`${cardSurfaceClass} p-4 rounded border mb-6 scroll-mt-24 relative`}>
         <div className="flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
           <p className={`text-sm font-semibold mr-1 whitespace-nowrap ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Runtime Mode</p>
-          <span className={runtimePillClass(
-            String(profile.auth_mode || 'unknown').toLowerCase() === 'oauth'
-              ? 'bg-blue-100 text-blue-800 border-blue-300'
-              : 'bg-orange-100 text-orange-800 border-orange-300',
-            String(profile.auth_mode || 'unknown').toLowerCase() === 'oauth'
-              ? 'bg-blue-900/40 text-blue-300 border-blue-800'
-              : 'bg-orange-900/40 text-orange-300 border-orange-800',
-          )}>
-            auth: {profile.auth_mode || 'unknown'}
-          </span>
-          <span className={runtimePillClass(
-            String(profile.billing_mode || 'unknown').toLowerCase() === 'claude_max'
-              ? 'bg-purple-100 text-purple-800 border-purple-300'
-              : 'bg-emerald-100 text-emerald-800 border-emerald-300',
-            String(profile.billing_mode || 'unknown').toLowerCase() === 'claude_max'
-              ? 'bg-purple-900/40 text-purple-300 border-purple-800'
-              : 'bg-emerald-900/40 text-emerald-300 border-emerald-800',
-          )}>
-            billing: {profile.billing_mode || 'unknown'}
-          </span>
+          {/* Runtime pills are currently informational only.
+              Enabling selection requires service + API refactors (for example, updating the auto-sync lock, runtime profile persistence, and remote sync guards). */}
+          <label className={runtimeDropdownClass}>
+            <span>LLM:</span>
+            <select
+              disabled
+              value={profile.auth_mode || 'unknown'}
+              className="bg-transparent border-0 p-0 pr-2 text-[11px] font-medium disabled:opacity-100 focus:outline-none appearance-none"
+              aria-label="LLM mode"
+            >
+              <option value={profile.auth_mode || 'unknown'}>{profile.auth_mode || 'unknown'}</option>
+            </select>
+            <span className="text-[10px]">▾</span>
+          </label>
+          <label className={runtimeDropdownClass}>
+            <span>Billing:</span>
+            <select
+              disabled
+              value={profile.billing_mode || 'unknown'}
+              className="bg-transparent border-0 p-0 pr-2 text-[11px] font-medium disabled:opacity-100 focus:outline-none appearance-none"
+              aria-label="Billing mode"
+            >
+              <option value={profile.billing_mode || 'unknown'}>{profile.billing_mode || 'unknown'}</option>
+            </select>
+            <span className="text-[10px]">▾</span>
+          </label>
           {billingMode === 'claude_max' && (
-            <span className={runtimePillClass('bg-purple-100 text-purple-800 border-purple-300', 'bg-purple-900/30 text-purple-300 border-purple-800')}>
+            <span className={runtimePillClass}>
               plan: {formatMoney(profile.claude_max_monthly_usd || 0, 2, 2)}/mo
             </span>
           )}
-          <span className={runtimePillClass('bg-slate-100 text-slate-800 border-slate-300', 'bg-slate-900/40 text-slate-300 border-slate-800')}>
-            host: {connectionInfo?.local?.hostname || '-'}
-          </span>
-          <span className={runtimePillClass('bg-cyan-100 text-cyan-800 border-cyan-300', 'bg-cyan-900/40 text-cyan-300 border-cyan-800')}>
-            source: {(connectionInfo?.remote?.enabled ?? false) ? 'remote-ingest' : 'single-host'}
-          </span>
-          <span className={runtimePillClass(
-            (connectionInfo?.remote?.session_sync_enabled ?? false)
-              ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-              : 'bg-rose-100 text-rose-800 border-rose-300',
-            (connectionInfo?.remote?.session_sync_enabled ?? false)
-              ? 'bg-emerald-900/40 text-emerald-300 border-emerald-800'
-              : 'bg-rose-900/40 text-rose-300 border-rose-800',
-          )}>
-            sync={String(connectionInfo?.remote?.session_sync_enabled ?? false)}
-          </span>
-          <span className={runtimePillClass('bg-gray-100 text-gray-800 border-gray-300', 'bg-zinc-800/60 text-gray-300 border-gray-700')}>
-            mode={connectionInfo?.remote?.ingest_mode || '-'}
-          </span>
-          <button
-            type="button"
-            className={`text-[11px] border rounded px-2 py-[2px] inline-flex items-center gap-1 ${theme === 'light' ? 'bg-indigo-100 text-indigo-800 border-indigo-300 hover:bg-indigo-200' : 'bg-indigo-900/30 text-indigo-300 border-indigo-800 hover:bg-indigo-900/40'}`}
-            onMouseEnter={() => setActiveKpiTooltip('runtime:token-counting')}
-            onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:token-counting' ? '' : prev))}
-            onFocus={() => setActiveKpiTooltip('runtime:token-counting')}
-            onBlur={() => setActiveKpiTooltip((prev) => (prev === 'runtime:token-counting' ? '' : prev))}
-          >
-            token counting
-            <HelpCircle size={12} />
-          </button>
-          <button
-            type="button"
-            className={`text-[11px] border rounded px-2 py-[2px] inline-flex items-center gap-1 ${theme === 'light' ? 'bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-200' : 'bg-teal-900/30 text-teal-300 border-teal-800 hover:bg-teal-900/40'}`}
-            onMouseEnter={() => setActiveKpiTooltip('runtime:glossary')}
-            onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:glossary' ? '' : prev))}
-            onFocus={() => setActiveKpiTooltip('runtime:glossary')}
-            onBlur={() => setActiveKpiTooltip((prev) => (prev === 'runtime:glossary' ? '' : prev))}
-          >
-            glossary
-            <HelpCircle size={12} />
-          </button>
+          <label className={runtimeDropdownClass}>
+            <span>Host:</span>
+            <select
+              disabled
+              value="Adiis-Mac-mini.localdomain"
+              className="bg-transparent border-0 p-0 pr-2 text-[11px] font-medium disabled:opacity-100 focus:outline-none appearance-none"
+              aria-label="Host"
+            >
+              <option value="Adiis-Mac-mini.localdomain">Adiis-Mac-mini.localdomain</option>
+            </select>
+            <span className="text-[10px]">▾</span>
+          </label>
+          <label className={runtimeDropdownClass}>
+            <span>Sync=</span>
+            <select
+              disabled
+              value={String(connectionInfo?.remote?.session_sync_enabled ?? false)}
+              className="bg-transparent border-0 p-0 pr-2 text-[11px] font-medium disabled:opacity-100 focus:outline-none appearance-none"
+              aria-label="Sync enabled"
+            >
+              <option value={String(connectionInfo?.remote?.session_sync_enabled ?? false)}>{String(connectionInfo?.remote?.session_sync_enabled ?? false)}</option>
+            </select>
+            <span className="text-[10px]">▾</span>
+          </label>
+          <div className="relative inline-flex">
+            <button
+              type="button"
+              className={`${runtimePillClass} inline-flex items-center gap-1`}
+              onMouseEnter={() => setActiveKpiTooltip('runtime:token-counting')}
+              onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:token-counting' ? '' : prev))}
+              onFocus={() => setActiveKpiTooltip('runtime:token-counting')}
+              onBlur={() => setActiveKpiTooltip((prev) => (prev === 'runtime:token-counting' ? '' : prev))}
+            >
+              Token Counting
+              <HelpCircle size={12} />
+            </button>
+            {activeKpiTooltip === 'runtime:token-counting' && (
+              <div className="absolute left-0 top-full mt-1 z-20 min-w-[22rem] max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">
+                <p className="mb-1">Tokens are counted from provider/OpenClaw usage fields (input + output, plus context/cache when present).</p>
+                <p className="mb-1">Other planned counting options are shown below, but not selectable yet.</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-gray-400">Value:</span>
+                  <select disabled value="provider-reported" className="bg-[#151515] border border-gray-700 rounded px-2 py-[2px] text-[11px] disabled:opacity-100">
+                    <option value="provider-reported">Provider-Reported (Current)</option>
+                    <option value="retokenized">Re-Tokenized (Planned)</option>
+                    <option value="hybrid">Hybrid (Planned)</option>
+                  </select>
+                </div>
+                <p className="text-gray-400">Cross-model totals reflect provider-reported usage, not one universal tokenizer.</p>
+              </div>
+            )}
+          </div>
+          <div className="relative inline-flex">
+            <button
+              type="button"
+              className={`${runtimePillClass} inline-flex items-center gap-1`}
+              onMouseEnter={() => setActiveKpiTooltip('runtime:glossary')}
+              onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:glossary' ? '' : prev))}
+              onFocus={() => setActiveKpiTooltip('runtime:glossary')}
+              onBlur={() => setActiveKpiTooltip((prev) => (prev === 'runtime:glossary' ? '' : prev))}
+            >
+              Glossary
+              <HelpCircle size={12} />
+            </button>
+            {activeKpiTooltip === 'runtime:glossary' && (
+              <div className="absolute left-0 top-full mt-1 z-20 max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">
+                <p><strong>Agent:</strong> Runtime identity (for example `main` or a subagent) inferred from session key.</p>
+                <p><strong>Conversation:</strong> Channel/thread stream inside an agent (for example `whatsapp:dm:+number` or `cron:job-id`).</p>
+                <p><strong>Session:</strong> A unique `session_id` timeline.</p>
+                <p><strong>Message:</strong> One transcript event row (`user`, `assistant`, `tool`, or `system`).</p>
+                <p><strong>Token:</strong> Provider-reported model usage unit, usually split into input and output tokens.</p>
+              </div>
+            )}
+          </div>
         </div>
         <div className="mt-2 flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
-          <button
-            type="button"
-            className={`text-[11px] border rounded px-2 py-[2px] inline-flex items-center gap-1 ${theme === 'light' ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200' : 'bg-amber-900/30 text-amber-300 border-amber-800 hover:bg-amber-900/40'}`}
-            onMouseEnter={() => setActiveKpiTooltip('runtime:code-sync')}
-            onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:code-sync' ? '' : prev))}
-            onFocus={() => setActiveKpiTooltip('runtime:code-sync')}
-            onBlur={() => setActiveKpiTooltip((prev) => (prev === 'runtime:code-sync' ? '' : prev))}
-          >
-            Code sync from GitHub: {formatIsoOrDash(connectionInfo?.runtime?.sync_last_run_at)}
-            {connectionInfo?.runtime?.sync_last_run_message ? ` · ${connectionInfo.runtime.sync_last_run_message}` : ''}
-            <HelpCircle size={12} />
-          </button>
-          <span className={runtimePillClass(
-            connectionInfo?.runtime?.sync_lock_active
-              ? 'bg-rose-100 text-rose-800 border-rose-300'
-              : 'bg-emerald-100 text-emerald-800 border-emerald-300',
-            connectionInfo?.runtime?.sync_lock_active
-              ? 'bg-rose-900/40 text-rose-300 border-rose-800'
-              : 'bg-emerald-900/40 text-emerald-300 border-emerald-800',
-          )}>
-            auto-sync lock: {connectionInfo?.runtime?.sync_lock_active ? `active (${connectionInfo?.runtime?.sync_lock_age_seconds ?? 0}s)` : 'not active'}
+          <div className="relative inline-flex">
+            <button
+              type="button"
+              className={`${runtimePillClass} inline-flex items-center gap-1`}
+              onMouseEnter={() => setActiveKpiTooltip('runtime:code-sync')}
+              onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:code-sync' ? '' : prev))}
+              onFocus={() => setActiveKpiTooltip('runtime:code-sync')}
+              onBlur={() => setActiveKpiTooltip((prev) => (prev === 'runtime:code-sync' ? '' : prev))}
+            >
+              Code Sync from GitHub: {formatIsoOrDash(connectionInfo?.runtime?.sync_last_run_at)}
+              {connectionInfo?.runtime?.sync_last_run_message ? ` · ${connectionInfo.runtime.sync_last_run_message}` : ''}
+              <HelpCircle size={12} />
+            </button>
+            {activeKpiTooltip === 'runtime:code-sync' && (
+              <div className="absolute left-0 top-full mt-1 z-20 max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">
+                Code sync reflects the latest run of the host cron deploy task (`sync-claw-journal.sh`). It checks `origin/main`, pulls new commits when present, restarts services if needed, and logs whether it deployed, skipped, or recovered from lock contention.
+              </div>
+            )}
+          </div>
+          <span className={runtimePillClass}>
+            Auto-Sync Lock: {connectionInfo?.runtime?.sync_lock_active ? `active (${connectionInfo?.runtime?.sync_lock_age_seconds ?? 0}s)` : 'not active.'}
           </span>
         </div>
-        {activeKpiTooltip === 'runtime:token-counting' && (
-          <div className="absolute left-4 top-[4.9rem] z-20 max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">
-            Tokens are counted from usage fields emitted by OpenClaw/provider events (input + output, plus context/cache fields when present). Counts are not re-tokenized in Claw Journal. Different models/providers can use different tokenizers, so cross-model token totals are best interpreted as provider-reported usage, not a universal tokenizer output.
-          </div>
-        )}
-        {activeKpiTooltip === 'runtime:glossary' && (
-          <div className="absolute left-4 top-[4.9rem] z-20 max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">
-            <p><strong>Agent:</strong> Runtime identity (for example `main` or a subagent) inferred from session key.</p>
-            <p><strong>Conversation:</strong> Channel/thread stream inside an agent (for example `whatsapp:dm:+number` or `cron:job-id`).</p>
-            <p><strong>Session:</strong> A unique `session_id` timeline.</p>
-            <p><strong>Message:</strong> One transcript event row (`user`, `assistant`, `tool`, or `system`).</p>
-            <p><strong>Token:</strong> Provider-reported model usage unit, usually split into input and output tokens.</p>
-          </div>
-        )}
-        {activeKpiTooltip === 'runtime:code-sync' && (
-          <div className="absolute left-4 top-[6.9rem] z-20 max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">
-            Code sync reflects the latest run of the host cron deploy task (`sync-claw-journal.sh`). It checks `origin/main`, pulls new commits when present, restarts services if needed, and logs whether it deployed, skipped, or recovered from lock contention.
-          </div>
-        )}
       </div>
 
       <div id="usage-summary" className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 scroll-mt-24">
@@ -632,7 +654,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
           <h3 className="text-xs uppercase mb-4 text-gray-500">Cost by Day</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={costTrendData}>
+              <AreaChart data={costTrendData}>
                 <defs>
                   <linearGradient id="costGradientFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#f97316" stopOpacity={0.9} />
@@ -650,9 +672,8 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                   tickFormatter={(val) => formatMoney(val, 0, 2)}
                 />
                 <Tooltip contentStyle={{backgroundColor: '#111', border: '1px solid #333', color: '#fff'}} itemStyle={{color: '#f97316'}} />
-                <Area type="monotone" dataKey="cost_display" baseValue={0} stroke="none" fill="url(#costGradientFill)" fillOpacity={1} />
-                <Line type="monotone" dataKey="cost_display" stroke="#f97316" strokeWidth={2} dot={false} activeDot={{r: 4, strokeWidth: 0}} />
-              </LineChart>
+                <Area type="monotone" dataKey="cost_display" baseValue={0} stroke="#f97316" strokeWidth={2} fill="url(#costGradientFill)" fillOpacity={1} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
