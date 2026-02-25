@@ -179,7 +179,22 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
             )}
 
             {/* Content blocks with optional chain timeline */}
-            {chainCount > 1 ? (
+            {sender.label === 'Tool Result' ? (
+              <details>
+                <summary className={`text-[11px] cursor-pointer ${isLight ? 'text-emerald-700 hover:text-emerald-900' : 'text-emerald-300 hover:text-emerald-100'}`}>
+                  Show output{msg.text_content ? ` (${Math.min(msg.text_content.length, 9999).toLocaleString()}+ chars)` : ''}
+                </summary>
+                <div className="mt-2 max-h-96 overflow-y-auto">
+                  {blocks.length > 0 ? (
+                    blocks.map((block, bi) => renderBlock(block, bi, blocks, false))
+                  ) : msg.text_content ? (
+                    <pre className={`text-[12px] whitespace-pre-wrap break-words ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
+                      {msg.text_content}
+                    </pre>
+                  ) : null}
+                </div>
+              </details>
+            ) : chainCount > 1 ? (
               <div className="relative pl-5 ml-1">
                 <div className="absolute left-[4px] top-1 bottom-1 w-px bg-gradient-to-b from-blue-700/40 via-emerald-700/40 to-orange-700/30" />
                 {blocks.map((block, bi) => renderBlock(block, bi, blocks, true))}
@@ -189,7 +204,7 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
             )}
 
             {/* Fallback text if no content blocks */}
-            {blocks.length === 0 && msg.text_content && (
+            {sender.label !== 'Tool Result' && blocks.length === 0 && msg.text_content && (
               <pre className={`text-[12px] whitespace-pre-wrap break-words ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
                 {msg.text_content}
               </pre>
