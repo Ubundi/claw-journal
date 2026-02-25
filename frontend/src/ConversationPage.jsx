@@ -27,12 +27,40 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
     }
   };
 
+  const parseContentBlocks = (contentJson) => {
+    if (!contentJson) return [];
+    try {
+      const parsed = JSON.parse(contentJson);
+      if (Array.isArray(parsed)) return parsed;
+      // Handle JSONL nested structure: {type: "message", message: {content: [...]}}
+      const content = parsed?.message?.content;
+      if (Array.isArray(content)) return content;
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  const isToolResultMessage = (msg) => {
+    if (msg.has_tool_result) return true;
+    if (!msg.content_json) return false;
+    try {
+      const parsed = JSON.parse(msg.content_json);
+      // Rune envelope: {"type":"message","message":{"role":"toolResult",...}}
+      if (parsed?.message?.role === 'toolResult') return true;
+      // Check content blocks for tool_result type
+      const blocks = Array.isArray(parsed) ? parsed : (parsed?.message?.content || []);
+      return blocks.some(b => ['tool_result', 'toolResult'].includes(b.type));
+    } catch {
+      return false;
+    }
+  };
+
   const parseSender = (msg) => {
     const role = msg.role || '';
     if (role === 'assistant') return { label: 'Rune', channel: '', color: 'orange' };
     const text = msg.text_content || '';
-    const hasToolResult = msg.has_tool_result;
-    if (hasToolResult && role === 'user') {
+    if (isToolResultMessage(msg) && role !== 'assistant') {
       if (/^🦞\s*OpenClaw\s/.test(text)) return { label: 'System', channel: 'OpenClaw', color: 'gray' };
       return { label: 'Tool Result', channel: '', color: 'emerald' };
     }
@@ -100,21 +128,6 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
     fetchConversation();
     return () => { cancelled = true; };
   }, [sessionId]);
-
-  const parseContentBlocks = (contentJson) => {
-    if (!contentJson) return [];
-    try {
-      const parsed = JSON.parse(contentJson);
-      if (Array.isArray(parsed)) return parsed;
-      // Handle JSONL nested structure: {type: "message", message: {content: [...]}}
-      const content = parsed?.message?.content;
-      if (Array.isArray(content)) return content;
-      return [];
-    } catch {
-      return [];
-    }
-  };
-
 
   const renderMessage = (msg, idx) => {
     const sender = parseSender(msg);
