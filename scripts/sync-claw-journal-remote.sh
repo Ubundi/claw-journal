@@ -103,7 +103,7 @@ restart_stack() {
   ./scripts/stop-dashboard.sh >/dev/null 2>&1 || true
   lsof -ti tcp:3000 | xargs kill -9 >/dev/null 2>&1 || true
   lsof -ti tcp:5173 | xargs kill -9 >/dev/null 2>&1 || true
-  nohup bash -lc 'ulimit -n 4096; export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH; ./scripts/start-dashboard.sh' > "$START_LOG" 2>&1 < /dev/null &
+  nohup bash -lc 'ulimit -n 4096; export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH; CJ_DETACH=true ./scripts/start-dashboard.sh' > "$START_LOG" 2>&1 < /dev/null &
   sleep 4
 }
 
