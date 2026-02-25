@@ -8,7 +8,7 @@ export GIT_ASKPASS=/usr/bin/false
 
 LOCKDIR=/tmp/claw-journal-sync.lock
 LOCK_PID_FILE="$LOCKDIR/pid"
-LOCK_MAX_AGE_SECONDS="${CJ_SYNC_LOCK_MAX_AGE_SECONDS:-300}"
+LOCK_MAX_AGE_SECONDS="${CJ_SYNC_LOCK_MAX_AGE_SECONDS:-1800}"
 FETCH_TIMEOUT_SECONDS="${CJ_SYNC_FETCH_TIMEOUT_SECONDS:-240}"
 PIP_CHECK_TIMEOUT_SECONDS="${CJ_SYNC_PIP_CHECK_TIMEOUT_SECONDS:-30}"
 REPO=/Users/rune/Documents/GitHub/claw-journal
@@ -47,8 +47,11 @@ run_with_timeout() {
   ) &
   local watchdog_pid=$!
 
+  local cmd_status=0
+  set +e
   wait "$cmd_pid"
-  local cmd_status=$?
+  cmd_status=$?
+  set -e
   kill "$watchdog_pid" >/dev/null 2>&1 || true
   wait "$watchdog_pid" >/dev/null 2>&1 || true
 
@@ -56,7 +59,7 @@ run_with_timeout() {
 }
 
 if ! [[ "$LOCK_MAX_AGE_SECONDS" =~ ^[0-9]+$ ]] || [[ "$LOCK_MAX_AGE_SECONDS" -le 0 ]]; then
-  LOCK_MAX_AGE_SECONDS=300
+  LOCK_MAX_AGE_SECONDS=1800
 fi
 
 acquire_lock() {
@@ -77,20 +80,7 @@ acquire_lock() {
   fi
 
   if [[ -n "$lock_pid" ]] && kill -0 "$lock_pid" >/dev/null 2>&1; then
-    if [[ "$age" -ge "$LOCK_MAX_AGE_SECONDS" ]]; then
-      log "active lock exceeded max age (${age}s, pid=${lock_pid}); terminating and continuing"
-      kill "$lock_pid" >/dev/null 2>&1 || true
-      sleep 1
-      if kill -0 "$lock_pid" >/dev/null 2>&1; then
-        kill -9 "$lock_pid" >/dev/null 2>&1 || true
-      fi
-      rm -rf "$LOCKDIR" >/dev/null 2>&1 || true
-      if mkdir "$LOCKDIR" 2>/dev/null; then
-        echo "$$" > "$LOCK_PID_FILE"
-        return 0
-      fi
-    fi
-    log "sync skipped: previous run still active (pid=$lock_pid)"
+    log "sync skipped: previous run still active (pid=$lock_pid, age=${age}s)"
     return 1
   fi
 
@@ -142,9 +132,8 @@ ensure_venv_pip() {
 
 restart_stack() {
   cd "$REPO"
-  local start_log_target="$START_LOG"
   mkdir -p "$(dirname "$START_LOG")" >/dev/null 2>&1 || true
-  touch "$START_LOG" >/dev/null 2>&1 || start_log_target="/tmp/claw-journal-start.log"
+  touch "$START_LOG" >/dev/null 2>&1 || true
   ./scripts/stop-dashboard.sh >/dev/null 2>&1 || true
   lsof -ti tcp:3000 | xargs kill -9 >/dev/null 2>&1 || true
   lsof -ti tcp:5173 | xargs kill -9 >/dev/null 2>&1 || true

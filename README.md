@@ -154,6 +154,8 @@ If you run periodic deploys with `scripts/sync-claw-journal-remote.sh`, use deta
 Recommended behavior:
 - Cron deploy script should launch `start-dashboard.sh` with `CJ_DETACH=true`.
 - Keep locking enabled (`/tmp/claw-journal-sync.lock`) so overlapping cron runs do not race.
+- Do not force-kill an active lock holder; newer runs should skip while the current deploy finishes.
+- Keep `CJ_SYNC_LOCK_MAX_AGE_SECONDS` comfortably above your cron interval (default `1800`).
 - Expect brief tunnel interruption only during intentional restarts (ports 3000/5173 are recycled), then auto-recovery.
 
 Example cron entry (every 5 minutes):
