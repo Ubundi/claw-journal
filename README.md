@@ -146,6 +146,33 @@ Notes:
 
 </details>
 
+<details>
+<summary><strong>Cron Auto-Sync Stability (Remote Host)</strong></summary>
+
+If you run periodic deploys with `scripts/sync-claw-journal-remote.sh`, use detached startup so a killed Vite process does not also tear down backend from the parent shell trap.
+
+Recommended behavior:
+- Cron deploy script should launch `start-dashboard.sh` with `CJ_DETACH=true`.
+- Keep locking enabled (`/tmp/claw-journal-sync.lock`) so overlapping cron runs do not race.
+- Expect brief tunnel interruption only during intentional restarts (ports 3000/5173 are recycled), then auto-recovery.
+
+Example cron entry (every 5 minutes):
+
+```bash
+*/5 * * * * /Users/rune/Documents/GitHub/claw-journal/scripts/sync-claw-journal-remote.sh
+```
+
+Useful checks:
+
+```bash
+tail -n 120 ~/claw-journal-sync.log
+tail -n 120 ~/Documents/GitHub/claw-journal/data/logs/claw-journal-start.log
+curl -sS http://127.0.0.1:3000/health
+curl -sS http://127.0.0.1:5173/api/system/connection
+```
+
+</details>
+
 > Advanced mode: running Claw Journal on a separate machine over SSH ingest is still possible, but host-run mode is recommended for a single persistent source of truth.
 
 ---

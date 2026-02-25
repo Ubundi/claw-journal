@@ -185,9 +185,10 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
   const tableBodyClass = theme === 'light' ? 'divide-y divide-gray-200' : 'divide-y divide-gray-900';
   const tableRowHoverClass = theme === 'light' ? 'hover:bg-gray-100 transition-colors' : 'hover:bg-[#1a1a1a] transition-colors';
   const runtimePillClass = theme === 'light'
-    ? 'text-[11px] border rounded px-2 py-[2px] bg-orange-100 text-orange-900 border-orange-300'
-    : 'text-[11px] border rounded px-2 py-[2px] bg-orange-900/30 text-orange-200 border-orange-700';
-  const runtimeDropdownClass = `${runtimePillClass} inline-flex items-center gap-1`;
+    ? 'text-[11px] border rounded px-2 py-[2px] bg-orange-50 text-orange-800 border-orange-200'
+    : 'text-[11px] border rounded px-2 py-[2px] bg-orange-900/20 text-orange-200 border-orange-800/70';
+  const runtimeInfoButtonClass = `${runtimePillClass} inline-flex items-center gap-1`;
+  const logsPreClass = `text-[11px] font-mono whitespace-pre-wrap break-words ${theme === 'light' ? 'text-gray-800' : 'text-gray-300'}`;
   const sessionOptions = (legacyData?.reconciled || []).map((row) => row.session_id).filter(Boolean);
   const availableModels = Array.isArray(modelCatalog?.available_models) ? modelCatalog.available_models : [];
 
@@ -378,6 +379,16 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
     return Number(row.input_tokens || 0) + Number(row.output_tokens || 0);
   };
 
+  const tokenSparklineData = dailyRows.slice(-10).map((row) => ({
+    date: String(row?.usage_date || '').slice(5),
+    value: totalTokensForDay(row),
+  }));
+
+  const costSparklineData = costTrendData.slice(-10).map((row) => ({
+    date: String(row?.date || '').slice(5),
+    value: Number(row?.cost_display || 0),
+  }));
+
   const pricingTooltip = ({ active, payload }) => {
     if (!active || !payload || payload.length === 0) return null;
     const point = payload[0]?.payload;
@@ -410,63 +421,19 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
           <p className={`text-sm font-semibold mr-1 whitespace-nowrap ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Runtime Mode</p>
           {/* Runtime pills are currently informational only.
               Enabling selection requires service + API refactors (for example, updating the auto-sync lock, runtime profile persistence, and remote sync guards). */}
-          <label className={runtimeDropdownClass}>
-            <span>LLM:</span>
-            <select
-              disabled
-              value={profile.auth_mode || 'unknown'}
-              className="bg-transparent border-0 p-0 pr-2 text-[11px] font-medium disabled:opacity-100 focus:outline-none appearance-none"
-              aria-label="LLM mode"
-            >
-              <option value={profile.auth_mode || 'unknown'}>{profile.auth_mode || 'unknown'}</option>
-            </select>
-            <span className="text-[10px]">▾</span>
-          </label>
-          <label className={runtimeDropdownClass}>
-            <span>Billing:</span>
-            <select
-              disabled
-              value={profile.billing_mode || 'unknown'}
-              className="bg-transparent border-0 p-0 pr-2 text-[11px] font-medium disabled:opacity-100 focus:outline-none appearance-none"
-              aria-label="Billing mode"
-            >
-              <option value={profile.billing_mode || 'unknown'}>{profile.billing_mode || 'unknown'}</option>
-            </select>
-            <span className="text-[10px]">▾</span>
-          </label>
+          <span className={runtimePillClass}>LLM: {profile.auth_mode || 'unknown'}</span>
+          <span className={runtimePillClass}>Billing: {profile.billing_mode || 'unknown'}</span>
           {billingMode === 'claude_max' && (
             <span className={runtimePillClass}>
-              plan: {formatMoney(profile.claude_max_monthly_usd || 0, 2, 2)}/mo
+              Plan: {formatMoney(profile.claude_max_monthly_usd || 0, 2, 2)}/mo
             </span>
           )}
-          <label className={runtimeDropdownClass}>
-            <span>Host:</span>
-            <select
-              disabled
-              value="Adiis-Mac-mini.localdomain"
-              className="bg-transparent border-0 p-0 pr-2 text-[11px] font-medium disabled:opacity-100 focus:outline-none appearance-none"
-              aria-label="Host"
-            >
-              <option value="Adiis-Mac-mini.localdomain">Adiis-Mac-mini.localdomain</option>
-            </select>
-            <span className="text-[10px]">▾</span>
-          </label>
-          <label className={runtimeDropdownClass}>
-            <span>Sync=</span>
-            <select
-              disabled
-              value={String(connectionInfo?.remote?.session_sync_enabled ?? false)}
-              className="bg-transparent border-0 p-0 pr-2 text-[11px] font-medium disabled:opacity-100 focus:outline-none appearance-none"
-              aria-label="Sync enabled"
-            >
-              <option value={String(connectionInfo?.remote?.session_sync_enabled ?? false)}>{String(connectionInfo?.remote?.session_sync_enabled ?? false)}</option>
-            </select>
-            <span className="text-[10px]">▾</span>
-          </label>
+          <span className={runtimePillClass}>Host: Adiis-Mac-mini.localdomain</span>
+          <span className={runtimePillClass}>Sync={String(connectionInfo?.remote?.session_sync_enabled ?? false)}</span>
           <div className="relative inline-flex">
             <button
               type="button"
-              className={`${runtimePillClass} inline-flex items-center gap-1`}
+              className={runtimeInfoButtonClass}
               onMouseEnter={() => setActiveKpiTooltip('runtime:token-counting')}
               onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:token-counting' ? '' : prev))}
               onFocus={() => setActiveKpiTooltip('runtime:token-counting')}
@@ -494,7 +461,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
           <div className="relative inline-flex">
             <button
               type="button"
-              className={`${runtimePillClass} inline-flex items-center gap-1`}
+              className={runtimeInfoButtonClass}
               onMouseEnter={() => setActiveKpiTooltip('runtime:glossary')}
               onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:glossary' ? '' : prev))}
               onFocus={() => setActiveKpiTooltip('runtime:glossary')}
@@ -518,7 +485,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
           <div className="relative inline-flex">
             <button
               type="button"
-              className={`${runtimePillClass} inline-flex items-center gap-1`}
+              className={runtimeInfoButtonClass}
               onMouseEnter={() => setActiveKpiTooltip('runtime:code-sync')}
               onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:code-sync' ? '' : prev))}
               onFocus={() => setActiveKpiTooltip('runtime:code-sync')}
@@ -563,6 +530,19 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             </div>
           )}
           <p className="text-lg font-bold text-orange-500">{totalTokensForDay(latestDay).toLocaleString()}</p>
+          <div className="h-12 mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={tokenSparklineData}>
+                <defs>
+                  <linearGradient id="kpiTokenSparklineFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f97316" stopOpacity={0.45} />
+                    <stop offset="100%" stopColor="#f97316" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="value" stroke="#f97316" strokeWidth={1.5} fill="url(#kpiTokenSparklineFill)" dot={false} isAnimationActive={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
         <div className={`${cardSurfaceClass} p-3 border rounded relative`}>
           <div className="flex items-center justify-between gap-2">
@@ -586,6 +566,19 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             </div>
           )}
           <p className="text-lg font-bold text-orange-500">{totalTokensForDay(previousDay).toLocaleString()}</p>
+          <div className="h-12 mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={tokenSparklineData}>
+                <defs>
+                  <linearGradient id="kpiPrevTokenSparklineFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f97316" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#f97316" stopOpacity={0.04} />
+                  </linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="value" stroke="#fb923c" strokeWidth={1.5} fill="url(#kpiPrevTokenSparklineFill)" dot={false} isAnimationActive={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
         <div className={`${cardSurfaceClass} p-3 border rounded relative`}>
           <div className="flex items-center justify-between gap-2">
@@ -617,6 +610,19 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
           {forecast && forecast.month_to_date_usd > 0 && (
             <p className="text-[10px] text-gray-500 mt-0.5">MTD: {formatMoney(forecast.month_to_date_usd, 2, 2)}</p>
           )}
+          <div className="h-12 mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={costSparklineData}>
+                <defs>
+                  <linearGradient id="kpiCostSparklineFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f97316" stopOpacity={0.45} />
+                    <stop offset="100%" stopColor="#f97316" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="value" stroke="#f97316" strokeWidth={1.5} fill="url(#kpiCostSparklineFill)" dot={false} isAnimationActive={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
@@ -836,8 +842,8 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             <h3 className="text-xs uppercase text-gray-500">Daily Usage</h3>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-gray-400">
-              <thead className="bg-[#1a1a1a] text-gray-500 uppercase font-medium">
+            <table className={`w-full text-left text-xs ${theme === 'light' ? 'text-gray-700' : 'text-gray-400'}`}>
+              <thead className={tableHeadClass}>
                 <tr>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3 text-right">Input</th>
@@ -848,10 +854,10 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                   {showCostColumns && <th className="px-4 py-3 text-right">Total Cost</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-900">
+              <tbody className={tableBodyClass}>
                 {(legacyData?.daily || []).map((row) => (
-                  <tr key={row.usage_date} className="hover:bg-[#1a1a1a] transition-colors">
-                    <td className="px-4 py-3 text-gray-300">{row.usage_date || '-'}</td>
+                  <tr key={row.usage_date} className={tableRowHoverClass}>
+                    <td className={`px-4 py-3 ${theme === 'light' ? 'text-gray-800' : 'text-gray-300'}`}>{row.usage_date || '-'}</td>
                     <td className="px-4 py-3 text-right">{row.input_tokens || 0}</td>
                     <td className="px-4 py-3 text-right">{row.output_tokens || 0}</td>
                     <td className="px-4 py-3 text-right">{row.total_tokens || 0}</td>
@@ -1062,7 +1068,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                       <p className="text-[11px] text-gray-500 mb-2">
                         {formatIsoOrDash(row.event_ts)} · {row.event_type || '-'} · tokens={row.total_tokens || 0} · source={row.cost_source || '-'}
                       </p>
-                      <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words">{row.raw_json || '-'}</pre>
+                      <pre className={logsPreClass}>{row.raw_json || '-'}</pre>
                     </div>
                   ))}
                   {(sessionEventsData.rows || []).length === 0 && (
@@ -1102,7 +1108,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                           <td className="px-3 py-2">
                             <details>
                               <summary className="cursor-pointer text-orange-400">View</summary>
-                              <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words mt-2">{row.raw_json || '-'}</pre>
+                              <pre className={`${logsPreClass} mt-2`}>{row.raw_json || '-'}</pre>
                             </details>
                           </td>
                         </tr>
@@ -1136,7 +1142,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
                         <p className="text-[11px] text-gray-600 mt-1">
                           size={file.size_bytes} bytes · modified={formatIsoOrDash(file.modified_at)} · checkpoint={file.checkpoint?.cursor ?? 'none'}
                         </p>
-                        <pre className="mt-2 text-[11px] text-gray-300 whitespace-pre-wrap break-words max-h-64 overflow-y-auto">{(file.tail_lines || []).join('\n') || '(No lines)'}</pre>
+                        <pre className={`${logsPreClass} mt-2 max-h-64 overflow-y-auto`}>{(file.tail_lines || []).join('\n') || '(No lines)'}</pre>
                       </div>
                     ))}
                     {(logsExplorerData.files || []).length === 0 && (
@@ -1152,22 +1158,22 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className={`${panelSurfaceClass} rounded p-3 border`}>
                 <p className="text-xs text-gray-500 mb-2 uppercase">Data Status</p>
-                <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words">{JSON.stringify(profile.data_status || {}, null, 2)}</pre>
+                <pre className={logsPreClass}>{JSON.stringify(profile.data_status || {}, null, 2)}</pre>
               </div>
               <div className={`${panelSurfaceClass} rounded p-3 border`}>
                 <p className="text-xs text-gray-500 mb-2 uppercase">Cost Sources</p>
-                <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words">{JSON.stringify(costSources || {}, null, 2)}</pre>
+                <pre className={logsPreClass}>{JSON.stringify(costSources || {}, null, 2)}</pre>
               </div>
               <div className={`${panelSurfaceClass} rounded p-3 border md:col-span-2`}>
                 <p className="text-xs text-gray-500 mb-2 uppercase">Connection</p>
-                <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words">{JSON.stringify(connectionInfo || {}, null, 2)}</pre>
+                <pre className={logsPreClass}>{JSON.stringify(connectionInfo || {}, null, 2)}</pre>
               </div>
               <div className={`${panelSurfaceClass} rounded p-3 border md:col-span-2`}>
                 <p className="text-xs text-gray-500 mb-2 uppercase">Ingest + File Diagnostics</p>
                 {logsExplorerLoading && <p className="text-xs text-gray-500">Loading diagnostics...</p>}
                 {logsExplorerError && <p className="text-xs text-red-400">{logsExplorerError}</p>}
                 {!logsExplorerLoading && !logsExplorerError && (
-                  <pre className="text-[11px] text-gray-300 whitespace-pre-wrap break-words">{JSON.stringify(logsExplorerData || {}, null, 2)}</pre>
+                  <pre className={logsPreClass}>{JSON.stringify(logsExplorerData || {}, null, 2)}</pre>
                 )}
               </div>
             </div>
