@@ -9,6 +9,8 @@ export GIT_ASKPASS=/usr/bin/false
 LOCKDIR=/tmp/claw-journal-sync.lock
 LOCK_PID_FILE="$LOCKDIR/pid"
 LOCK_MAX_AGE_SECONDS="${CJ_SYNC_LOCK_MAX_AGE_SECONDS:-300}"
+FETCH_TIMEOUT_SECONDS="${CJ_SYNC_FETCH_TIMEOUT_SECONDS:-120}"
+PIP_CHECK_TIMEOUT_SECONDS="${CJ_SYNC_PIP_CHECK_TIMEOUT_SECONDS:-30}"
 REPO=/Users/rune/Documents/GitHub/claw-journal
 SYNC_LOG=/Users/rune/claw-journal-sync.log
 PERSIST_LOG_DIR="$REPO/data/logs"
@@ -26,6 +28,33 @@ log() {
   echo "$(date +"%Y-%m-%d %H:%M:%S") $*" >> "$SYNC_LOG"
 }
 
+run_with_timeout() {
+  local timeout_seconds="$1"
+  shift
+
+  "$@" &
+  local cmd_pid=$!
+
+  (
+    sleep "$timeout_seconds"
+    if kill -0 "$cmd_pid" >/dev/null 2>&1; then
+      kill "$cmd_pid" >/dev/null 2>&1 || true
+      sleep 1
+      if kill -0 "$cmd_pid" >/dev/null 2>&1; then
+        kill -9 "$cmd_pid" >/dev/null 2>&1 || true
+      fi
+    fi
+  ) &
+  local watchdog_pid=$!
+
+  wait "$cmd_pid"
+  local cmd_status=$?
+  kill "$watchdog_pid" >/dev/null 2>&1 || true
+  wait "$watchdog_pid" >/dev/null 2>&1 || true
+
+  return "$cmd_status"
+}
+
 if ! [[ "$LOCK_MAX_AGE_SECONDS" =~ ^[0-9]+$ ]] || [[ "$LOCK_MAX_AGE_SECONDS" -le 0 ]]; then
   LOCK_MAX_AGE_SECONDS=300
 fi
@@ -36,21 +65,34 @@ acquire_lock() {
     return 0
   fi
 
+  local lock_mtime
+  lock_mtime="$(stat -f %m "$LOCKDIR" 2>/dev/null || echo 0)"
+  local now
+  now="$(date +%s)"
+  local age=$((now - lock_mtime))
+
   local lock_pid=""
   if [[ -f "$LOCK_PID_FILE" ]]; then
     lock_pid="$(cat "$LOCK_PID_FILE" 2>/dev/null || true)"
   fi
 
   if [[ -n "$lock_pid" ]] && kill -0 "$lock_pid" >/dev/null 2>&1; then
+    if [[ "$age" -ge "$LOCK_MAX_AGE_SECONDS" ]]; then
+      log "active lock exceeded max age (${age}s, pid=${lock_pid}); terminating and continuing"
+      kill "$lock_pid" >/dev/null 2>&1 || true
+      sleep 1
+      if kill -0 "$lock_pid" >/dev/null 2>&1; then
+        kill -9 "$lock_pid" >/dev/null 2>&1 || true
+      fi
+      rm -rf "$LOCKDIR" >/dev/null 2>&1 || true
+      if mkdir "$LOCKDIR" 2>/dev/null; then
+        echo "$$" > "$LOCK_PID_FILE"
+        return 0
+      fi
+    fi
     log "sync skipped: previous run still active (pid=$lock_pid)"
     return 1
   fi
-
-  local lock_mtime
-  lock_mtime="$(stat -f %m "$LOCKDIR" 2>/dev/null || echo 0)"
-  local now
-  now="$(date +%s)"
-  local age=$((now - lock_mtime))
 
   if [[ "$age" -ge "$LOCK_MAX_AGE_SECONDS" ]]; then
     rm -rf "$LOCKDIR" >/dev/null 2>&1 || true
@@ -91,7 +133,7 @@ ensure_venv_pip() {
     }
   fi
   "$venv_python" -m ensurepip --upgrade >"$ENSUREPIP_LOG" 2>&1 || true
-  "$venv_python" -m pip --version >/dev/null 2>&1 || {
+  run_with_timeout "$PIP_CHECK_TIMEOUT_SECONDS" "$venv_python" -m pip --version >/dev/null 2>&1 || {
     log "pip unavailable in venv"
     return 1
   }
@@ -112,7 +154,7 @@ ensure_healthy() {
 }
 
 cd "$REPO"
-if ! git fetch --quiet origin main; then
+if ! run_with_timeout "$FETCH_TIMEOUT_SECONDS" git fetch --quiet origin main; then
   log "fetch failed"
   restart_stack
   if ensure_healthy; then

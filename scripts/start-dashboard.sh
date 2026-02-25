@@ -99,7 +99,17 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 1
 fi
 
-nohup python main.py >"$BACKEND_LOG_FILE" 2>&1 < /dev/null &
+backend_entrypoint=""
+if [[ -f "main.py" ]]; then
+  backend_entrypoint="main.py"
+elif [[ -f "docs/main.py" ]]; then
+  backend_entrypoint="docs/main.py"
+else
+  echo "Could not find backend entrypoint (expected main.py or docs/main.py)."
+  exit 1
+fi
+
+nohup env PYTHONPATH="$ROOT_DIR${PYTHONPATH:+:$PYTHONPATH}" python "$backend_entrypoint" >"$BACKEND_LOG_FILE" 2>&1 < /dev/null &
 backend_pid=$!
 
 cat > "$RUN_STATE_FILE" <<EOF
