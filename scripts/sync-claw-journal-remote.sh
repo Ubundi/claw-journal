@@ -9,7 +9,7 @@ export GIT_ASKPASS=/usr/bin/false
 LOCKDIR=/tmp/claw-journal-sync.lock
 LOCK_PID_FILE="$LOCKDIR/pid"
 LOCK_MAX_AGE_SECONDS="${CJ_SYNC_LOCK_MAX_AGE_SECONDS:-300}"
-FETCH_TIMEOUT_SECONDS="${CJ_SYNC_FETCH_TIMEOUT_SECONDS:-120}"
+FETCH_TIMEOUT_SECONDS="${CJ_SYNC_FETCH_TIMEOUT_SECONDS:-240}"
 PIP_CHECK_TIMEOUT_SECONDS="${CJ_SYNC_PIP_CHECK_TIMEOUT_SECONDS:-30}"
 REPO=/Users/rune/Documents/GitHub/claw-journal
 SYNC_LOG=/Users/rune/claw-journal-sync.log
@@ -142,10 +142,13 @@ ensure_venv_pip() {
 
 restart_stack() {
   cd "$REPO"
+  local start_log_target="$START_LOG"
+  mkdir -p "$(dirname "$START_LOG")" >/dev/null 2>&1 || true
+  touch "$START_LOG" >/dev/null 2>&1 || start_log_target="/tmp/claw-journal-start.log"
   ./scripts/stop-dashboard.sh >/dev/null 2>&1 || true
   lsof -ti tcp:3000 | xargs kill -9 >/dev/null 2>&1 || true
   lsof -ti tcp:5173 | xargs kill -9 >/dev/null 2>&1 || true
-  nohup bash -lc 'ulimit -n 4096; export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH; ./scripts/start-dashboard.sh' > "$START_LOG" 2>&1 < /dev/null &
+  nohup bash -lc 'ulimit -n 4096; export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH; ./scripts/start-dashboard.sh' > "$start_log_target" 2>&1 < /dev/null &
   sleep 4
 }
 
