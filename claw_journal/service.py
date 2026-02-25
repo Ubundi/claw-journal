@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import getpass
 import json
+import os
 import socket
 import subprocess
 from collections import deque
@@ -16,12 +17,9 @@ from .session_sync import SESSION_SYNC_LAST_SUCCESS_KEY
 from .storage import UsageRepository
 
 
+REMOTE_WORKSPACE_DIR = "~/.openclaw/workspace"
 REMOTE_MEMORY_DIR = "~/.openclaw/workspace/memory"
-REMOTE_ROOT_MEMORY_FILES = [
-    "~/.openclaw/workspace/MEMORY.md",
-    "~/.openclaw/workspace/SOUL.md",
-    "~/.openclaw/workspace/HEARTBEAT.md",
-]
+MAX_MEMORY_FILE_READ_BYTES = 1_000_000
 
 
 class UsageService:
@@ -226,6 +224,7 @@ class UsageService:
             "rows": payload,
             "remote_enabled": self._settings.remote_enabled,
             "remote_ssh_host": self._settings.remote_ssh_host,
+            "workspace_dir": REMOTE_WORKSPACE_DIR,
             "memory_dir": REMOTE_MEMORY_DIR,
         }
 
@@ -234,8 +233,7 @@ class UsageService:
         if not safe_path:
             return {"path": safe_path, "content": "", "exists": False}
 
-        allowed_paths = {row.get("path") for row in self._list_memory_files() if isinstance(row.get("path"), str)}
-        if safe_path not in allowed_paths:
+        if not self._is_allowed_memory_path(safe_path):
             return {
                 "path": safe_path,
                 "content": "",
@@ -356,59 +354,61 @@ class UsageService:
     # ── Private helpers ────────────────────────────────────────────────
 
     def _list_memory_files(self) -> list[dict[str, str]]:
+        workspace_dir = REMOTE_WORKSPACE_DIR
         memory_dir = REMOTE_MEMORY_DIR
         if self._settings.remote_enabled and self._settings.remote_ssh_host:
-            return self._remote_list_memory_files(memory_dir=memory_dir)
-        return self._local_list_memory_files(memory_dir=memory_dir)
+            return self._remote_list_memory_files(workspace_dir=workspace_dir, memory_dir=memory_dir)
+        return self._local_list_memory_files(workspace_dir=workspace_dir, memory_dir=memory_dir)
 
-    def _local_list_memory_files(self, memory_dir: str) -> list[dict[str, str]]:
-        base = Path(memory_dir).expanduser()
+    def _local_list_memory_files(self, workspace_dir: str, memory_dir: str) -> list[dict[str, str]]:
+        workspace_root = Path(workspace_dir).expanduser()
+        memory_root = Path(memory_dir).expanduser()
         rows: list[dict[str, str]] = []
 
-        if base.exists() and base.is_dir():
-            for file_path in sorted(base.glob("*.md")):
+        if workspace_root.exists() and workspace_root.is_dir():
+            for file_path in sorted(workspace_root.rglob("*")):
+                if not file_path.is_file():
+                    continue
+
+                try:
+                    relative_name = str(file_path.relative_to(workspace_root))
+                except ValueError:
+                    relative_name = file_path.name
+
+                group = "memory" if _is_path_within(file_path, memory_root) else "workspace"
                 rows.append(
                     {
                         "path": str(file_path),
-                        "name": file_path.name,
-                        "group": "memory",
+                        "name": relative_name,
+                        "group": group,
                     }
                 )
 
-        for file_name in REMOTE_ROOT_MEMORY_FILES:
-            root_path = Path(file_name).expanduser()
-            if root_path.exists() and root_path.is_file():
-                rows.append(
-                    {
-                        "path": str(root_path),
-                        "name": root_path.name,
-                        "group": "workspace",
-                    }
-                )
+        rows.sort(key=lambda row: (0 if row.get("group") == "memory" else 1, str(row.get("name") or "").lower()))
 
         return rows
 
-    def _remote_list_memory_files(self, memory_dir: str) -> list[dict[str, str]]:
+    def _remote_list_memory_files(self, workspace_dir: str, memory_dir: str) -> list[dict[str, str]]:
         script = """
-import glob
 import json
 import os
 
 rows = []
+workspace_dir = os.path.expanduser(__WORKSPACE_DIR__)
 memory_dir = os.path.expanduser(__MEMORY_DIR__)
-if os.path.isdir(memory_dir):
-    for path in sorted(glob.glob(os.path.join(memory_dir, '*.md'))):
-        rows.append({"path": path, "name": os.path.basename(path), "group": "memory"})
+if os.path.isdir(workspace_dir):
+    for root, _, files in os.walk(workspace_dir, followlinks=False):
+        for name in files:
+            path = os.path.join(root, name)
+            rel = os.path.relpath(path, workspace_dir)
+            normalized_path = os.path.realpath(path)
+            group = "memory" if os.path.commonpath([normalized_path, os.path.realpath(memory_dir)]) == os.path.realpath(memory_dir) else "workspace"
+            rows.append({"path": path, "name": rel, "group": group})
 
-for raw_path in __ROOT_FILES__:
-    path = os.path.expanduser(raw_path)
-    if os.path.isfile(path):
-        rows.append({"path": path, "name": os.path.basename(path), "group": "workspace"})
+rows.sort(key=lambda row: (0 if row.get("group") == "memory" else 1, str(row.get("name") or "").lower()))
 
 print(json.dumps(rows))
-""".replace("__MEMORY_DIR__", json.dumps(memory_dir)).replace(
-            "__ROOT_FILES__", json.dumps(REMOTE_ROOT_MEMORY_FILES)
-        )
+""".replace("__WORKSPACE_DIR__", json.dumps(workspace_dir)).replace("__MEMORY_DIR__", json.dumps(memory_dir))
 
         output = self._run_remote_python(script)
         if not output:
@@ -432,6 +432,37 @@ print(json.dumps(rows))
             rows.append({"path": path, "name": name, "group": group})
         return rows
 
+    def _is_allowed_memory_path(self, path: str) -> bool:
+        workspace_dir = REMOTE_WORKSPACE_DIR
+
+        if self._settings.remote_enabled and self._settings.remote_ssh_host:
+            script = """
+import json
+import os
+
+path = os.path.expanduser(__PATH__)
+workspace = os.path.realpath(os.path.expanduser(__WORKSPACE_DIR__))
+
+if not os.path.isfile(path):
+    print(json.dumps({"allowed": False}))
+elif os.path.commonpath([os.path.realpath(path), workspace]) != workspace:
+    print(json.dumps({"allowed": False}))
+else:
+    print(json.dumps({"allowed": True}))
+""".replace("__PATH__", json.dumps(path)).replace("__WORKSPACE_DIR__", json.dumps(workspace_dir))
+            output = self._run_remote_python(script)
+            if not output:
+                return False
+            try:
+                payload = json.loads(output)
+            except json.JSONDecodeError:
+                return False
+            return bool(payload.get("allowed"))
+
+        local_path = Path(path).expanduser()
+        workspace_root = Path(workspace_dir).expanduser()
+        return local_path.exists() and local_path.is_file() and _is_path_within(local_path, workspace_root)
+
     def _read_remote_or_local_file(self, path: str) -> str | None:
         if self._settings.remote_enabled and self._settings.remote_ssh_host:
             script = """
@@ -443,14 +474,23 @@ if not os.path.isfile(path):
     sys.exit(0)
 
 with open(path, 'r', encoding='utf-8', errors='replace') as handle:
-    sys.stdout.write(handle.read())
-""".replace("__PATH__", json.dumps(path))
+    payload = handle.read(__MAX_BYTES__ + 1)
+
+if len(payload) > __MAX_BYTES__:
+    payload = payload[:__MAX_BYTES__] + "\n\n[Truncated to __MAX_BYTES__ bytes for Memory Explorer.]"
+
+sys.stdout.write(payload)
+""".replace("__PATH__", json.dumps(path)).replace("__MAX_BYTES__", str(MAX_MEMORY_FILE_READ_BYTES))
             return self._run_remote_python(script)
 
         local_path = Path(path).expanduser()
         if not local_path.exists() or not local_path.is_file():
             return None
-        return local_path.read_text(encoding="utf-8", errors="replace")
+        content = local_path.read_text(encoding="utf-8", errors="replace")
+        if len(content.encode("utf-8")) <= MAX_MEMORY_FILE_READ_BYTES:
+            return content
+        trimmed = content.encode("utf-8")[:MAX_MEMORY_FILE_READ_BYTES].decode("utf-8", errors="replace")
+        return trimmed + f"\n\n[Truncated to {MAX_MEMORY_FILE_READ_BYTES} bytes for Memory Explorer.]"
 
     def _run_remote_python(self, script: str) -> str | None:
         if not self._settings.remote_ssh_host:
@@ -636,6 +676,14 @@ def _lock_age_seconds(path: Path) -> int | None:
     now = datetime.now(tz=timezone.utc).timestamp()
     age = int(now - mtime)
     return max(age, 0)
+
+
+def _is_path_within(path: Path, root: Path) -> bool:
+    try:
+        path.resolve(strict=False).relative_to(root.resolve(strict=False))
+        return True
+    except ValueError:
+        return False
 
 
 def _fill_recent_days(rows: list[dict], days: int) -> list[dict[str, int | str]]:

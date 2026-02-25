@@ -10,6 +10,7 @@ const MemoryPage = ({ theme = 'dark' }) => {
   const [memoryMeta, setMemoryMeta] = useState({
     remote_enabled: false,
     remote_ssh_host: null,
+    workspace_dir: '~/.openclaw/workspace',
     memory_dir: '~/.openclaw/workspace/memory',
   });
 
@@ -75,6 +76,7 @@ const MemoryPage = ({ theme = 'dark' }) => {
       setMemoryMeta({
         remote_enabled: Boolean(response.data?.remote_enabled),
         remote_ssh_host: response.data?.remote_ssh_host || null,
+        workspace_dir: response.data?.workspace_dir || '~/.openclaw/workspace',
         memory_dir: response.data?.memory_dir || '~/.openclaw/workspace/memory',
       });
 
@@ -155,8 +157,8 @@ const MemoryPage = ({ theme = 'dark' }) => {
             <div className="space-y-4">
               {files.length === 0 && (
                 <div className={`text-xs rounded border p-2 ${isLight ? 'border-gray-200 text-gray-600 bg-white' : 'border-gray-800 text-gray-400 bg-[#111]'}`}>
-                  <p className="mb-1">No memory markdown files found.</p>
-                  <p>Checked: {memoryMeta.memory_dir} and workspace root memory files.</p>
+                  <p className="mb-1">No files found in workspace.</p>
+                  <p>Checked: {memoryMeta.workspace_dir}.</p>
                   {!memoryMeta.remote_enabled && (
                     <p className="mt-1">Remote mode is disabled. Set `CJ_REMOTE_ENABLED=true` and `CJ_REMOTE_SSH_HOST=user@your-host` to browse remote OpenClaw memory.</p>
                   )}

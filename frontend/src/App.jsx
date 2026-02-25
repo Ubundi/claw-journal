@@ -236,7 +236,7 @@ function App() {
       <div className="px-6 pt-6 pb-4 border-b border-gray-800/60">
         <div className={`flex flex-col md:flex-row md:justify-between md:items-center gap-4 border rounded-lg px-4 py-3 ${theme === 'light' ? 'border-gray-300 bg-gray-50' : 'border-gray-900 bg-[#121212]/90'}`}>
           <div className="flex items-start gap-3">
-            <img src="/clawjournalicon.png" alt="Claw Journal" className="h-9 w-9 rounded" />
+            <img src="/journal-logo.png" alt="Claw Journal" className="h-8 w-8 rounded-md object-contain" />
             <div>
               <h1 className={`text-xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Claw Journal</h1>
               <p className={`text-[11px] mt-0.5 flex items-center gap-1.5 ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>
@@ -350,7 +350,10 @@ function App() {
       <footer className={`mt-8 py-8 px-5 border rounded mx-6 ${theme === 'light' ? 'bg-gray-100 border-gray-300' : 'bg-[#141414] border-gray-900'}`}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
-            <p className={`text-sm font-semibold mb-2 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Claw Journal</p>
+            <div className="flex items-center gap-2 mb-2">
+              <img src="/journal-logo.png" alt="Claw Journal" className="h-6 w-6 rounded object-contain" />
+              <p className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Claw Journal</p>
+            </div>
             <p className={`text-xs leading-relaxed ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>
               Local observability for OpenClaw sessions. Track token usage, cost trends, agent reasoning, and tool invocations in one place.
             </p>
