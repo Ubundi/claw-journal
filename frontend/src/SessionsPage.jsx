@@ -196,6 +196,7 @@ const SessionsPage = ({ theme = 'dark', onNavigate }) => {
                 {sessions.map((s) => {
                   const title = cleanTitle(s.display_title) || cleanTitle(s.assistant_title) || (s.display_title ? 'Rune heartbeat check' : (s.session_id || '').slice(0, 8));
                   const isTooToo = (s.source_path || '').includes('/agents/tootoo/') || (s.agent_id || '').toLowerCase() === 'tootoo';
+                  const isWhatsApp = (s.display_title || '').includes('[WhatsApp');
                   const agentName = isTooToo ? null : (((s.source_path || '').match(/\/agents\/([^/]+)\//) || [])[1] || s.agent_id || null);
                   return (
                     <button
@@ -208,6 +209,11 @@ const SessionsPage = ({ theme = 'dark', onNavigate }) => {
                         {isTooToo && (
                           <span className={`text-[10px] uppercase px-2 py-[1px] rounded border shrink-0 ${isLight ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-amber-900/30 border-amber-800/50 text-amber-300'}`}>
                             TooToo
+                          </span>
+                        )}
+                        {isWhatsApp && (
+                          <span className={`text-[10px] uppercase px-2 py-[1px] rounded border shrink-0 ${isLight ? 'bg-green-100 border-green-300 text-green-700' : 'bg-green-900/30 border-green-800/50 text-green-300'}`}>
+                            WhatsApp
                           </span>
                         )}
                         {!isTooToo && agentName && agentName !== 'main' && (
