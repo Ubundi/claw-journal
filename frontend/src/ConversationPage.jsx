@@ -267,18 +267,21 @@ const ConversationPage = ({ theme = 'dark', sessionId }) => {
     }
 
     if (['tool_use', 'toolCall'].includes(block.type)) {
+      const toolInput = block.input || block.arguments;
       return wrapper(
         <div className={`${isLight ? 'bg-gray-100 border border-gray-200' : 'bg-[#191919] border border-gray-800'} rounded p-2 mb-2`}>
           <div className="flex items-start gap-2">
             <Wrench size={14} className="text-emerald-300 mt-0.5 flex-shrink-0" />
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] text-emerald-300 mb-1">toolCall &middot; {block.name || block.toolName}</p>
-              <details>
-                <summary className={`text-[11px] cursor-pointer ${isLight ? 'text-gray-500 hover:text-gray-700' : 'text-gray-400 hover:text-gray-200'}`}>Input</summary>
-                <pre className={`text-[12px] mt-1 max-h-72 overflow-y-auto ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
-                  {block.input ? JSON.stringify(block.input, null, 2) : ''}
-                </pre>
-              </details>
+              <p className="text-[11px] text-emerald-300">toolCall &middot; {block.name || block.toolName}</p>
+              {toolInput && (
+                <details className="mt-1">
+                  <summary className={`text-[11px] cursor-pointer ${isLight ? 'text-gray-500 hover:text-gray-700' : 'text-gray-400 hover:text-gray-200'}`}>Input</summary>
+                  <pre className={`text-[12px] mt-1 max-h-72 overflow-y-auto ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
+                    {typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput, null, 2)}
+                  </pre>
+                </details>
+              )}
             </div>
           </div>
         </div>
