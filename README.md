@@ -222,8 +222,7 @@ Common issues with ports, blank dashboards, and connectivity.
 
 ## Roadmap
 
-- Track progress and upcoming milestones in GitHub Projects:
-   - https://github.com/orgs/Ubundi/projects/1/views/1
+- Track progress and upcoming milestones in [GitHub Projects](https://github.com/orgs/Ubundi/projects/1/views/1)
 
 ##  Contributing
 
@@ -238,7 +237,6 @@ Please review our [Contributing Guidelines](./docs/CONTRIBUTING.md), [Code of Co
 ## 🌍 Community
 
 - Discussions and support: open a GitHub Discussion or issue.
-- Community chat link can be added here once a Discord/Slack channel is created.
 
 ## 📄 License
 

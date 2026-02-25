@@ -83,19 +83,19 @@ fi
 
 ensure_venv_pip() {
   cd "$REPO"
+  local venv_python=".venv/bin/python"
   if [ ! -x .venv/bin/python ]; then
     /opt/homebrew/bin/python3 -m venv .venv || {
       log "failed to create venv"
       return 1
     }
   fi
-  . .venv/bin/activate
-  python -m ensurepip --upgrade >"$ENSUREPIP_LOG" 2>&1 || true
-  python -m pip --version >/dev/null 2>&1 || {
+  "$venv_python" -m ensurepip --upgrade >"$ENSUREPIP_LOG" 2>&1 || true
+  "$venv_python" -m pip --version >/dev/null 2>&1 || {
     log "pip unavailable in venv"
     return 1
   }
-  python -m pip install --upgrade pip >"$PIP_UPGRADE_LOG" 2>&1 || true
+  "$venv_python" -m pip install --upgrade pip >"$PIP_UPGRADE_LOG" 2>&1 || true
 }
 
 restart_stack() {
@@ -132,7 +132,7 @@ if [ "$local_sha" != "$remote_sha" ]; then
   git reset --hard origin/main >/dev/null
 
   if ensure_venv_pip; then
-    python -m pip install -r requirements.txt >"$PIP_INSTALL_LOG" 2>&1 || log "pip install failed (continuing)"
+    .venv/bin/python -m pip install -r requirements.txt >"$PIP_INSTALL_LOG" 2>&1 || log "pip install failed (continuing)"
   else
     log "venv/pip setup failed; skipping pip install"
   fi
