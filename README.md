@@ -157,6 +157,7 @@ Recommended behavior:
 - Keep `CJ_SYNC_LOCK_MAX_AGE_SECONDS` higher than the cron period (default `1800`).
 - Active lock holders should not be force-killed; newer runs should skip while deploy is in progress.
 - Expect brief tunnel interruption only during intentional restarts (ports 3000/5173 are recycled), then auto-recovery.
+- Sync script writes `~/.claw-journal-sync-status.json` so the dashboard can warn users before restart.
 
 What to expect after a push to `main`:
 - During restart, local tunnel output may briefly show `channel ... connect failed: Connection refused`.
@@ -187,6 +188,7 @@ tail -n 120 ~/claw-journal-sync.log
 tail -n 120 ~/Documents/GitHub/claw-journal/data/logs/claw-journal-start.log
 curl -sS http://127.0.0.1:3000/health
 curl -sS http://127.0.0.1:5173/api/system/connection
+cat ~/.claw-journal-sync-status.json
 ```
 
 </details>

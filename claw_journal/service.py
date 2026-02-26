@@ -525,7 +525,9 @@ sys.stdout.write(payload)
         local_hostname = socket.gethostname()
         session_sync_last_success_ms = self._repository.get_checkpoint(SESSION_SYNC_LAST_SUCCESS_KEY)
         sync_log_path = Path.home() / "claw-journal-sync.log"
+        sync_status_path = Path.home() / ".claw-journal-sync-status.json"
         sync_last_run_at, sync_last_run_message = _read_last_sync_log_entry(sync_log_path)
+        sync_status = _read_sync_status(sync_status_path)
         sync_lock_age_seconds = _lock_age_seconds(Path("/tmp/claw-journal-sync.lock"))
 
         return {
@@ -551,8 +553,11 @@ sys.stdout.write(payload)
                 "session_sync_last_success_ms": session_sync_last_success_ms or 0,
                 "session_sync_last_success_iso": _epoch_ms_to_iso(session_sync_last_success_ms),
                 "sync_log_path": str(sync_log_path),
+                "sync_status_path": str(sync_status_path),
                 "sync_last_run_at": sync_last_run_at,
                 "sync_last_run_message": sync_last_run_message,
+                "sync_status": sync_status,
+                "update_notice": _build_update_notice(sync_status, sync_lock_age_seconds, sync_last_run_message),
                 "sync_lock_active": sync_lock_age_seconds is not None,
                 "sync_lock_age_seconds": sync_lock_age_seconds,
             },
@@ -664,6 +669,67 @@ def _read_last_sync_log_entry(path: Path) -> tuple[str | None, str | None]:
         return None, text
 
     return None, None
+
+
+def _read_sync_status(path: Path) -> dict | None:
+    if not path.exists() or not path.is_file():
+        return None
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    state = str(payload.get("state") or "").strip().lower()
+    message = str(payload.get("message") or "").strip()
+    updated_at = str(payload.get("updated_at") or "").strip()
+    if not state and not message:
+        return None
+
+    return {
+        "state": state or None,
+        "message": message or None,
+        "updated_at": updated_at or None,
+    }
+
+
+def _build_update_notice(sync_status: dict | None, sync_lock_age_seconds: int | None, sync_last_run_message: str | None) -> dict | None:
+    if sync_status:
+        state = str(sync_status.get("state") or "").lower()
+        message = str(sync_status.get("message") or "").strip()
+        if state in {"updating", "restarting", "warning", "error"}:
+            level = "warning" if state in {"updating", "restarting", "warning"} else "error"
+            title = "Update In Progress" if state in {"updating", "restarting"} else "Connection Issue"
+            return {
+                "level": level,
+                "title": title,
+                "message": message or "Claw Journal is updating. Temporary disconnects are expected.",
+                "state": state,
+                "updated_at": sync_status.get("updated_at"),
+            }
+
+    if sync_lock_age_seconds is not None and sync_lock_age_seconds >= 30:
+        return {
+            "level": "warning",
+            "title": "Sync Running",
+            "message": "A sync/deploy lock is active. Dashboard may briefly disconnect during restart.",
+            "state": "lock-active",
+            "updated_at": None,
+        }
+
+    if sync_last_run_message and "failed" in sync_last_run_message.lower():
+        return {
+            "level": "error",
+            "title": "Sync Failure",
+            "message": sync_last_run_message,
+            "state": "sync-failed",
+            "updated_at": None,
+        }
+
+    return None
 
 
 def _lock_age_seconds(path: Path) -> int | None:
