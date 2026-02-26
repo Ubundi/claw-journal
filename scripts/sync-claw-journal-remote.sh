@@ -8,7 +8,9 @@ export GIT_ASKPASS=/usr/bin/false
 
 LOCKDIR=/tmp/claw-journal-sync.lock
 LOCK_PID_FILE="$LOCKDIR/pid"
-LOCK_MAX_AGE_SECONDS="${CJ_SYNC_LOCK_MAX_AGE_SECONDS:-300}"
+LOCK_MAX_AGE_SECONDS="${CJ_SYNC_LOCK_MAX_AGE_SECONDS:-1800}"
+FETCH_TIMEOUT_SECONDS="${CJ_SYNC_FETCH_TIMEOUT_SECONDS:-240}"
+PIP_CHECK_TIMEOUT_SECONDS="${CJ_SYNC_PIP_CHECK_TIMEOUT_SECONDS:-30}"
 REPO=/Users/rune/Documents/GitHub/claw-journal
 SYNC_LOG=/Users/rune/claw-journal-sync.log
 PERSIST_LOG_DIR="$REPO/data/logs"
@@ -26,8 +28,38 @@ log() {
   echo "$(date +"%Y-%m-%d %H:%M:%S") $*" >> "$SYNC_LOG"
 }
 
+run_with_timeout() {
+  local timeout_seconds="$1"
+  shift
+
+  "$@" &
+  local cmd_pid=$!
+
+  (
+    sleep "$timeout_seconds"
+    if kill -0 "$cmd_pid" >/dev/null 2>&1; then
+      kill "$cmd_pid" >/dev/null 2>&1 || true
+      sleep 1
+      if kill -0 "$cmd_pid" >/dev/null 2>&1; then
+        kill -9 "$cmd_pid" >/dev/null 2>&1 || true
+      fi
+    fi
+  ) &
+  local watchdog_pid=$!
+
+  local cmd_status=0
+  set +e
+  wait "$cmd_pid"
+  cmd_status=$?
+  set -e
+  kill "$watchdog_pid" >/dev/null 2>&1 || true
+  wait "$watchdog_pid" >/dev/null 2>&1 || true
+
+  return "$cmd_status"
+}
+
 if ! [[ "$LOCK_MAX_AGE_SECONDS" =~ ^[0-9]+$ ]] || [[ "$LOCK_MAX_AGE_SECONDS" -le 0 ]]; then
-  LOCK_MAX_AGE_SECONDS=300
+  LOCK_MAX_AGE_SECONDS=1800
 fi
 
 acquire_lock() {
@@ -42,7 +74,12 @@ acquire_lock() {
   fi
 
   if [[ -n "$lock_pid" ]] && kill -0 "$lock_pid" >/dev/null 2>&1; then
-    log "sync skipped: previous run still active (pid=$lock_pid)"
+    local lock_mtime
+    lock_mtime="$(stat -f %m "$LOCKDIR" 2>/dev/null || echo 0)"
+    local now
+    now="$(date +%s)"
+    local age=$((now - lock_mtime))
+    log "sync skipped: previous run still active (pid=$lock_pid, age=${age}s)"
     return 1
   fi
 
@@ -91,7 +128,7 @@ ensure_venv_pip() {
     }
   fi
   "$venv_python" -m ensurepip --upgrade >"$ENSUREPIP_LOG" 2>&1 || true
-  "$venv_python" -m pip --version >/dev/null 2>&1 || {
+  run_with_timeout "$PIP_CHECK_TIMEOUT_SECONDS" "$venv_python" -m pip --version >/dev/null 2>&1 || {
     log "pip unavailable in venv"
     return 1
   }
@@ -111,14 +148,42 @@ ensure_healthy() {
   curl -fsS http://127.0.0.1:3000/health >/dev/null 2>&1 && curl -fsS http://127.0.0.1:5173/api/system/connection >/dev/null 2>&1
 }
 
-cd "$REPO"
-if ! git fetch --quiet origin main; then
-  log "fetch failed"
+wait_for_healthy() {
+  for _ in {1..25}; do
+    if ensure_healthy; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
+recover_with_restart() {
+  local reason="$1"
   restart_stack
+  if wait_for_healthy; then
+    log "${reason}: restart successful"
+    return 0
+  fi
+
+  log "${reason}: first restart failed, retrying once"
+  restart_stack
+  if wait_for_healthy; then
+    log "${reason}: second restart successful"
+    return 0
+  fi
+
+  log "${reason}: restart failed"
+  return 1
+}
+
+cd "$REPO"
+if ! run_with_timeout "$FETCH_TIMEOUT_SECONDS" git fetch --quiet origin main; then
+  log "fetch failed"
   if ensure_healthy; then
-    log "recover restart ok after fetch failure"
+    log "fetch failed but services are healthy; skipped restart"
   else
-    log "recover restart failed after fetch failure"
+    recover_with_restart "fetch failure"
   fi
   exit 0
 fi
@@ -140,10 +205,11 @@ if [ "$local_sha" != "$remote_sha" ]; then
   npm --prefix frontend install --no-audit --no-fund >"$NPM_INSTALL_LOG" 2>&1 || log "npm install failed (continuing)"
 
   restart_stack
-  if ensure_healthy; then
+  if wait_for_healthy; then
     log "deploy complete: healthy on 3000/5173"
   else
-    log "deploy complete but health check failed"
+    log "deploy complete but health check failed; retrying restart"
+    recover_with_restart "post-deploy health check"
   fi
   exit 0
 fi
@@ -152,10 +218,5 @@ if ensure_healthy; then
   log "no update: healthy"
 else
   log "no update but unhealthy: restarting"
-  restart_stack
-  if ensure_healthy; then
-    log "self-heal restart successful"
-  else
-    log "self-heal restart failed"
-  fi
+  recover_with_restart "no-update self-heal"
 fi

@@ -147,7 +147,7 @@ function App() {
   );
 
   const activeTabClass = useMemo(
-    () => (theme === 'light' ? 'bg-white text-gray-900 border-gray-300 border-b-white' : 'bg-[#0f0f0f] text-orange-300 border-gray-700 border-b-[#0f0f0f]'),
+    () => (theme === 'light' ? 'bg-orange-100 text-orange-900 border-orange-300 border-b-orange-100' : 'bg-orange-900/40 text-orange-200 border-orange-700 border-b-orange-900/40'),
     [theme],
   );
 
@@ -240,7 +240,7 @@ function App() {
 
   return (
     <div className={shellClass}>
-      <div className="px-6 pt-6 pb-4 border-b border-gray-800/60">
+      <div className="px-6 pt-6 pb-4">
         <div className={`border rounded-lg px-4 py-3 ${theme === 'light' ? 'border-gray-300 bg-gray-50' : 'border-gray-900 bg-[#121212]/90'}`}>
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-start gap-3">

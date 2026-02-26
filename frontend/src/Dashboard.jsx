@@ -505,7 +505,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
       </div>
 
       <div id="usage-summary" className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 scroll-mt-24">
-        <div className={`${cardSurfaceClass} p-3 border rounded relative`}>
+        <div className={`${cardSurfaceClass} p-3 border rounded relative flex flex-col`}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] uppercase text-gray-500 mb-1">Tokens Today</p>
             <button
@@ -526,7 +526,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
               Total input + output tokens for the latest usage date in daily aggregates.
             </div>
           )}
-          <p className="text-2xl font-bold text-orange-500">{totalTokensForDay(latestDay).toLocaleString()}</p>
+          <p className="mt-auto text-[2rem] leading-none font-bold text-orange-500">{totalTokensForDay(latestDay).toLocaleString()}</p>
         </div>
         <div className={`${cardSurfaceClass} p-3 border rounded relative`}>
           <div className="flex items-center justify-between gap-2">
