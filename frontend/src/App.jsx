@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Compass, Database, LineChart as LineChartIcon, Moon, RefreshCw, Sparkles, Sun } from 'lucide-react';
+import { Compass, Database, LineChart as LineChartIcon, Moon, RefreshCw, Settings as SettingsIcon, Sparkles, Sun } from 'lucide-react';
 
 import Dashboard from './Dashboard';
 import MemoryPage from './MemoryPage';
@@ -139,13 +139,20 @@ function App() {
     [theme],
   );
 
+  const actionButtonClass = useMemo(
+    () => (theme === 'light'
+      ? 'bg-orange-50 border border-orange-300 text-orange-800 hover:bg-orange-100'
+      : 'bg-orange-900/20 border border-orange-800/70 text-orange-200 hover:bg-orange-900/30'),
+    [theme],
+  );
+
   const activeTabClass = useMemo(
-    () => (theme === 'light' ? 'bg-gray-200 text-gray-900 border-gray-300' : 'bg-orange-900/40 text-orange-300 border-orange-800'),
+    () => (theme === 'light' ? 'bg-white text-gray-900 border-gray-300 border-b-white' : 'bg-[#0f0f0f] text-orange-300 border-gray-700 border-b-[#0f0f0f]'),
     [theme],
   );
 
   const inactiveTabClass = useMemo(
-    () => (theme === 'light' ? 'bg-white text-gray-900 border-gray-300 hover:bg-gray-100' : 'bg-[#1a1a1a] text-white border-gray-800 hover:bg-gray-800'),
+    () => (theme === 'light' ? 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-white' : 'bg-[#171717] text-gray-300 border-gray-800 hover:bg-[#1d1d1d]'),
     [theme],
   );
 
@@ -234,8 +241,9 @@ function App() {
   return (
     <div className={shellClass}>
       <div className="px-6 pt-6 pb-4 border-b border-gray-800/60">
-        <div className={`flex flex-col md:flex-row md:justify-between md:items-center gap-4 border rounded-lg px-4 py-3 ${theme === 'light' ? 'border-gray-300 bg-gray-50' : 'border-gray-900 bg-[#121212]/90'}`}>
-          <div className="flex items-start gap-3">
+        <div className={`border rounded-lg px-4 py-3 ${theme === 'light' ? 'border-gray-300 bg-gray-50' : 'border-gray-900 bg-[#121212]/90'}`}>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-3">
             <img src="/journal-logo.png" alt="Claw Journal" className="h-8 w-8 rounded-md object-contain" />
             <div>
               <h1 className={`text-xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Claw Journal</h1>
@@ -244,65 +252,75 @@ function App() {
                 OpenClaw observability &middot; Agent reasoning
               </p>
             </div>
-          </div>
+            </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className={`text-[11px] ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`}>
                 {lastSyncLabel}
               </span>
               <button
                 onClick={triggerRefresh}
-                className={`h-7 w-7 rounded border transition flex items-center justify-center ${chromeButtonClass}`}
+                className={`h-7 w-7 rounded border transition flex items-center justify-center ${actionButtonClass}`}
                 title="Refresh"
                 aria-label="Refresh"
                 type="button"
               >
                 <RefreshCw size={14} />
               </button>
+              <button
+                onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
+                className={`h-7 w-7 rounded border transition flex items-center justify-center ${actionButtonClass}`}
+                title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+                aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+                type="button"
+              >
+                {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+              </button>
+              <button
+                onClick={() => setShowSettings(true)}
+                className={`h-7 w-7 rounded border transition flex items-center justify-center ${actionButtonClass}`}
+                title="Settings"
+                aria-label="Settings"
+                type="button"
+              >
+                <SettingsIcon size={14} />
+              </button>
             </div>
-            <button
-              onClick={() => navigateTo('/')}
-              className={`px-3 py-1 text-xs rounded border transition ${isUsage ? activeTabClass : inactiveTabClass}`}
-            >
-              Usage
-            </button>
-            <button
-              onClick={() => navigateTo('/sessions')}
-              className={`px-3 py-1 text-xs rounded border transition ${isSessions ? activeTabClass : inactiveTabClass}`}
-            >
-              Sessions
-            </button>
-            <button
-              onClick={() => navigateTo('/tools')}
-              className={`px-3 py-1 text-xs rounded border transition ${isTools ? activeTabClass : inactiveTabClass}`}
-            >
-              Tools
-            </button>
-            <button
-              onClick={() => navigateTo('/memory')}
-              className={`px-3 py-1 text-xs rounded border transition ${isMemory ? activeTabClass : inactiveTabClass}`}
-            >
-              Memory
-            </button>
-            <button
-              onClick={() => navigateTo('/tootoo')}
-              className={`px-3 py-1 text-xs rounded border transition ${isTooToo ? activeTabClass : inactiveTabClass}`}
-            >
-              TooToo
-            </button>
-            <button
-              onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
-              className={`h-7 w-7 rounded border transition flex items-center justify-center ${chromeButtonClass}`}
-              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-              aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-              type="button"
-            >
-              {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
-            </button>
-            <button onClick={() => setShowSettings(true)} className={`px-3 py-1 text-xs rounded border transition ${chromeButtonClass}`}>
-              Settings
-            </button>
+          </div>
+
+          <div className={`mt-3 border-b ${theme === 'light' ? 'border-gray-300' : 'border-gray-800'} overflow-x-auto`}>
+            <div className="flex items-end gap-1 whitespace-nowrap pb-0">
+              <button
+                onClick={() => navigateTo('/')}
+                className={`px-3 py-1.5 text-xs rounded-t border border-b-0 transition ${isUsage ? activeTabClass : inactiveTabClass}`}
+              >
+                Usage
+              </button>
+              <button
+                onClick={() => navigateTo('/sessions')}
+                className={`px-3 py-1.5 text-xs rounded-t border border-b-0 transition ${isSessions ? activeTabClass : inactiveTabClass}`}
+              >
+                Sessions
+              </button>
+              <button
+                onClick={() => navigateTo('/tools')}
+                className={`px-3 py-1.5 text-xs rounded-t border border-b-0 transition ${isTools ? activeTabClass : inactiveTabClass}`}
+              >
+                Tools
+              </button>
+              <button
+                onClick={() => navigateTo('/memory')}
+                className={`px-3 py-1.5 text-xs rounded-t border border-b-0 transition ${isMemory ? activeTabClass : inactiveTabClass}`}
+              >
+                Memory
+              </button>
+              <button
+                onClick={() => navigateTo('/tootoo')}
+                className={`px-3 py-1.5 text-xs rounded-t border border-b-0 transition ${isTooToo ? activeTabClass : inactiveTabClass}`}
+              >
+                TooToo
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -172,7 +172,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
     loadTabData();
   }, [explorerTab, selectedSessionId, snapshotData.rows.length, snapshotLoading, logsExplorerData, logsExplorerLoading]);
 
-  if (loading) return <div className="bg-[#0a0a0a] min-h-screen text-orange-500 p-10">Loading data...</div>;
+  if (loading) return <div className={`${theme === 'light' ? 'bg-white text-orange-600' : 'bg-[#0a0a0a] text-orange-500'} min-h-screen p-10`}>Loading data...</div>;
   if (error) return <div className="bg-[#0a0a0a] min-h-screen text-red-500 p-10">{error} <button onClick={fetchData} className="underline ml-4">Retry</button></div>;
   if (!data) return null;
 
@@ -429,7 +429,6 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             </span>
           )}
           <span className={runtimePillClass}>Host: Adiis-Mac-mini.localdomain</span>
-          <span className={runtimePillClass}>Sync={String(connectionInfo?.remote?.session_sync_enabled ?? false)}</span>
           <div className="relative inline-flex">
             <button
               type="button"
@@ -480,8 +479,6 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
               </div>
             )}
           </div>
-        </div>
-        <div className="mt-2 flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
           <div className="relative inline-flex">
             <button
               type="button"
@@ -529,20 +526,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
               Total input + output tokens for the latest usage date in daily aggregates.
             </div>
           )}
-          <p className="text-lg font-bold text-orange-500">{totalTokensForDay(latestDay).toLocaleString()}</p>
-          <div className="h-12 mt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={tokenSparklineData}>
-                <defs>
-                  <linearGradient id="kpiTokenSparklineFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f97316" stopOpacity={0.45} />
-                    <stop offset="100%" stopColor="#f97316" stopOpacity={0.05} />
-                  </linearGradient>
-                </defs>
-                <Area type="monotone" dataKey="value" stroke="#f97316" strokeWidth={1.5} fill="url(#kpiTokenSparklineFill)" dot={false} isAnimationActive={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          <p className="text-2xl font-bold text-orange-500">{totalTokensForDay(latestDay).toLocaleString()}</p>
         </div>
         <div className={`${cardSurfaceClass} p-3 border rounded relative`}>
           <div className="flex items-center justify-between gap-2">
@@ -722,11 +706,17 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={userPromptsByDayData} margin={{ top: 0, right: 8, left: 8, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="userPromptsBarGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#fb923c" />
+                    <stop offset="100%" stopColor="#ea580c" />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid stroke="#2a2a2a" strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="day" stroke="#666" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis allowDecimals={false} stroke="#666" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#111', border: '1px solid #333', color: '#fff' }} />
-                <Bar dataKey="count" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={22} />
+                <Bar dataKey="count" fill="url(#userPromptsBarGradient)" radius={[4, 4, 0, 0]} barSize={22} />
               </BarChart>
             </ResponsiveContainer>
           </div>

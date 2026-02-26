@@ -8,6 +8,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <title>Claw Journal</title>
+    <script>
+      (function applyInitialTheme() {
+        try {
+          var savedTheme = localStorage.getItem('cj_theme') || 'dark';
+          var isLight = savedTheme === 'light';
+          document.documentElement.style.backgroundColor = isLight ? '#ffffff' : '#0a0a0a';
+          document.body.style.backgroundColor = isLight ? '#ffffff' : '#0a0a0a';
+          document.body.style.color = isLight ? '#111827' : '#d1d5db';
+        } catch (_) {}
+      }());
+    </script>
   </head>
   <body>
     <div id="root"></div>
