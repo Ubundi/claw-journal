@@ -70,7 +70,8 @@ const TooTooPage = ({ theme = 'dark', onNavigate }) => {
   // Summary stats
   const stats = useMemo(() => {
     if (reviews.length === 0) return null;
-    const scores = reviews.map(r => r.alignment_score);
+    const scores = reviews.map(r => r.alignment_score).filter(s => typeof s === 'number' && !Number.isNaN(s));
+    if (scores.length === 0) return null;
     const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
     const high = Math.max(...scores);
     const low = Math.min(...scores);
@@ -88,7 +89,9 @@ const TooTooPage = ({ theme = 'dark', onNavigate }) => {
       const dt = new Date(value);
       if (Number.isNaN(dt.getTime())) return String(value).slice(0, 16);
       const now = new Date();
-      const diffDays = Math.floor((now.getTime() - dt.getTime()) / 86400000);
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const dtDay = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+      const diffDays = Math.round((today.getTime() - dtDay.getTime()) / 86400000);
       if (diffDays === 0) return `Today ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
       if (diffDays === 1) return `Yesterday ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
       if (diffDays < 7) return dt.toLocaleDateString([], { weekday: 'short' }) + ' ' + dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
