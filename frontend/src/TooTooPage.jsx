@@ -70,7 +70,8 @@ const TooTooPage = ({ theme = 'dark', onNavigate }) => {
   // Summary stats
   const stats = useMemo(() => {
     if (reviews.length === 0) return null;
-    const scores = reviews.map(r => r.alignment_score);
+    const scores = reviews.map(r => r.alignment_score).filter(s => typeof s === 'number' && !Number.isNaN(s));
+    if (scores.length === 0) return null;
     const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
     const high = Math.max(...scores);
     const low = Math.min(...scores);
