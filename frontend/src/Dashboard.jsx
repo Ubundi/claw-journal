@@ -480,7 +480,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
         </div>
       )}
       <div id="overview" className={`${cardSurfaceClass} p-4 rounded border mb-6 scroll-mt-24 relative`}>
-        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
+        <div className="flex flex-nowrap items-center gap-2 whitespace-nowrap pb-1 overflow-visible">
           <p className={`text-sm font-semibold mr-1 whitespace-nowrap ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Runtime Mode</p>
           {/* Runtime pills are currently informational only.
               Enabling selection requires service + API refactors (for example, updating the auto-sync lock, runtime profile persistence, and remote sync guards). */}
