@@ -2,26 +2,29 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, MessageSquare, Shield, Sparkles, Target, Wrench } from 'lucide-react';
 
 export const ScoreRing = ({ score, size = 72 }) => {
-  const pct = Math.max(0, Math.min(1, score));
+  const hasScore = typeof score === 'number' && !Number.isNaN(score);
+  const pct = hasScore ? Math.max(0, Math.min(1, score)) : 0;
   const radius = (size - 8) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - pct);
-  const color = pct >= 0.85 ? '#22c55e' : pct >= 0.7 ? '#f59e0b' : pct >= 0.5 ? '#f97316' : '#ef4444';
-  const bgColor = pct >= 0.85 ? 'rgba(34,197,94,0.1)' : pct >= 0.7 ? 'rgba(245,158,11,0.1)' : pct >= 0.5 ? 'rgba(249,115,22,0.1)' : 'rgba(239,68,68,0.1)';
+  const color = !hasScore ? '#6b7280' : pct >= 0.85 ? '#22c55e' : pct >= 0.7 ? '#f59e0b' : pct >= 0.5 ? '#f97316' : '#ef4444';
+  const bgColor = !hasScore ? 'rgba(107,114,128,0.1)' : pct >= 0.85 ? 'rgba(34,197,94,0.1)' : pct >= 0.7 ? 'rgba(245,158,11,0.1)' : pct >= 0.5 ? 'rgba(249,115,22,0.1)' : 'rgba(239,68,68,0.1)';
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={radius} fill={bgColor} stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
-        <circle
-          cx={size / 2} cy={size / 2} r={radius} fill="none"
-          stroke={color} strokeWidth="3.5" strokeLinecap="round"
-          strokeDasharray={circumference} strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 0.8s ease-out' }}
-        />
+        {hasScore && (
+          <circle
+            cx={size / 2} cy={size / 2} r={radius} fill="none"
+            stroke={color} strokeWidth="3.5" strokeLinecap="round"
+            strokeDasharray={circumference} strokeDashoffset={offset}
+            style={{ transition: 'stroke-dashoffset 0.8s ease-out' }}
+          />
+        )}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-lg font-bold" style={{ color }}>{(pct * 100).toFixed(0)}</span>
+        <span className="text-lg font-bold" style={{ color }}>{hasScore ? (pct * 100).toFixed(0) : '—'}</span>
         <span className="text-[9px] text-gray-500 -mt-0.5">/ 100</span>
       </div>
     </div>
@@ -68,7 +71,9 @@ export const TooTooFeedbackCard = ({ data, isLight, sessionId, onNavigate }) => 
     relevant_beliefs = [], feedback, reasoning, suggested_improvement,
   } = data;
 
-  const scoreLabel = alignment_score >= 0.85 ? 'Strong alignment'
+  const hasValidScore = typeof alignment_score === 'number' && !Number.isNaN(alignment_score);
+  const scoreLabel = !hasValidScore ? 'Unable to score'
+    : alignment_score >= 0.85 ? 'Strong alignment'
     : alignment_score >= 0.7 ? 'Acceptable'
     : alignment_score >= 0.5 ? 'Needs work' : 'Misaligned';
 
