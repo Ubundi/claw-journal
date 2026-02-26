@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
-import { FileText, FolderOpen } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileText, Folder, FolderOpen } from 'lucide-react';
 
 const MemoryPage = ({ theme = 'dark' }) => {
   const [files, setFiles] = useState([]);
@@ -18,6 +18,10 @@ const MemoryPage = ({ theme = 'dark' }) => {
   const [content, setContent] = useState('');
   const [loadingContent, setLoadingContent] = useState(false);
   const [contentError, setContentError] = useState('');
+  const [expandedFolders, setExpandedFolders] = useState({
+    memory: true,
+    workspace: true,
+  });
 
   const isLight = theme === 'light';
   const panelBg = isLight ? 'bg-gray-50 rounded border border-gray-200' : 'bg-[#141414] rounded border border-gray-900';
@@ -61,10 +65,90 @@ const MemoryPage = ({ theme = 'dark' }) => {
   }), [isLight]);
 
   const groupedFiles = useMemo(() => {
+    const normalizePath = (value) => String(value || '').replace(/^\/+/, '').replace(/\\+/g, '/');
+
+    const buildTree = (rows) => {
+      const root = {
+        path: '',
+        folders: {},
+        files: [],
+      };
+
+      for (const row of rows) {
+        const normalized = normalizePath(row.path || row.name || '');
+        const parts = normalized.split('/').filter(Boolean);
+        if (parts.length === 0) {
+          continue;
+        }
+
+        const fileName = parts[parts.length - 1];
+        const folderParts = parts.slice(0, -1);
+
+        let node = root;
+        let folderPath = '';
+        for (const part of folderParts) {
+          folderPath = folderPath ? `${folderPath}/${part}` : part;
+          if (!node.folders[part]) {
+            node.folders[part] = {
+              name: part,
+              path: folderPath,
+              folders: {},
+              files: [],
+            };
+          }
+          node = node.folders[part];
+        }
+
+        node.files.push({
+          ...row,
+          displayName: fileName,
+          normalizedPath: normalized,
+        });
+      }
+
+      const finalizeNode = (node) => {
+        const folderArray = Object.values(node.folders)
+          .map((child) => finalizeNode(child))
+          .sort((left, right) => left.name.localeCompare(right.name));
+        const fileArray = [...node.files]
+          .sort((left, right) => String(left.displayName || '').localeCompare(String(right.displayName || '')));
+        return {
+          ...node,
+          folders: folderArray,
+          files: fileArray,
+        };
+      };
+
+      return finalizeNode(root);
+    };
+
     const memoryRows = files.filter((row) => row.group === 'memory');
     const workspaceRows = files.filter((row) => row.group === 'workspace');
-    return { memoryRows, workspaceRows };
+
+    return {
+      memoryTree: buildTree(memoryRows),
+      workspaceTree: buildTree(workspaceRows),
+    };
   }, [files]);
+
+  const expandPathAncestors = (group, filePath) => {
+    const normalized = String(filePath || '').replace(/^\/+/, '').replace(/\\+/g, '/');
+    const parts = normalized.split('/').filter(Boolean);
+    const folderParts = parts.slice(0, -1);
+
+    if (folderParts.length === 0) return;
+
+    setExpandedFolders((prev) => {
+      const next = { ...prev };
+      let current = group;
+      next[current] = true;
+      for (const part of folderParts) {
+        current = `${current}/${part}`;
+        next[current] = true;
+      }
+      return next;
+    });
+  };
 
   const fetchFiles = async () => {
     try {
@@ -81,7 +165,11 @@ const MemoryPage = ({ theme = 'dark' }) => {
       });
 
       if (!selectedPath || !rows.some((row) => row.path === selectedPath)) {
-        setSelectedPath(rows[0]?.path || '');
+        const firstPath = rows[0]?.path || '';
+        setSelectedPath(firstPath);
+        if (rows[0]?.group && firstPath) {
+          expandPathAncestors(rows[0].group, firstPath);
+        }
       }
     } catch (error) {
       console.error(error);
@@ -130,6 +218,65 @@ const MemoryPage = ({ theme = 'dark' }) => {
     fetchContent(selectedPath);
   }, [selectedPath]);
 
+  const selectedFile = files.find((row) => row.path === selectedPath);
+
+  const toggleFolder = (folderKey) => {
+    setExpandedFolders((prev) => ({
+      ...prev,
+      [folderKey]: !prev[folderKey],
+    }));
+  };
+
+  const renderTree = (node, group, depth = 0) => {
+    const folderItems = node.folders.map((folderNode) => {
+      const folderKey = `${group}/${folderNode.path}`;
+      const isExpanded = Boolean(expandedFolders[folderKey]);
+
+      return (
+        <div key={folderKey}>
+          <button
+            type="button"
+            onClick={() => toggleFolder(folderKey)}
+            className={`w-full text-left px-2 py-1 text-xs rounded transition flex items-center gap-1 ${itemBg}`}
+            style={{ paddingLeft: `${0.5 + (depth * 0.85)}rem` }}
+          >
+            {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            {isExpanded ? <FolderOpen size={12} /> : <Folder size={12} />}
+            <span>{folderNode.name}</span>
+          </button>
+
+          {isExpanded && (
+            <div className="space-y-0.5">
+              {renderTree(folderNode, group, depth + 1)}
+            </div>
+          )}
+        </div>
+      );
+    });
+
+    const fileItems = node.files.map((row) => (
+      <button
+        key={row.path}
+        onClick={() => {
+          setSelectedPath(row.path);
+          expandPathAncestors(group, row.path);
+        }}
+        className={`w-full text-left px-2 py-1 text-xs rounded transition flex items-center gap-2 ${selectedPath === row.path ? selectedBg : itemBg}`}
+        style={{ paddingLeft: `${1.75 + (depth * 0.85)}rem` }}
+      >
+        <FileText size={12} />
+        <span className="truncate">{row.displayName}</span>
+      </button>
+    ));
+
+    return (
+      <>
+        {folderItems}
+        {fileItems}
+      </>
+    );
+  };
+
   useEffect(() => {
     const onRefresh = () => fetchFiles();
     window.addEventListener('cj:refresh', onRefresh);
@@ -169,17 +316,8 @@ const MemoryPage = ({ theme = 'dark' }) => {
                 <p className={`text-[11px] uppercase tracking-wide mb-2 ${isLight ? 'text-gray-600' : 'text-gray-500'}`}>
                   <FolderOpen size={12} className="inline mr-1" /> memory/
                 </p>
-                <div className="space-y-1">
-                  {groupedFiles.memoryRows.map((row) => (
-                    <button
-                      key={row.path}
-                      onClick={() => setSelectedPath(row.path)}
-                      className={`w-full text-left px-2 py-1 text-xs rounded transition ${selectedPath === row.path ? selectedBg : itemBg}`}
-                    >
-                      <FileText size={12} className="inline mr-2" />
-                      {row.name}
-                    </button>
-                  ))}
+                <div className="space-y-0.5">
+                  {renderTree(groupedFiles.memoryTree, 'memory')}
                 </div>
               </div>
 
@@ -187,17 +325,8 @@ const MemoryPage = ({ theme = 'dark' }) => {
                 <p className={`text-[11px] uppercase tracking-wide mb-2 ${isLight ? 'text-gray-600' : 'text-gray-500'}`}>
                   <FolderOpen size={12} className="inline mr-1" /> workspace/
                 </p>
-                <div className="space-y-1">
-                  {groupedFiles.workspaceRows.map((row) => (
-                    <button
-                      key={row.path}
-                      onClick={() => setSelectedPath(row.path)}
-                      className={`w-full text-left px-2 py-1 text-xs rounded transition ${selectedPath === row.path ? selectedBg : itemBg}`}
-                    >
-                      <FileText size={12} className="inline mr-2" />
-                      {row.name}
-                    </button>
-                  ))}
+                <div className="space-y-0.5">
+                  {renderTree(groupedFiles.workspaceTree, 'workspace')}
                 </div>
               </div>
             </div>
@@ -206,7 +335,7 @@ const MemoryPage = ({ theme = 'dark' }) => {
 
         <div className={`${panelBg} lg:col-span-8 p-4 min-h-[520px]`}>
           <p className={`text-[11px] mb-3 ${isLight ? 'text-gray-600' : 'text-gray-500'}`}>
-            {selectedPath || 'Select a file from the explorer'}
+            {selectedFile?.path || selectedPath || 'Select a file from the explorer'}
           </p>
 
           {loadingContent && <p className="text-xs text-gray-500">Loading markdown...</p>}

@@ -154,9 +154,26 @@ If you run periodic deploys with `scripts/sync-claw-journal-remote.sh`, use deta
 Recommended behavior:
 - Cron deploy script should launch `start-dashboard.sh` with `CJ_DETACH=true`.
 - Keep locking enabled (`/tmp/claw-journal-sync.lock`) so overlapping cron runs do not race.
-- Do not force-kill an active lock holder; newer runs should skip while the current deploy finishes.
-- Keep `CJ_SYNC_LOCK_MAX_AGE_SECONDS` comfortably above your cron interval (default `1800`).
+- Keep `CJ_SYNC_LOCK_MAX_AGE_SECONDS` higher than the cron period (default `1800`).
+- Active lock holders should not be force-killed; newer runs should skip while deploy is in progress.
 - Expect brief tunnel interruption only during intentional restarts (ports 3000/5173 are recycled), then auto-recovery.
+- Sync script writes `~/.claw-journal-sync-status.json` so the dashboard can warn users before restart.
+
+What to expect after a push to `main`:
+- During restart, local tunnel output may briefly show `channel ... connect failed: Connection refused`.
+- This is expected while backend/frontend are restarting.
+- If your SSH session remains open, forwarding resumes automatically once health checks pass.
+- If your SSH session exits, reconnect with:
+
+```bash
+ssh -N -o ExitOnForwardFailure=yes -L 5173:127.0.0.1:5173 -L 3000:127.0.0.1:3000 rune
+```
+
+If services did not recover after ~60 seconds:
+
+```bash
+ssh rune 'cd ~/Documents/GitHub/claw-journal && ./scripts/stop-dashboard.sh && CJ_DETACH=true ./scripts/start-dashboard.sh'
+```
 
 Example cron entry (every 5 minutes):
 
@@ -171,6 +188,7 @@ tail -n 120 ~/claw-journal-sync.log
 tail -n 120 ~/Documents/GitHub/claw-journal/data/logs/claw-journal-start.log
 curl -sS http://127.0.0.1:3000/health
 curl -sS http://127.0.0.1:5173/api/system/connection
+cat ~/.claw-journal-sync-status.json
 ```
 
 </details>

@@ -147,7 +147,7 @@ function App() {
   );
 
   const activeTabClass = useMemo(
-    () => (theme === 'light' ? 'bg-white text-gray-900 border-gray-300 border-b-white' : 'bg-[#0f0f0f] text-orange-300 border-gray-700 border-b-[#0f0f0f]'),
+    () => (theme === 'light' ? 'bg-orange-100 text-orange-900 border-orange-300 border-b-orange-100' : 'bg-orange-900/40 text-orange-200 border-orange-700 border-b-orange-900/40'),
     [theme],
   );
 
@@ -240,7 +240,7 @@ function App() {
 
   return (
     <div className={shellClass}>
-      <div className="px-6 pt-6 pb-4 border-b border-gray-800/60">
+      <div className="px-6 pt-6 pb-4">
         <div className={`border rounded-lg px-4 py-3 ${theme === 'light' ? 'border-gray-300 bg-gray-50' : 'border-gray-900 bg-[#121212]/90'}`}>
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-start gap-3">
@@ -326,36 +326,41 @@ function App() {
       </div>
 
       {showSettings && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowSettings(false)} />
-          <div className="relative z-50 w-full max-w-lg p-4">
-            <div className={`rounded shadow-lg p-4 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-[#0b0b0b] text-gray-200'}`}>
-              <h3 className="text-lg font-semibold mb-2">Settings</h3>
-              <label className="block text-sm mb-2">Font Family</label>
-              <div className="flex flex-wrap items-center gap-4 mb-4">
-                <label className="inline-flex items-center gap-2">
-                  <input type="radio" name="font-family" value="mono" checked={fontFamily === 'mono'} onChange={() => setFontFamily('mono')} />
-                  <span style={{ fontFamily: 'monospace' }}>Monospace</span>
-                </label>
-                <label className="inline-flex items-center gap-2">
-                  <input type="radio" name="font-family" value="inter" checked={fontFamily === 'inter'} onChange={() => setFontFamily('inter')} />
-                  <span style={{ fontFamily: 'Inter, sans-serif' }}>Inter</span>
-                </label>
-              </div>
-              <label className="block text-sm mb-2">Font Size</label>
-              <div className="flex items-center gap-4">
-                <label className="inline-flex items-center gap-2">
-                  <input type="radio" name="font-size" value="normal" checked={fontSize === 'normal'} onChange={() => setFontSize('normal')} />
-                  <span>Normal</span>
-                </label>
-                <label className="inline-flex items-center gap-2">
-                  <input type="radio" name="font-size" value="large" checked={fontSize === 'large'} onChange={() => setFontSize('large')} />
-                  <span>Large</span>
-                </label>
-              </div>
-              <div className="mt-4 flex justify-end">
-                <button onClick={() => setShowSettings(false)} className="px-3 py-1 rounded bg-gray-600 text-white">Close</button>
-              </div>
+        <div className="fixed top-20 right-6 z-50 w-[19rem]">
+          <div className={`rounded-lg border shadow-xl p-3 ${theme === 'light' ? 'bg-white text-gray-900 border-gray-300' : 'bg-[#0b0b0b] text-gray-200 border-gray-800'}`}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold">Settings</h3>
+              <button
+                type="button"
+                onClick={() => setShowSettings(false)}
+                className={`text-xs px-2 py-1 rounded border ${theme === 'light' ? 'border-gray-300 text-gray-700 hover:bg-gray-100' : 'border-gray-700 text-gray-300 hover:bg-[#1a1a1a]'}`}
+              >
+                Close
+              </button>
+            </div>
+
+            <label className="block text-xs mb-1">Font Family</label>
+            <div className="flex flex-wrap items-center gap-3 mb-3 text-sm">
+              <label className="inline-flex items-center gap-2">
+                <input type="radio" name="font-family" value="mono" checked={fontFamily === 'mono'} onChange={() => setFontFamily('mono')} />
+                <span style={{ fontFamily: 'monospace' }}>Monospace</span>
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input type="radio" name="font-family" value="inter" checked={fontFamily === 'inter'} onChange={() => setFontFamily('inter')} />
+                <span style={{ fontFamily: 'Inter, sans-serif' }}>Inter</span>
+              </label>
+            </div>
+
+            <label className="block text-xs mb-1">Font Size</label>
+            <div className="flex items-center gap-3 text-sm">
+              <label className="inline-flex items-center gap-2">
+                <input type="radio" name="font-size" value="normal" checked={fontSize === 'normal'} onChange={() => setFontSize('normal')} />
+                <span>Normal</span>
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input type="radio" name="font-size" value="large" checked={fontSize === 'large'} onChange={() => setFontSize('large')} />
+                <span>Large</span>
+              </label>
             </div>
           </div>
         </div>

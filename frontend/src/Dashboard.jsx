@@ -26,6 +26,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
   const [logsExplorerError, setLogsExplorerError] = useState('');
   const [forecast, setForecast] = useState(null);
   const [activeKpiTooltip, setActiveKpiTooltip] = useState('');
+  const [connectionNotice, setConnectionNotice] = useState(null);
 
   const fxRate = Number(conversionRate || 1) > 0 ? Number(conversionRate) : 1;
 
@@ -54,6 +55,27 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
     const date = new Date(number);
     if (Number.isNaN(date.getTime())) return String(value || '-');
     return date.toLocaleString();
+  };
+
+  const deriveConnectionNotice = (info) => {
+    const notice = info?.runtime?.update_notice;
+    if (notice && notice.message) {
+      return {
+        level: notice.level || 'warning',
+        title: notice.title || 'Connection Issue',
+        message: notice.message,
+      };
+    }
+
+    if (info?.runtime?.sync_lock_active) {
+      return {
+        level: 'warning',
+        title: 'Update In Progress',
+        message: 'A sync/deploy lock is active. A brief disconnect may occur while services restart.',
+      };
+    }
+
+    return null;
   };
 
   const fetchData = async () => {
@@ -85,6 +107,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
       setData(dashboardResponse.data);
       setModelCatalog(modelsResponse.data || { available_models: [], used_models: [] });
       setConnectionInfo(connectionResponse.data || null);
+      setConnectionNotice(deriveConnectionNotice(connectionResponse.data || null));
       setForecast(forecastResponse.data || null);
       setLegacyData({
         sessions: sessionsResponse.data?.rows || [],
@@ -172,6 +195,33 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
     loadTabData();
   }, [explorerTab, selectedSessionId, snapshotData.rows.length, snapshotLoading, logsExplorerData, logsExplorerLoading]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const pollConnection = async () => {
+      try {
+        const response = await axios.get('/api/system/connection');
+        if (cancelled) return;
+        const payload = response.data || null;
+        setConnectionInfo(payload);
+        setConnectionNotice(deriveConnectionNotice(payload));
+      } catch (_error) {
+        if (cancelled) return;
+        setConnectionNotice({
+          level: 'error',
+          title: 'Connection Issue',
+          message: 'Dashboard lost connection to the backend. If a deploy/restart is in progress, wait briefly and reconnect your SSH tunnel if needed.',
+        });
+      }
+    };
+
+    const intervalId = window.setInterval(pollConnection, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
   if (loading) return <div className={`${theme === 'light' ? 'bg-white text-orange-600' : 'bg-[#0a0a0a] text-orange-500'} min-h-screen p-10`}>Loading data...</div>;
   if (error) return <div className="bg-[#0a0a0a] min-h-screen text-red-500 p-10">{error} <button onClick={fetchData} className="underline ml-4">Retry</button></div>;
   if (!data) return null;
@@ -188,6 +238,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
     ? 'text-[11px] border rounded px-2 py-[2px] bg-orange-50 text-orange-800 border-orange-200'
     : 'text-[11px] border rounded px-2 py-[2px] bg-orange-900/20 text-orange-200 border-orange-800/70';
   const runtimeInfoButtonClass = `${runtimePillClass} inline-flex items-center gap-1`;
+  const runtimeTooltipPanelClass = 'absolute left-0 top-full mt-1 z-20 min-w-[18rem] max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg';
   const logsPreClass = `text-[11px] font-mono whitespace-pre-wrap break-words ${theme === 'light' ? 'text-gray-800' : 'text-gray-300'}`;
   const sessionOptions = (legacyData?.reconciled || []).map((row) => row.session_id).filter(Boolean);
   const availableModels = Array.isArray(modelCatalog?.available_models) ? modelCatalog.available_models : [];
@@ -408,6 +459,10 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
     );
   };
 
+  const toggleRuntimeTooltip = (key) => {
+    setActiveKpiTooltip((prev) => (prev === key ? '' : key));
+  };
+
   return (
     <div className={`relative min-h-screen p-6 overflow-hidden ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-[#0a0a0a] text-gray-300'}`}>
       <div className="pointer-events-none absolute inset-0">
@@ -416,33 +471,68 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
       </div>
 
       <div className="relative z-10">
+      {connectionNotice && (
+        <div className={`mb-4 border rounded p-4 ${connectionNotice.level === 'error'
+          ? (theme === 'light' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-red-900/25 border-red-800 text-red-200')
+          : (theme === 'light' ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-900/25 border-amber-800 text-amber-200')}`}>
+          <p className="text-base font-bold uppercase tracking-wide">{connectionNotice.title}</p>
+          <p className="text-sm mt-1">{connectionNotice.message}</p>
+        </div>
+      )}
       <div id="overview" className={`${cardSurfaceClass} p-4 rounded border mb-6 scroll-mt-24 relative`}>
         <div className="flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
           <p className={`text-sm font-semibold mr-1 whitespace-nowrap ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Runtime Mode</p>
           {/* Runtime pills are currently informational only.
               Enabling selection requires service + API refactors (for example, updating the auto-sync lock, runtime profile persistence, and remote sync guards). */}
-          <span className={runtimePillClass}>LLM: {profile.auth_mode || 'unknown'}</span>
-          <span className={runtimePillClass}>Billing: {profile.billing_mode || 'unknown'}</span>
+          <div className="relative inline-flex">
+            <button type="button" className={runtimeInfoButtonClass} onClick={() => toggleRuntimeTooltip('runtime:llm')}>
+              LLM: {profile.auth_mode || 'unknown'}
+              <HelpCircle size={12} />
+            </button>
+            {activeKpiTooltip === 'runtime:llm' && (
+              <div className={runtimeTooltipPanelClass}>Current model-access auth mode used by this instance. `oauth` means provider-managed auth flows.</div>
+            )}
+          </div>
+          <div className="relative inline-flex">
+            <button type="button" className={runtimeInfoButtonClass} onClick={() => toggleRuntimeTooltip('runtime:billing')}>
+              Billing: {profile.billing_mode || 'unknown'}
+              <HelpCircle size={12} />
+            </button>
+            {activeKpiTooltip === 'runtime:billing' && (
+              <div className={runtimeTooltipPanelClass}>Active billing interpretation mode for dashboard cost calculations.</div>
+            )}
+          </div>
           {billingMode === 'claude_max' && (
-            <span className={runtimePillClass}>
-              Plan: {formatMoney(profile.claude_max_monthly_usd || 0, 2, 2)}/mo
-            </span>
+            <div className="relative inline-flex">
+              <button type="button" className={runtimeInfoButtonClass} onClick={() => toggleRuntimeTooltip('runtime:plan')}>
+                Plan: {formatMoney(profile.claude_max_monthly_usd || 0, 2, 2)}/mo
+                <HelpCircle size={12} />
+              </button>
+              {activeKpiTooltip === 'runtime:plan' && (
+                <div className={runtimeTooltipPanelClass}>Configured Claude Max monthly plan amount used for subscription-aware cost context.</div>
+              )}
+            </div>
           )}
-          <span className={runtimePillClass}>Host: Adiis-Mac-mini.localdomain</span>
+          <div className="relative inline-flex">
+            <button type="button" className={runtimeInfoButtonClass} onClick={() => toggleRuntimeTooltip('runtime:host')}>
+              Host: Adiis-Mac-mini.localdomain
+              <HelpCircle size={12} />
+            </button>
+            {activeKpiTooltip === 'runtime:host' && (
+              <div className={runtimeTooltipPanelClass}>Hostname where Claw Journal runtime and cron sync jobs are running.</div>
+            )}
+          </div>
           <div className="relative inline-flex">
             <button
               type="button"
               className={runtimeInfoButtonClass}
-              onMouseEnter={() => setActiveKpiTooltip('runtime:token-counting')}
-              onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:token-counting' ? '' : prev))}
-              onFocus={() => setActiveKpiTooltip('runtime:token-counting')}
-              onBlur={() => setActiveKpiTooltip((prev) => (prev === 'runtime:token-counting' ? '' : prev))}
+              onClick={() => toggleRuntimeTooltip('runtime:token-counting')}
             >
               Token Counting
               <HelpCircle size={12} />
             </button>
             {activeKpiTooltip === 'runtime:token-counting' && (
-              <div className="absolute left-0 top-full mt-1 z-20 min-w-[22rem] max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">
+              <div className={runtimeTooltipPanelClass}>
                 <p className="mb-1">Tokens are counted from provider/OpenClaw usage fields (input + output, plus context/cache when present).</p>
                 <p className="mb-1">Other planned counting options are shown below, but not selectable yet.</p>
                 <div className="flex items-center gap-2 mb-1">
@@ -461,16 +551,13 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             <button
               type="button"
               className={runtimeInfoButtonClass}
-              onMouseEnter={() => setActiveKpiTooltip('runtime:glossary')}
-              onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:glossary' ? '' : prev))}
-              onFocus={() => setActiveKpiTooltip('runtime:glossary')}
-              onBlur={() => setActiveKpiTooltip((prev) => (prev === 'runtime:glossary' ? '' : prev))}
+              onClick={() => toggleRuntimeTooltip('runtime:glossary')}
             >
               Glossary
               <HelpCircle size={12} />
             </button>
             {activeKpiTooltip === 'runtime:glossary' && (
-              <div className="absolute left-0 top-full mt-1 z-20 max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">
+              <div className={runtimeTooltipPanelClass}>
                 <p><strong>Agent:</strong> Runtime identity (for example `main` or a subagent) inferred from session key.</p>
                 <p><strong>Conversation:</strong> Channel/thread stream inside an agent (for example `whatsapp:dm:+number` or `cron:job-id`).</p>
                 <p><strong>Session:</strong> A unique `session_id` timeline.</p>
@@ -483,29 +570,32 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
             <button
               type="button"
               className={runtimeInfoButtonClass}
-              onMouseEnter={() => setActiveKpiTooltip('runtime:code-sync')}
-              onMouseLeave={() => setActiveKpiTooltip((prev) => (prev === 'runtime:code-sync' ? '' : prev))}
-              onFocus={() => setActiveKpiTooltip('runtime:code-sync')}
-              onBlur={() => setActiveKpiTooltip((prev) => (prev === 'runtime:code-sync' ? '' : prev))}
+              onClick={() => toggleRuntimeTooltip('runtime:code-sync')}
             >
               Code Sync from GitHub: {formatIsoOrDash(connectionInfo?.runtime?.sync_last_run_at)}
               {connectionInfo?.runtime?.sync_last_run_message ? ` · ${connectionInfo.runtime.sync_last_run_message}` : ''}
               <HelpCircle size={12} />
             </button>
             {activeKpiTooltip === 'runtime:code-sync' && (
-              <div className="absolute left-0 top-full mt-1 z-20 max-w-[26rem] text-[11px] leading-snug bg-[#101010] border border-gray-700 rounded px-3 py-2 text-gray-200 shadow-lg">
+              <div className={runtimeTooltipPanelClass}>
                 Code sync reflects the latest run of the host cron deploy task (`sync-claw-journal.sh`). It checks `origin/main`, pulls new commits when present, restarts services if needed, and logs whether it deployed, skipped, or recovered from lock contention.
               </div>
             )}
           </div>
-          <span className={runtimePillClass}>
-            Auto-Sync Lock: {connectionInfo?.runtime?.sync_lock_active ? `active (${connectionInfo?.runtime?.sync_lock_age_seconds ?? 0}s)` : 'not active.'}
-          </span>
+          <div className="relative inline-flex">
+            <button type="button" className={runtimeInfoButtonClass} onClick={() => toggleRuntimeTooltip('runtime:auto-sync-lock')}>
+              Auto-Sync Lock: {connectionInfo?.runtime?.sync_lock_active ? `active (${connectionInfo?.runtime?.sync_lock_age_seconds ?? 0}s)` : 'not active.'}
+              <HelpCircle size={12} />
+            </button>
+            {activeKpiTooltip === 'runtime:auto-sync-lock' && (
+              <div className={runtimeTooltipPanelClass}>Lock that prevents overlapping cron sync/deploy runs. Active usually means an update or health-recovery cycle is running.</div>
+            )}
+          </div>
         </div>
       </div>
 
       <div id="usage-summary" className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 scroll-mt-24">
-        <div className={`${cardSurfaceClass} p-3 border rounded relative`}>
+        <div className={`${cardSurfaceClass} p-3 border rounded relative flex flex-col`}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] uppercase text-gray-500 mb-1">Tokens Today</p>
             <button
@@ -526,7 +616,7 @@ const Dashboard = ({ theme = 'dark', currency = 'USD', conversionRate = 1 }) => 
               Total input + output tokens for the latest usage date in daily aggregates.
             </div>
           )}
-          <p className="text-2xl font-bold text-orange-500">{totalTokensForDay(latestDay).toLocaleString()}</p>
+          <p className="mt-auto text-[2rem] leading-none font-bold text-orange-500">{totalTokensForDay(latestDay).toLocaleString()}</p>
         </div>
         <div className={`${cardSurfaceClass} p-3 border rounded relative`}>
           <div className="flex items-center justify-between gap-2">
