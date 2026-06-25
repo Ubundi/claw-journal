@@ -2038,7 +2038,7 @@ class UsageRepository:
                           AND c2.role = 'user'
                           AND c2.text_content IS NOT NULL
                           AND c2.text_content != ''
-                        ORDER BY c2.message_ts ASC
+                        ORDER BY COALESCE(NULLIF(c2.event_ts, ''), c2.message_ts) ASC
                         LIMIT 1) AS session_title
                 FROM tool_invocations ti
                 LEFT JOIN thinking_blocks tb ON tb.message_id = ti.message_id
@@ -2078,8 +2078,8 @@ class UsageRepository:
                     COUNT(DISTINCT cm.id) AS message_count,
                     SUM(cm.has_thinking) AS thinking_count,
                     SUM(cm.has_tool_use) AS tool_use_count,
-                    MIN(cm.message_ts) AS first_message_ts,
-                    MAX(cm.message_ts) AS last_message_ts,
+                    MIN(COALESCE(NULLIF(cm.event_ts, ''), cm.message_ts)) AS first_message_ts,
+                    MAX(COALESCE(NULLIF(cm.event_ts, ''), cm.message_ts)) AS last_message_ts,
                     MAX(cm.model) AS model,
                     (SELECT SUBSTR(c2.text_content, 1, 120)
                      FROM conversation_messages c2
@@ -2087,7 +2087,7 @@ class UsageRepository:
                        AND c2.role = 'user'
                        AND c2.text_content IS NOT NULL
                        AND c2.text_content != ''
-                     ORDER BY c2.message_ts ASC
+                     ORDER BY COALESCE(NULLIF(c2.event_ts, ''), c2.message_ts) ASC
                      LIMIT 1) AS display_title,
                     (SELECT SUBSTR(c3.text_content, 1, 120)
                      FROM conversation_messages c3
@@ -2095,7 +2095,7 @@ class UsageRepository:
                        AND c3.role = 'assistant'
                        AND c3.text_content IS NOT NULL
                        AND c3.text_content != ''
-                     ORDER BY c3.message_ts ASC
+                     ORDER BY COALESCE(NULLIF(c3.event_ts, ''), c3.message_ts) ASC
                      LIMIT 1) AS assistant_title
                 FROM conversation_messages cm
                 WHERE cm.session_id IN (
@@ -2305,8 +2305,8 @@ class UsageRepository:
                     COUNT(*) AS message_count,
                     SUM(has_thinking) AS thinking_count,
                     SUM(has_tool_use) AS tool_use_count,
-                    MIN(message_ts) AS first_message_ts,
-                    MAX(message_ts) AS last_message_ts,
+                    MIN(COALESCE(NULLIF(event_ts, ''), message_ts)) AS first_message_ts,
+                    MAX(COALESCE(NULLIF(event_ts, ''), message_ts)) AS last_message_ts,
                     MAX(model) AS model,
                     MAX(source_path) AS source_path,
                     (SELECT SUBSTR(c2.text_content, 1, 120)
@@ -2315,7 +2315,7 @@ class UsageRepository:
                        AND c2.role = 'user'
                        AND c2.text_content IS NOT NULL
                        AND c2.text_content != ''
-                     ORDER BY c2.message_ts ASC
+                     ORDER BY COALESCE(NULLIF(c2.event_ts, ''), c2.message_ts) ASC
                      LIMIT 1) AS display_title,
                     (SELECT SUBSTR(c3.text_content, 1, 120)
                      FROM conversation_messages c3
@@ -2323,7 +2323,7 @@ class UsageRepository:
                        AND c3.role = 'assistant'
                        AND c3.text_content IS NOT NULL
                        AND c3.text_content != ''
-                     ORDER BY c3.message_ts ASC
+                     ORDER BY COALESCE(NULLIF(c3.event_ts, ''), c3.message_ts) ASC
                      LIMIT 1) AS assistant_title
                 FROM conversation_messages
                 GROUP BY session_id
