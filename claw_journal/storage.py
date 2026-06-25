@@ -22,8 +22,15 @@ class UsageRepository:
         self._ensure_schema()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._db_path)
+        # Background ingest/sync loops write continuously. Without WAL + a busy
+        # timeout, concurrent API reads fail immediately with "database is locked"
+        # (intermittent "failed to load" on a live host). WAL lets readers run
+        # alongside the writer; busy_timeout makes any remaining contention wait.
+        conn = sqlite3.connect(self._db_path, timeout=30.0)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA busy_timeout=30000")
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
         return conn
 
     def _ensure_schema(self) -> None:
