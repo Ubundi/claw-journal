@@ -82,7 +82,7 @@ def load_settings() -> Settings:
     port = int(os.getenv("CJ_PORT", "3000"))
     auto_port = _parse_bool(os.getenv("CJ_AUTO_PORT"), True)
     port_search_limit = int(os.getenv("CJ_PORT_SEARCH_LIMIT", "50"))
-    openclaw_log_glob = os.getenv("CJ_OPENCLAW_LOG_GLOB", "/tmp/openclaw/openclaw-*.log")
+    openclaw_log_glob = os.path.expanduser(os.getenv("CJ_OPENCLAW_LOG_GLOB", "/tmp/openclaw/openclaw-*.log"))
     ensure_durable_logs = _parse_bool(os.getenv("CJ_ENSURE_DURABLE_LOGS"), False)
     poll_seconds = float(os.getenv("CJ_POLL_SECONDS", "1.0"))
     remote_enabled = _parse_bool(os.getenv("CJ_REMOTE_ENABLED"), False)
@@ -98,7 +98,7 @@ def load_settings() -> Settings:
     transcript_sync_enabled = _parse_bool(os.getenv("CJ_TRANSCRIPT_SYNC_ENABLED"), True)
     transcript_sync_seconds = float(os.getenv("CJ_TRANSCRIPT_SYNC_SECONDS", "45.0"))
     transcript_glob = os.getenv("CJ_TRANSCRIPT_GLOB", "~/.openclaw/agents/*/sessions/*.jsonl")
-    remote_transcript_glob = os.getenv("CJ_REMOTE_TRANSCRIPT_GLOB", "~/.openclaw/agents/*/sessions/*.jsonl")
+    remote_transcript_glob = os.path.expanduser(os.getenv("CJ_REMOTE_TRANSCRIPT_GLOB", "~/.openclaw/agents/*/sessions/*.jsonl"))
     snapshot_backfill_enabled = _parse_bool(os.getenv("CJ_SNAPSHOT_BACKFILL_ENABLED"), True)
     snapshot_backfill_seconds = float(os.getenv("CJ_SNAPSHOT_BACKFILL_SECONDS", "10.0"))
     cost_estimation_enabled = _parse_bool(os.getenv("CJ_COST_ESTIMATION_ENABLED"), True)
@@ -200,9 +200,8 @@ def load_settings() -> Settings:
             )
 
     transcript_ingest_enabled = _parse_bool(os.getenv("CJ_TRANSCRIPT_INGEST_ENABLED"), True)
-    transcript_glob = os.getenv(
-        "CJ_TRANSCRIPT_GLOB",
-        str(Path("~/.openclaw/agents/*/sessions/*.jsonl").expanduser()),
+    transcript_glob = os.path.expanduser(
+        os.getenv("CJ_TRANSCRIPT_GLOB", "~/.openclaw/agents/*/sessions/*.jsonl")
     )
     transcript_poll_seconds = float(os.getenv("CJ_TRANSCRIPT_POLL_SECONDS", "5.0"))
 

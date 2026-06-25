@@ -2,8 +2,24 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
+
+
+def _detect_openclaw_bin() -> str:
+    """Resolve the openclaw CLI without hardcoding one machine's install path.
+
+    Order: CJ_OPENCLAW_BIN override -> PATH lookup -> bare "openclaw".
+    (Previously hardcoded to the macOS Homebrew path, which broke on Linux hosts.)
+    """
+    return os.environ.get("CJ_OPENCLAW_BIN") or shutil.which("openclaw") or "openclaw"
+
+
+def _detect_path_prefix() -> str:
+    parent = str(Path(_detect_openclaw_bin()).parent)
+    return parent if parent and parent != "." else "/usr/bin"
 
 
 @dataclass(frozen=True)
@@ -15,8 +31,8 @@ class GatewayClientConfig:
 @dataclass(frozen=True)
 class SshGatewayClientConfig:
     ssh_host: str
-    openclaw_bin: str = "/opt/homebrew/bin/openclaw"
-    path_prefix: str = "/opt/homebrew/bin"
+    openclaw_bin: str = field(default_factory=_detect_openclaw_bin)
+    path_prefix: str = field(default_factory=_detect_path_prefix)
 
 
 class GatewayClient:
